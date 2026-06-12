@@ -1,0 +1,37 @@
+<div id="map-content">
+  <h1>Mapa</h1>
+  <div id="map" class="map"> </div>
+
+<!--    <label for="type">Measurement type &nbsp;</label>-->
+<!--    <select id="type">-->
+<!--      <option value="LineString">Length (LineString)</option>-->
+<!--      <option value="Polygon">Area (Polygon)</option>-->
+<!--    </select>-->
+
+      <p-dropdown
+        [options]="valores"
+        [(ngModel)]="selectedValor"
+        optionLabel="value"
+        placeholder="Select el tipo"
+        (ngModelChange)="cambioValor()"/>
+
+
+<!--    <label for="segments">Show segment lengths:&nbsp;</label>-->
+<!--    <input type="checkbox" id="segments" checked />-->
+    <label >Show segment lengths:&nbsp;</label>
+    <p-checkbox
+      [(ngModel)]="checkSegments"
+      [binary]="true"
+      inputId="binary" />
+    &nbsp;&nbsp;&nbsp;&nbsp;
+<!--    <label for="clear">Clear previous measure:&nbsp;</label>-->
+<!--    <input type="checkbox" id="clear" checked />-->
+    <label>Clear previous measure:&nbsp;</label>
+    <p-checkbox
+      [(ngModel)]="checkClear"
+      [binary]="true"
+      inputId="binary"/>
+
+</div>
+
+
