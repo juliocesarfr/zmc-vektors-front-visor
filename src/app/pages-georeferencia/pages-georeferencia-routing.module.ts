@@ -20,6 +20,13 @@ const routes: Routes = [{
                     (m) => m.GisModule
                   ),
               },
+              {
+                path: "catastro",
+                loadChildren: () =>
+                  import("../_pages/catastro/catastro-routing.module").then(
+                    (m) => m.CatastroRoutingModule
+                  ),
+              },
               { path: '', redirectTo:'/main' , pathMatch: 'full'}
             ];
 
