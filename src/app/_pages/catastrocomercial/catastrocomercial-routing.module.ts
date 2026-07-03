@@ -1,13 +1,11 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { CatastrocomercialComponent } from './catastrocomercial.component';
 
 const routes: Routes = [
   {
-    path: "conexiones",
-    loadChildren: () =>
-      import("../catastro/conexiones/conexiones-routing.module").then(
-        (m) => m.ConexionesRoutingModule
-      ),
+    path: '',
+    component: CatastrocomercialComponent
   }
 ];
 
@@ -15,4 +13,4 @@ const routes: Routes = [
   imports: [RouterModule.forChild(routes)],
   exports: [RouterModule]
 })
-export class CatastroRoutingModule { }
+export class CatastrocomercialRoutingModule { }

@@ -1,14 +1,14 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import { ConexionesRoutingModule } from './conexiones-routing.module';
+import { CortesRoutingModule } from './cortes-routing.module';
 
 
 @NgModule({
   declarations: [],
   imports: [
     CommonModule,
-    ConexionesRoutingModule
+    CortesRoutingModule
   ]
 })
-export class ConexionesModule { }
+export class CortesModule { }

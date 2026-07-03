@@ -6,25 +6,25 @@ const routes: Routes = [{
               loadChildren: () =>
                 import("../_pages/main-georeferencia/main-georeferencia.module").then((m) => m.MainGeoreferenciaModule),
               },
-              {
-                path: "georeferencia",
-                loadChildren: () =>
-                  import("../_pages/georeferencia/georeferencia.module").then(
-                    (m) => m.GeoreferenciaModule
-                  ),
-              },
-              {
+             {
                 path: "maps",
                 loadChildren: () =>
                   import("../_pages/gis/gis.module").then(
                     (m) => m.GisModule
                   ),
               },
-              {
-                path: "catastro",
+             {
+                path: "catastrocomercial",
                 loadChildren: () =>
-                  import("../_pages/catastro/catastro-routing.module").then(
-                    (m) => m.CatastroRoutingModule
+                  import("../_pages/catastrocomercial/catastrocomercial-routing.module").then(
+                    (m) => m.CatastrocomercialRoutingModule
+                  ),
+              },
+              {
+                path: "cortes",
+                loadChildren: () =>
+                  import("../_pages/cortes/cortes.module").then(
+                    (m) => m.CortesModule
                   ),
               },
               { path: '', redirectTo:'/main' , pathMatch: 'full'}
