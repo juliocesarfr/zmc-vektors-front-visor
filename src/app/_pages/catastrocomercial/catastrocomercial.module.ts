@@ -1,14 +1,14 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
-import { GeoreferenciaRoutingModule } from './georeferencia-routing.module';
+import { CatastrocomercialRoutingModule } from './catastrocomercial-routing.module';
 
 
 @NgModule({
   declarations: [],
   imports: [
     CommonModule,
-    GeoreferenciaRoutingModule
+    CatastrocomercialRoutingModule
   ]
 })
-export class GeoreferenciaModule { }
+export class CatastrocomercialModule { }

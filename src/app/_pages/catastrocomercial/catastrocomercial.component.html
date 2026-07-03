@@ -1,0 +1,137 @@
+<!-- =========================
+     MAPA
+========================= -->
+<div id="map" class="map"></div>
+
+<!-- =========================
+     PANEL CONEXIONES
+========================= -->
+<div style="
+position:absolute;
+top:150px;
+left:15px;
+z-index:1000;
+background:white;
+padding:15px;
+border-radius:10px;
+box-shadow:0 4px 12px rgba(0,0,0,0.2);
+border:1px solid #ddd;
+min-width:220px;
+font-family:Arial,sans-serif;
+">
+
+  <h4 style="
+    margin-top:0;
+    color:#0066cc;
+    border-bottom:1px solid #ddd;
+    padding-bottom:8px;">
+    Conexiones
+  </h4>
+
+  <label class="capa-item">
+    <input type="checkbox" (change)="toggleLayer('usuarios', $event)">
+    <i class="pi pi-user"></i>
+    Usuarios
+  </label>
+
+  <label class="capa-item">
+    <input type="checkbox" (change)="toggleLayer('lotes', $event)">
+    <i class="pi pi-th-large"></i>
+    Lotes
+  </label>
+
+  <label class="capa-item">
+    <input type="checkbox" (change)="toggleLayer('agua', $event)">
+    <i class="pi pi-map"></i>
+    Acometida Agua
+  </label>
+
+  <label class="capa-item">
+    <input type="checkbox" (change)="toggleLayer('fichaAgua', $event)">
+    <i class="pi pi-file"></i>
+    Ficha Agua
+  </label>
+
+  <label class="capa-item">
+    <input type="checkbox" (change)="toggleLayer('alcantarillado', $event)">
+    <i class="pi pi-map"></i>
+    Acometida Alcantarillado
+  </label>
+
+  <label class="capa-item">
+    <input type="checkbox" (change)="toggleLayer('fichaAlcantarillado', $event)">
+    <i class="pi pi-file"></i>
+    Ficha Alcantarillado
+  </label>
+
+</div>
+
+<!-- =========================
+     PANEL SECTORES
+========================= -->
+<div class="panel-sectores">
+
+  <h4>Sectores</h4>
+
+  <button
+    [class.activo]="sectorActual === '01'"
+    (click)="activarSector('01')">
+    Sector 1
+  </button>
+
+  <button
+    [class.activo]="sectorActual === '02'"
+    (click)="activarSector('02')">
+    Sector 2
+  </button>
+
+  <button
+    [class.activo]="sectorActual === '03'"
+    (click)="activarSector('03')">
+    Sector 3
+  </button>
+
+  <button
+    [class.activo]="sectorActual === '04'"
+    (click)="activarSector('04')">
+    Sector 4
+  </button>
+
+  <button
+    [class.activo]="sectorActual === '05'"
+    (click)="activarSector('05')">
+    Sector 5
+  </button>
+
+  <button
+    [class.activo]="sectorActual === '06'"
+    (click)="activarSector('06')">
+    Sector 6
+  </button>
+
+  <hr>
+
+  <button
+    class="limpiar"
+    (click)="limpiarSector()">
+    Mostrar Todos
+  </button>
+
+</div>
+
+<!-- =========================
+     POPUP
+========================= -->
+<div id="popup" class="ol-popup">
+
+  <a id="popup-closer" class="ol-popup-closer">✖</a>
+
+  <div class="popup-tabs">
+    <button id="tab-lote" class="active">Lote</button>
+    <button id="tab-usuario">Usuario</button>
+    <button id="tab-sector">Sector</button>
+  </div>
+
+  <div id="popup-content"></div>
+
+</div>

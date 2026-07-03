@@ -1,0 +1,136 @@
+<!-- =========================
+     MAPA
+========================= -->
+<div id="map" class="map"></div>
+
+<!-- =========================
+     PANEL CONSULTA
+========================= -->
+<div class="panel-consulta" [class.cerrado]="!panelAbierto">
+
+  <!-- Botón abrir/cerrar -->
+  <button class="toggle-panel" (click)="togglePanel()">
+    {{ panelAbierto ? '◀' : '▶' }}
+  </button>
+
+  <div *ngIf="panelAbierto">
+
+    <h3>🔎 Consulta de Cortes</h3>
+
+    <hr>
+
+    <label>Sede</label>
+    <input type="text" value="YURIMAGUAS" disabled>
+
+    <label>Tipo Operación</label>
+    <input type="text" value="CORTE" disabled>
+
+    <label>Estado</label>
+    <select>
+      <option>Pendiente</option>
+      <option>Atendido</option>
+      <option>Anulado</option>
+    </select>
+
+    <label>N° Corte Inicial</label>
+    <input type="number" value="0">
+
+    <label>N° Corte Final</label>
+    <input type="number" value="99999">
+
+    <label>Fecha Inicio</label>
+    <input type="date">
+
+    <label>Fecha Fin</label>
+    <input type="date">
+
+    <button class="btn-procesar">
+      Procesar
+    </button>
+
+    <button class="btn-limpiar">
+      Limpiar
+    </button>
+
+    <hr>
+
+    <h4>📊 Resumen</h4>
+
+    <div class="cards-resumen">
+
+      <div class="card-resumen">
+        <span class="numero">{{ totalUsuarios }}</span>
+        <span class="titulo">Usuarios</span>
+      </div>
+
+      <div class="card-resumen">
+        <span class="numero">{{ totalLotes }}</span>
+        <span class="titulo">Lotes</span>
+      </div>
+
+      <div class="card-resumen">
+        <span class="numero">{{ sectorResumen }}</span>
+        <span class="titulo">Sector</span>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<!-- =========================
+     PANEL SECTORES
+========================= -->
+<div class="panel-sectores">
+
+  <h4>Sectores</h4>
+
+  <button [class.activo]="sectorActual === '01'" (click)="activarSector('01')">
+    Sector 1
+  </button>
+
+  <button [class.activo]="sectorActual === '02'" (click)="activarSector('02')">
+    Sector 2
+  </button>
+
+  <button [class.activo]="sectorActual === '03'" (click)="activarSector('03')">
+    Sector 3
+  </button>
+
+  <button [class.activo]="sectorActual === '04'" (click)="activarSector('04')">
+    Sector 4
+  </button>
+
+  <button [class.activo]="sectorActual === '05'" (click)="activarSector('05')">
+    Sector 5
+  </button>
+
+  <button [class.activo]="sectorActual === '06'" (click)="activarSector('06')">
+    Sector 6
+  </button>
+
+  <hr>
+
+  <button class="limpiar" (click)="limpiarSector()">
+    Mostrar Todos
+  </button>
+
+</div>
+
+<!-- =========================
+     POPUP
+========================= -->
+<div id="popup" class="ol-popup">
+
+  <a id="popup-closer" class="ol-popup-closer">✖</a>
+
+  <div class="popup-tabs">
+    <button id="tab-lote" class="active">Lote</button>
+    <button id="tab-usuario">Usuario</button>
+    <button id="tab-sector">Sector</button>
+  </div>
+
+  <div id="popup-content"></div>
+
+</div>

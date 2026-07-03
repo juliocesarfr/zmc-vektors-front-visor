@@ -1,0 +1,299 @@
+/* =========================
+   MAPA
+========================= */
+.map {
+  width: 100%;
+  height: 100vh;
+  position: relative;
+}
+
+/* =========================
+   PANEL CONSULTA
+========================= */
+.panel-consulta {
+  position: absolute;
+  top: 140px;
+  left: 10px;
+  width: 340px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 12px;
+  padding: 18px;
+  z-index: 1000;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, .20);
+  transition: all .35s ease;
+}
+
+.panel-consulta.cerrado {
+  width: 45px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.toggle-panel {
+  position: absolute;
+  right: -18px;
+  top: 20px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  background: #1976d2;
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 5px 15px rgba(0,0,0,.25);
+}
+
+.toggle-panel:hover {
+  background: #125aa3;
+}
+
+.panel-consulta h3 {
+  margin: 0 0 15px;
+  text-align: center;
+  color: #1976d2;
+}
+
+.panel-consulta h4 {
+  margin-top: 20px;
+  text-align: center;
+  color: #444;
+}
+
+.panel-consulta hr {
+  margin: 15px 0;
+}
+
+.panel-consulta label {
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #444;
+}
+
+.panel-consulta input,
+.panel-consulta select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+
+.panel-consulta input:disabled {
+  background: #efefef;
+}
+
+.btn-procesar {
+  width: 100%;
+  padding: 10px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #28a745;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  transition: .2s;
+}
+
+.btn-procesar:hover {
+  background: #218838;
+}
+
+.btn-limpiar {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 8px;
+  background: #1976d2;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  transition: .2s;
+}
+
+.btn-limpiar:hover {
+  background: #125aa3;
+}
+
+/* =========================
+   RESUMEN
+========================= */
+.cards-resumen {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.card-resumen {
+  flex: 1;
+  background: #f7f7f7;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+}
+
+.card-resumen .numero {
+  display: block;
+  font-size: 22px;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+.card-resumen .titulo {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #666;
+}
+
+/* =========================
+   PANEL SECTORES
+========================= */
+.panel-sectores {
+  position: absolute;
+  top: 80px;
+  right: 20px;
+  z-index: 1000;
+  background: rgba(255,255,255,.97);
+  padding: 12px;
+  border-radius: 12px;
+  width: 190px;
+  box-shadow: 0 8px 25px rgba(0,0,0,.20);
+  font-family: Arial, sans-serif;
+}
+
+.panel-sectores h4 {
+  margin: 0 0 10px;
+  text-align: center;
+}
+
+.panel-sectores button {
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #f2f2f2;
+  transition: .2s;
+}
+
+.panel-sectores button:hover {
+  background: #ddd;
+}
+
+.panel-sectores button.activo {
+  background: #1976d2;
+  color: white;
+}
+
+.panel-sectores .limpiar {
+  background: #dc3545;
+  color: white;
+}
+
+.panel-sectores .limpiar:hover {
+  background: #b52a37;
+}
+
+/* =========================
+   POPUP
+========================= */
+.ol-popup {
+  position: absolute;
+  background: #fff;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  min-width: 280px;
+  max-width: 320px;
+  box-shadow: 0 10px 25px rgba(0,0,0,.25);
+  transform: translate(-50%, -100%);
+}
+
+.ol-popup::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 10px;
+  border-style: solid;
+  border-color: white transparent transparent transparent;
+}
+
+.ol-popup-closer {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #666;
+}
+
+.ol-popup-closer:hover {
+  color: #000;
+}
+
+/* =========================
+   TABS
+========================= */
+.popup-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.popup-tabs button {
+  flex: 1;
+  padding: 5px;
+  font-size: 12px;
+  border: none;
+  border-radius: 5px;
+  background: #eee;
+  cursor: pointer;
+}
+
+.popup-tabs button:hover {
+  background: #ddd;
+}
+
+.popup-tabs button.active {
+  background: #1976d2;
+  color: white;
+}
+
+/* =========================
+   CONTENIDO POPUP
+========================= */
+#popup-content {
+  font-size: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#popup-content h4 {
+  margin: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 3px;
+}
+
+#popup-content pre {
+  background: #f7f7f7;
+  padding: 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  overflow-x: auto;
+}
