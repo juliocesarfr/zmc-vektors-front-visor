@@ -1,0 +1,250 @@
+:host {
+  display: block;
+}
+
+.cd-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 175px); // ajusta al alto real de tu header + breadcrumb
+  min-height: 500px;
+}
+
+// ===== TOOLBAR =====
+.cd-toolbar {
+  background: #fff;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+
+  .cd-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    img {
+      width: 36px;
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #1e293b;
+
+      span {
+        font-weight: 400;
+        color: #64748b;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .cd-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    // los float-label necesitan aire arriba para la etiqueta
+    padding-top: 14px;
+  }
+}
+
+// ===== CONTENEDOR DEL MAPA =====
+.cd-map-container {
+  position: relative;
+  flex: 1;
+  min-height: 0; // clave en flex: sin esto el hijo no encoge y el mapa desborda
+
+  .map {
+    width: 100%;
+    height: 100%;
+    background: #eef2f5;
+  }
+}
+
+// ===== RESUMEN FLOTANTE =====
+.cd-resumen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+
+  .card-resumen {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(4px);
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    padding: 8px 16px;
+    text-align: center;
+    border-top: 3px solid #64748b;
+
+    &.ok {
+      border-top-color: #22c55e;
+    }
+    &.warn {
+      border-top-color: #f97316;
+    }
+
+    .numero {
+      display: block;
+      font-size: 20px;
+      font-weight: 800;
+      color: #1e293b;
+      line-height: 1.1;
+    }
+    .titulo {
+      font-size: 11px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+  }
+}
+
+// ===== LEYENDA FLOTANTE =====
+.cd-leyenda {
+  position: absolute;
+  bottom: 24px;
+  left: 12px;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #334155;
+  line-height: 1.9;
+
+  .leyenda-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #1e293b;
+
+    .cerrar {
+      cursor: pointer;
+      color: #94a3b8;
+      font-size: 12px;
+      &:hover {
+        color: #ef4444;
+      }
+    }
+  }
+
+  .punto {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+    margin-right: 7px;
+    vertical-align: middle;
+  }
+  .verde {
+    background: #22c55e;
+  }
+  .rojo {
+    background: #ef4444;
+  }
+  .naranja {
+    background: #f97316;
+  }
+  .azul {
+    background: #3b82f6;
+  }
+}
+
+.cd-leyenda-toggle {
+  position: absolute;
+  bottom: 24px;
+  left: 12px;
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  color: #334155;
+  cursor: pointer;
+  &:hover {
+    background: #f1f5f9;
+  }
+}
+
+// ===== POPUP OL =====
+.ol-popup {
+  position: absolute;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+  padding: 12px 14px;
+  min-width: 290px;
+  max-width: 360px;
+  bottom: 14px;
+  left: -50px;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 48px;
+    border: 10px solid transparent;
+    border-top-color: #fff;
+  }
+
+  .popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+
+    .cerrar {
+      cursor: pointer;
+      color: #94a3b8;
+      &:hover {
+        color: #ef4444;
+      }
+    }
+  }
+
+  .popup-propietario {
+    font-weight: 700;
+    font-size: 13px;
+    color: #1e293b;
+    margin-bottom: 6px;
+  }
+}
+
+.tabla-popup {
+  width: 100%;
+  font-size: 12px;
+  border-collapse: collapse;
+
+  tr:nth-child(odd) {
+    background: #f8fafc;
+  }
+
+  td {
+    padding: 3px 8px;
+    vertical-align: top;
+
+    &:first-child {
+      color: #64748b;
+      font-weight: 600;
+      white-space: nowrap;
+      width: 92px;
+    }
+  }
+}
