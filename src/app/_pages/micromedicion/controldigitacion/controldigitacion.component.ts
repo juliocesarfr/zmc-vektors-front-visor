@@ -3,10 +3,14 @@ import {
   AfterViewInit,
   OnInit,
   CUSTOM_ELEMENTS_SCHEMA,
+  HostListener,
 } from "@angular/core";
 import { CommonModule, DatePipe } from "@angular/common";
 import { HttpClient } from "@angular/common/http";
 import { transform } from "ol/proj";
+import { environment } from "projects/environments/environment";
+import { forkJoin, of } from "rxjs";
+import { catchError } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -57,7 +61,6 @@ import { TagModule } from "primeng/tag";
 })
 export class ControldigitacionComponent implements OnInit, AfterViewInit {
   map!: OlMap;
-  popup!: Overlay;
   lecturasLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
 
@@ -153,6 +156,23 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   selectedTipoPromedio: any = null;
   private coordenadasGeoServer = new Map<number, number[]>(); // codernadas geoserver
 
+  // ==================================
+  // IMÁGENES DEL POPUP
+  // ==================================
+  imagenesPopup: any[] = [];
+  cargandoImagenes = false;
+  datosClientePopup: any = null;
+  imagenAbierta: string | null = null; // lightbox
+  imagenAbiertaIndex = -1;
+  imagenZoom = 1;                       // zoom del lightbox
+
+  private readonly TIPOS_RECEPCION_IMG = [
+    { tipo: "000" }, { tipo: "050" }, { tipo: "046" }, { tipo: "045" },
+    { tipo: "044" }, { tipo: "043" }, { tipo: "042" }, { tipo: "041" },
+    { tipo: "040" }, { tipo: "039" }, { tipo: "038" }, { tipo: "037" },
+    { tipo: "004" }, { tipo: "003" },
+  ];
+
   private cargarCoordenadasGeoServer(): Promise<void> {
     const url =
       "http://167.88.36.54:8085/geoserver/eps_yurimaguas/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=eps_yurimaguas:usuarios_xy&outputFormat=application/json";
@@ -226,7 +246,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
 
   ngAfterViewInit(): void {
     this.crearMapa();
-    this.initPopup();
     this.initClick();
     this.cargarCoordenadasGeoServer(); // para cordenadas geoserver
     // el layout de la toolbar puede cambiar el alto del contenedor tras el primer render
@@ -371,7 +390,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
 
     source.clear();
 
-    this.popup.setPosition(undefined);
     this.lecturaSeleccionada = null;
 
     this.totalLecturas = lecturas.length;
@@ -449,7 +467,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
 
   private limpiarCapa(): void {
     this.lecturasLayer?.getSource()?.clear();
-    this.popup?.setPosition(undefined);
     this.lecturaSeleccionada = null;
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
@@ -511,17 +528,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   //==================================
   // POPUP
   //==================================
-  private initPopup(): void {
-    const container = document.getElementById("popup")!;
-    this.popup = new Overlay({
-      element: container,
-      autoPan: { animation: { duration: 250 } },
-    });
-    this.map.addOverlay(this.popup);
-  }
-
   cerrarPopup(): void {
-    this.popup.setPosition(undefined);
     this.lecturaSeleccionada = null;
   }
 
@@ -532,10 +539,143 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
       });
       if (feature) {
         this.lecturaSeleccionada = feature.getProperties();
-        this.popup.setPosition(evt.coordinate);
+        this.cargarDatosPopup(this.lecturaSeleccionada);
       } else {
         this.cerrarPopup();
       }
+    });
+  }
+
+  // ==================================
+  // LIGHTBOX
+  // ==================================
+  abrirImagenCompleta(index: number): void {
+    if (index >= 0 && index < this.imagenesPopup.length) {
+      this.imagenAbiertaIndex = index;
+      this.imagenAbierta = this.imagenesPopup[index].src;
+      this.imagenZoom = 1;
+    }
+  }
+
+  cerrarImagenCompleta(): void {
+    this.imagenAbierta = null;
+    this.imagenAbiertaIndex = -1;
+    this.imagenZoom = 1;
+  }
+
+  siguienteImagen(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (this.imagenesPopup.length === 0) return;
+    const nextIndex = (this.imagenAbiertaIndex + 1) % this.imagenesPopup.length;
+    this.abrirImagenCompleta(nextIndex);
+  }
+
+  anteriorImagen(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (this.imagenesPopup.length === 0) return;
+    const prevIndex = (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) % this.imagenesPopup.length;
+    this.abrirImagenCompleta(prevIndex);
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  handleKeyboardEvent(event: KeyboardEvent) {
+    if (!this.imagenAbierta) return;
+    if (event.key === 'ArrowRight') {
+      this.siguienteImagen();
+    } else if (event.key === 'ArrowLeft') {
+      this.anteriorImagen();
+    } else if (event.key === 'Escape') {
+      this.cerrarImagenCompleta();
+    }
+  }
+
+  zoomIn(): void  { this.imagenZoom = Math.min(this.imagenZoom + 0.25, 5); }
+  zoomOut(): void { this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25); }
+  resetZoom(): void { this.imagenZoom = 1; }
+
+  onWheelZoom(e: WheelEvent): void {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.15 : -0.15;
+    this.imagenZoom = Math.min(Math.max(this.imagenZoom + delta, 0.25), 5);
+  }
+
+  // ==================================
+  // CARGA DE DATOS DEL POPUP
+  // ==================================
+  private cargarDatosPopup(lectura: any): void {
+    this.imagenesPopup = [];
+    this.datosClientePopup = null;
+    this.cargandoImagenes = true;
+
+    const codsuc = lectura.codsuc || this.selectedSucursal?.codsuc || '002';
+    const codcliente = lectura.codcliente;
+
+    // Calcular rango de últimos 2 meses
+    const hoy = new Date();
+    const fechaFinal = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+    const fechaInicial = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatDate = (d: Date) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    const payloadImg = {
+      codsuc,
+      codcliente,
+      fecha_inicial: formatDate(fechaInicial),
+      fecha_final: formatDate(fechaFinal),
+      tipoarchivo: 'IMG',
+      tiporecepcion: this.TIPOS_RECEPCION_IMG,
+    };
+
+    const urlImg = `${environment.HOST_API_EXTERNA}ftp/generico/download/read_x_tipo`;
+    // Endpoint ficha catastral completa: devuelve {clie, pred, calidad, conx_agua, medidor_cliente, unidades}
+    const urlCliente = `${environment.HOST_API_CATASTRO}clientes/obtiene-datos-ficha-catastral/${codsuc}/${codcliente}`;
+
+    forkJoin({
+      imagenes: this.http.post<any>(urlImg, payloadImg).pipe(catchError(() => of({ mensaje: 'ERROR', data: [] }))),
+      cliente: this.http.get<any>(urlCliente).pipe(catchError(() => of(null))),
+    }).subscribe({
+      next: ({ imagenes, cliente }) => {
+        this.cargandoImagenes = false;
+
+        // Aplanar: datos principales en clientes/clie, sub-objetos con prefijo _
+        if (cliente) {
+          const clie = cliente.clie || cliente.clientes || {};
+          this.datosClientePopup = {
+            ...clie,
+            _predio:       cliente.pred        || cliente.predio        || {},
+            _medidor:      cliente.medidor_cliente || cliente.medidor   || {},
+            _conexionAgua: cliente.conx_agua   || cliente.conexion_agua || {},
+            _calidad:      cliente.calidad     || {},
+          };
+        }
+
+        if (imagenes?.mensaje === 'EXITO' && imagenes?.data?.length > 0) {
+          this.imagenesPopup = imagenes.data
+            .filter((e: any) => {
+              if (e.tiporecepcionimages) {
+                return !e.tiporecepcionimages.includes('FIRMA');
+              }
+              return true;
+            })
+            .map((e: any) => ({
+              ...e,
+              src: e.img64?.startsWith('data:')
+                ? e.img64
+                : 'data:image/jpeg;base64,' + e.img64,
+            }));
+        } else {
+          this.imagenesPopup = [];
+        }
+      },
+      error: () => {
+        this.cargandoImagenes = false;
+      },
     });
   }
 }
