@@ -34,7 +34,7 @@ const routes: Routes = [{
                     (m) => m.ControldigitacionComponent,
                   ),
               },
-              { path: '', redirectTo:'/main' , pathMatch: 'full'},
+              //{ path: '', redirectTo:'/main' , pathMatch: 'full'},
             ];
 
 @NgModule({
