@@ -6,78 +6,42 @@
        BARRA DE FILTROS (arriba)
   ========================= -->
   <div class="cd-toolbar">
-
     <div class="cd-title">
       <img src="assets/images/img-medicion/writing.png" alt="control" />
       <h3>CONTROL DIGITACIÓN <span>| Mapa</span></h3>
     </div>
 
     <div class="cd-filtros">
-
       <span class="p-float-label">
-        <p-dropdown
-          [options]="dataCiclos"
-          [(ngModel)]="selectedCiclo"
-          optionLabel="descripcion"
-          (ngModelChange)="onCicloChange()"
-          [style]="{ width: '160px' }"
-          placeholder="Ciclos"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
+          (ngModelChange)="onCicloChange()" [style]="{ width: '160px' }" placeholder="Ciclos"
+          [appendTo]="'body'"></p-dropdown>
         <label>Seleccionar el Ciclo</label>
       </span>
 
       <span class="p-float-label" *ngIf="fechaCiclos">
-        <p-dropdown
-          [options]="listaMeses"
-          [(ngModel)]="selectedMes"
-          optionLabel="mes"
-          optionValue="numero"
-          [style]="{ width: '130px' }"
-          placeholder="Mes"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
+          [style]="{ width: '130px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
         <label>Mes</label>
       </span>
 
       <span class="p-float-label" *ngIf="fechaCiclos">
-        <p-dropdown
-          [options]="listaYear"
-          [(ngModel)]="selectedAnio"
-          optionLabel="anio"
-          optionValue="anio"
-          [style]="{ width: '110px' }"
-          placeholder="Año"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
+          [style]="{ width: '110px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
         <label>Año</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedCiclo">
-        <p-dropdown
-          [options]="listaSucursalesxusr"
-          [(ngModel)]="selectedSucursal"
-          optionLabel="nombre"
-          (ngModelChange)="onSucursalChange()"
-          [style]="{ width: '190px' }"
-          placeholder="Sucursales"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="listaSucursalesxusr" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+          (ngModelChange)="onSucursalChange()" [style]="{ width: '190px' }" placeholder="Sucursales"
+          [appendTo]="'body'"></p-dropdown>
         <label>Seleccionar Sucursal</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown
-          [options]="totalSectores2"
-          [(ngModel)]="selectedSector"
-          optionLabel="descripcion"
-          [filter]="true"
-          filterBy="descripcion"
-          [showClear]="true"
-          [style]="{ width: '190px' }"
-          placeholder="Sector"
-          [appendTo]="'body'"
-        >
+        <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion" [filter]="true"
+          filterBy="descripcion" [showClear]="true" [style]="{ width: '190px' }" placeholder="Sector"
+          [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
             <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
           </ng-template>
@@ -89,73 +53,111 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-multiSelect
-          [options]="lista_estadolec"
-          [(ngModel)]="selectedEstados"
-          optionLabel="descripcion"
-          optionValue="codigo"
-          [filter]="true"
-          [showClear]="true"
-          [style]="{ width: '230px' }"
-          placeholder="Estados de Lectura"
-          [appendTo]="'body'"
-          [maxSelectedLabels]="1"
-          selectedItemsLabel="{0} estados"
-        >
+        <p-multiSelect [options]="lista_estadolec" [(ngModel)]="selectedEstados" optionLabel="descripcion"
+          optionValue="codigo" [filter]="true" [showClear]="true" [style]="{ width: '230px' }"
+          placeholder="Estados de Lectura" [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} estados">
           <ng-template let-estado pTemplate="item">
             <div>({{ estado.codigo }}) - {{ estado.descripcion }}</div>
           </ng-template>
         </p-multiSelect>
         <label>Estado de Lectura</label>
       </span>
-
+<span class="p-float-label" *ngIf="selectedSucursal">
+  <p-dropdown
+    [options]="tipopromedio"
+    [(ngModel)]="selectedTipoPromedio"
+    optionLabel="descripcion"
+    [showClear]="true"
+    [style]="{ width: '160px' }"
+    placeholder="Tipo Promedio"
+    [appendTo]="'body'"
+  ></p-dropdown>
+  <label>Tipo Promedio</label>
+</span>
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-inputNumber
-          [(ngModel)]="consumoini"
-          [style]="{ width: '110px' }"
-          inputStyleClass="w-full"
-          [showButtons]="false"
-        ></p-inputNumber>
+    <p-inputNumber
+      [(ngModel)]="consumoini"
+      [style]="{ width: '110px' }"
+      inputStyleClass="w-full"
+      [showButtons]="false"
+      [max]="99999"
+    ></p-inputNumber>
         <label>Consumo Ini.</label>
       </span>
 
-      <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-inputNumber
-          [(ngModel)]="consumofin"
-          [style]="{ width: '110px' }"
-          inputStyleClass="w-full"
-          [showButtons]="false"
-        ></p-inputNumber>
-        <label>Consumo Fin.</label>
-      </span>
+ <span class="p-float-label" *ngIf="selectedSucursal">
+  <p-inputNumber
+    [(ngModel)]="consumofin"
+    [style]="{ width: '110px' }"
+    inputStyleClass="w-full"
+    [showButtons]="false"
+    [max]="99999"
+  ></p-inputNumber>
+  <label>Consumo Fin.</label>
+</span>
 
-      <p-button
-        *ngIf="selectedSucursal"
-        (click)="procesar()"
-        icon="pi pi-cog"
-        label="PROCESAR"
-        severity="warning"
-        [loading]="cargando"
-      ></p-button>
+<p-button
+  *ngIf="selectedSucursal"
+  (click)="procesar()"
+  icon="pi pi-cog"
+  label="PROCESAR"
+  severity="warning"
+  [loading]="cargando"
+></p-button>
 
-      <p-button
-        *ngIf="selectedSucursal"
-        (click)="limpiar()"
-        icon="pi pi-filter-slash"
-        label="Limpiar"
-        [outlined]="true"
-      ></p-button>
-
+<p-button
+  *ngIf="selectedSucursal"
+  (click)="limpiar()"
+  icon="pi pi-filter-slash"
+  label="Limpiar"
+  [outlined]="true"
+></p-button> 
     </div>
   </div>
 
   <!-- =========================
        MAPA
   ========================= -->
+  <!-- =========================
+       MAPA
+  ========================= -->
   <div class="cd-map-container">
     <div id="map" class="map"></div>
 
-    <!-- RESUMEN flotante -->
+    <!-- MENÚ LATERAL GIS -->
+    <div class="gis-sidebar-container">
+      <div class="gis-sidebar-panel" *ngIf="sidebarOpen">
+        <!-- CAPAS BASE -->
+        <div class="sidebar-title">CAPAS BASE</div>
+        <div class="base-layers">
+          <button *ngFor="let l of baseLayers" 
+                  [class.active]="l.id === baseActive"
+                  (click)="setBaseLayer(l.id)">
+            <span class="icon">{{ l.icon }}</span>
+            <span>{{ l.label }}</span>
+          </button>
+        </div>
+        <div class="divider"></div>
+        <!-- CAPAS COMERCIALES -->
+        <div class="sidebar-title">CAPAS COMERCIALES</div>
+        <div class="commercial-layers">
+          <div class="c-layer" *ngFor="let l of commercialLayers" (click)="toggleCommercialLayer(l)">
+            <span [class.active-text]="l.active">{{ l.label }}</span>
+            <div class="custom-toggle" [class.on]="l.active">
+              <div class="toggle-circle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="sidebar-toggle-btn" 
+              [class.closed]="!sidebarOpen"
+              (click)="toggleSidebar()" 
+              [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
+        {{ sidebarOpen ? '◀' : '▶' }}
+      </button>
+    </div>
+
+    <!-- RESUMEN -->
     <div class="cd-resumen" *ngIf="totalLecturas > 0">
       <div class="card-resumen">
         <span class="numero">{{ totalLecturas }}</span>
@@ -171,7 +173,7 @@
       </div>
     </div>
 
-    <!-- LEYENDA flotante -->
+    <!-- LEYENDA -->
     <div class="cd-leyenda" *ngIf="mostrarLeyenda">
       <div class="leyenda-header">
         <span><i class="pi pi-map-marker"></i> Leyenda</span>
@@ -182,43 +184,114 @@
       <div><span class="punto naranja"></span> No registró lectura</div>
       <div><span class="punto azul"></span> Otras observaciones</div>
     </div>
-    <button
-      class="cd-leyenda-toggle"
-      *ngIf="!mostrarLeyenda"
-      (click)="mostrarLeyenda = true"
-      title="Mostrar leyenda"
-    >
+    <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda" (click)="mostrarLeyenda = true">
       <i class="pi pi-map-marker"></i>
     </button>
 
-    <!-- POPUP OL -->
-    <div id="popup" class="ol-popup">
+    <div id="popup" class="ol-popup light-theme-grid">
       <div *ngIf="lecturaSeleccionada">
-        <div class="popup-header">
-          <p-tag
-            severity="success"
-            [value]="'Cliente ' + lecturaSeleccionada.codcliente"
-          ></p-tag>
+        
+        <!-- Header -->
+        <div class="popup-header-light">
+          <div class="title">
+            <i class="pi pi-clone logo-icon"></i> DETALLE DE LECTURA 
+          </div>
           <i class="pi pi-times cerrar" (click)="cerrarPopup()"></i>
         </div>
-        <div class="popup-propietario">{{ lecturaSeleccionada.propietario }}</div>
-        <table class="tabla-popup">
-          <tr><td>Nro. Medidor</td><td>{{ lecturaSeleccionada.nromed }}</td></tr>
-          <tr><td>L. Anterior</td><td>{{ lecturaSeleccionada.lecturaanterior }}</td></tr>
-          <tr><td>L. Última</td><td>{{ lecturaSeleccionada.lecturaultima }}</td></tr>
-          <tr><td>Consumo</td><td><strong>{{ lecturaSeleccionada.consumo }}</strong></td></tr>
-          <tr><td>Est. Lectura</td>
-              <td>{{ lecturaSeleccionada.estadolectura }} - {{ lecturaSeleccionada.tipoestlectura }}</td></tr>
-          <tr><td>Est. Medidor</td>
-              <td>{{ lecturaSeleccionada.estadomed }} - {{ lecturaSeleccionada.estadomedidor }}</td></tr>
-          <tr><td>Inspector</td><td>{{ lecturaSeleccionada.inspector }}</td></tr>
-          <tr><td>Observación</td><td>{{ lecturaSeleccionada.obslectura }}</td></tr>
-          <tr><td>Sector</td><td>{{ lecturaSeleccionada.codsector }} {{ lecturaSeleccionada.sector }}</td></tr>
-          <tr><td>Dirección</td>
-              <td>{{ lecturaSeleccionada.descripcioncorta }} {{ lecturaSeleccionada.descripcioncalle }} {{ lecturaSeleccionada.nrocalle }}</td></tr>
-        </table>
+
+        <div class="popup-scroll-content">
+          
+          <!-- Tarjeta Titular Principal -->
+          <div class="card-titular">
+            <div class="icon-user"><i class="pi pi-user"></i></div>
+            <div class="info">
+              <small>TITULAR DEL PREDIO</small>
+              <strong>{{ lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
+            </div>
+          </div>
+
+          <!-- Grid de Datos -->
+          <div class="grid-datos">
+            
+            <div class="data-card highlight">
+              <i class="pi pi-bolt"></i>
+              <div><small>CÓDIGO CLIENTE</small><strong>{{ lecturaSeleccionada.codcliente || '-' }}</strong></div>
+            </div>
+
+            <div class="data-card">
+              <i class="pi pi-server"></i>
+              <div><small>NRO. MEDIDOR</small><strong>{{ lecturaSeleccionada.nromed || '-' }}</strong></div>
+            </div>
+            
+            <div class="data-card">
+              <i class="pi pi-history"></i>
+              <div><small>L. ANTERIOR</small><strong>{{ lecturaSeleccionada.lecturaanterior || '0' }}</strong></div>
+            </div>
+            
+            <div class="data-card">
+              <i class="pi pi-clock"></i>
+              <div><small>L. ÚLTIMA</small><strong>{{ lecturaSeleccionada.lecturaultima || '0' }}</strong></div>
+            </div>
+            
+            <div class="data-card highlight-warning">
+              <i class="pi pi-chart-line"></i>
+              <div><small>CONSUMO</small><strong>{{ lecturaSeleccionada.consumo || '0' }}</strong></div>
+            </div>
+            
+            <div class="data-card">
+              <i class="pi pi-sitemap"></i>
+              <div><small>SECTOR</small><strong>{{ lecturaSeleccionada.codsector || '' }} {{ lecturaSeleccionada.sector || '-' }}</strong></div>
+            </div>
+            
+            <!-- Tarjetas de ancho completo para textos largos -->
+            <div class="data-card full-width">
+              <i class="pi pi-map-marker"></i>
+              <div><small>DIRECCIÓN</small><strong>{{ lecturaSeleccionada.descripcioncorta || '' }} {{ lecturaSeleccionada.descripcioncalle || '' }} {{ lecturaSeleccionada.nrocalle || '-' }}</strong></div>
+            </div>
+
+            <div class="data-card full-width">
+              <i class="pi pi-eye"></i>
+              <div><small>ESTADO DE LECTURA</small><strong>{{ lecturaSeleccionada.estadolectura || '' }} - {{ lecturaSeleccionada.tipoestlectura || '-' }}</strong></div>
+            </div>
+            
+            <div class="data-card full-width">
+              <i class="pi pi-cog"></i>
+              <div><small>ESTADO DEL MEDIDOR</small><strong>{{ lecturaSeleccionada.estadomed || '' }} - {{ lecturaSeleccionada.estadomedidor || '-' }}</strong></div>
+            </div>
+            
+            <div class="data-card full-width">
+              <i class="pi pi-id-card"></i>
+              <div><small>INSPECTOR</small><strong>{{ lecturaSeleccionada.inspector || '-' }}</strong></div>
+            </div>
+            
+            <div class="data-card full-width">
+              <i class="pi pi-exclamation-circle"></i>
+              <div><small>OBSERVACIÓN</small><strong>{{ lecturaSeleccionada.obslectura || 'Ninguna' }}</strong></div>
+            </div>
+
+          </div>
+
+          <!-- Carrusel de Imágenes Horizontal -->
+          <div class="images-scroll">
+            <ng-container *ngIf="lecturaSeleccionada.imagenes && lecturaSeleccionada.imagenes.length > 0; else noImage">
+              <img *ngFor="let img of lecturaSeleccionada.imagenes" 
+                  [src]="img" 
+                  (error)="$any($event.target).src='assets/images/no-image.png'" 
+                  alt="Evidencia" />
+            </ng-container>
+            <ng-template #noImage>
+              <img [src]="lecturaSeleccionada.url_imagen || 'assets/images/no-image.png'" 
+                  (error)="$any($event.target).src='assets/images/no-image.png'" 
+                  alt="Evidencia" />
+            </ng-template>
+          </div>
+
+        </div>
       </div>
     </div>
-
+ 
+    <button class="user-bottom-btn">
+       FLORES RIOS CESAR (CESAR)
+    </button>
   </div>
 </div>

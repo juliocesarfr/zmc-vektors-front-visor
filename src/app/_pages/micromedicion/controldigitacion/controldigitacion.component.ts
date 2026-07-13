@@ -42,13 +42,14 @@ import { TagModule } from "primeng/tag";
   standalone: true,
   imports: [
     CommonModule,
-  FormsModule,
-  DropdownModule,
-  MultiSelectModule,
-  ButtonModule,
-  InputNumberModule,
-  ToastModule,
-  TagModule,],
+    FormsModule,
+    DropdownModule,
+    MultiSelectModule,
+    ButtonModule,
+    InputNumberModule,
+    ToastModule,
+    TagModule,
+  ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
   providers: [DatePipe, ValidacionSistemaService, MessageService],
@@ -72,14 +73,14 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   totalSectores2: any[] = [];
   lista_estadolec: any[] = [];
 
-  selectedCiclo: any = null;       // objeto ciclo
-  selectedSucursal: any = null;    // objeto sucursal
-  selectedSector: any = null;      // objeto sector ('%' = todos)
+  selectedCiclo: any = null; // objeto ciclo
+  selectedSucursal: any = null; // objeto sucursal
+  selectedSector: any = null; // objeto sector ('%' = todos)
   selectedEstados: string[] = [];
   selectedAnio: string = "";
   selectedMes: string = "";
-  consumoini: number | null = null;
-  consumofin: number | null = null;
+  consumoini: number | null = 0;
+  consumofin: number | null = 99999;
 
   listaYear: any[] = [];
   listaMeses: any[] = [
@@ -96,6 +97,50 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     { mes: "NOVIEMBRE", numero: "11" },
     { mes: "DICIEMBRE", numero: "12" },
   ];
+  tipopromedio: any[] = [
+    { descripcion: "MEDIDO", codigo: "0" },
+    { descripcion: "ASIGNADO", codigo: "1" },
+    { descripcion: "PROMEDIADO", codigo: "1" },
+  ];
+  //sidebar capas
+  // Variables de estado para el sidebar
+  sidebarOpen: boolean = true;
+  baseActive: string | null = "osm";
+
+  // Datos de las capas
+  baseLayers = [
+    { id: "osm", label: "OSM", icon: "◉" },
+    { id: "satelital", label: "Satelital", icon: "⊡" },
+  ];
+
+  commercialLayers = [
+    { id: "usuarios", label: "Usuarios", active: true },
+    { id: "caja_agua", label: "Caja Ficha Agua", active: false },
+    { id: "acometida", label: "Acometida de Agua", active: false },
+    { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
+    { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
+    { id: "ruta_lectura", label: "Ruta Lectura", active: false },
+    { id: "ruta_reparto", label: "Ruta Reparto", active: false },
+    { id: "sec_lectura", label: "Secuencia Lectura", active: false },
+    { id: "sec_reparto", label: "Secuencia Reparto", active: false },
+    { id: "lotes", label: "Lotes", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
+    { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "calles", label: "Calles", active: false },
+  ];
+
+  // Métodos de interacción
+  toggleSidebar() {
+    this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  setBaseLayer(id: string) {
+    this.baseActive = this.baseActive === id ? null : id;
+  }
+
+  toggleCommercialLayer(layer: any) {
+    layer.active = !layer.active;
+  }
 
   //==================================
   // ESTADO UI / RESUMEN
@@ -105,67 +150,48 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   totalSinCoordenadas = 0;
   lecturaSeleccionada: any = null;
   mostrarLeyenda = true;
-   private coordenadasGeoServer = new Map<number, number[]>(); // codernadas geoserver
+  selectedTipoPromedio: any = null;
+  private coordenadasGeoServer = new Map<number, number[]>(); // codernadas geoserver
 
-   private cargarCoordenadasGeoServer(): Promise<void> {
+  private cargarCoordenadasGeoServer(): Promise<void> {
+    const url =
+      "http://167.88.36.54:8085/geoserver/eps_yurimaguas/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=eps_yurimaguas:usuarios_xy&outputFormat=application/json";
 
-const url =
-"http://167.88.36.54:8085/geoserver/eps_yurimaguas/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=eps_yurimaguas:usuarios_xy&outputFormat=application/json";
+    return new Promise((resolve, reject) => {
+      console.log(url);
 
-  return new Promise((resolve, reject) => {
-    console.log(url);
+      this.http.get<any>(url).subscribe({
+        next: (geojson) => {
+          console.log(geojson);
 
-this.http.get<any>(url).subscribe({
+          this.coordenadasGeoServer.clear();
+          console.log("========== CARGANDO COORDENADAS ==========");
 
-next: (geojson) => {
-  console.log(geojson);
+          geojson.features.forEach((f: any) => {
+            console.log("Total coordenadas:", this.coordenadasGeoServer.size);
+            console.log("Tamaño del Map:", this.coordenadasGeoServer.size);
+            //console.log("Coordenada 130687:", this.coordenadasGeoServer.get(130687));
 
- this.coordenadasGeoServer.clear();
- console.log("========== CARGANDO COORDENADAS ==========");
+            const suministro = Number(f.properties.SUMINISTRO);
 
- geojson.features.forEach((f:any)=>{
-  console.log("Total coordenadas:", this.coordenadasGeoServer.size);
-  console.log("Tamaño del Map:", this.coordenadasGeoServer.size);
-//console.log("Coordenada 130687:", this.coordenadasGeoServer.get(130687));
+            if (!suministro) return;
 
-   const suministro = Number(f.properties.SUMINISTRO);
+            this.coordenadasGeoServer.set(suministro, f.geometry.coordinates);
+          });
 
-   if(!suministro) return;
+          console.log("Coordenadas cargadas:", geojson.features.length);
 
+          resolve();
+        },
 
-   this.coordenadasGeoServer.set(
-      suministro,
-      f.geometry.coordinates
-   );
+        error: (error) => {
+          console.error("ERROR GEOSERVER:", error);
 
- });
-
-
-console.log("Coordenadas cargadas:", geojson.features.length);
-
-
- resolve();
-
-},
-
-
-error:(error)=>{
-
- console.error(
- "ERROR GEOSERVER:",
- error
- );
-
- reject(error);
-
-}
-
-
-});
-
-});
-
-} // fin de constructor para traer  cordenadas de geoserver
+          reject(error);
+        },
+      });
+    });
+  } // fin de constructor para traer  cordenadas de geoserver
 
   constructor(
     private aperturaservices: AperturaMicromedicionService,
@@ -182,6 +208,7 @@ error:(error)=>{
     for (let i = 0; i <= 5; i++) {
       this.listaYear.push({ anio: (currentYear - i).toString() });
     }
+    this.selectedTipoPromedio = this.tipopromedio[0]; // default: MEDIDO
   }
 
   ngOnInit(): void {
@@ -201,12 +228,11 @@ error:(error)=>{
     this.crearMapa();
     this.initPopup();
     this.initClick();
-    this.cargarCoordenadasGeoServer();// para cordenadas geoserver
+    this.cargarCoordenadasGeoServer(); // para cordenadas geoserver
     // el layout de la toolbar puede cambiar el alto del contenedor tras el primer render
     setTimeout(() => this.map.updateSize(), 300);
   }
-//// crear mapa
-
+  //// crear mapa
 
   //==================================
   // CASCADA DE FILTROS
@@ -298,145 +324,122 @@ error:(error)=>{
       estadolectura: (this.selectedEstados || []).join(","),
       consumoini: this.consumoini,
       consumofin: this.consumofin,
+      tipopromedio: this.selectedTipoPromedio?.codigo ?? "",
     };
 
-   this.cargando = true;
+    this.cargando = true;
 
-this.cargarCoordenadasGeoServer().then(() => { // para cordenadas geoserver
+    this.cargarCoordenadasGeoServer()
+      .then(() => {
+        // para cordenadas geoserver
 
-  this.micromedicionService.listarLecturas(filtro).subscribe({
+        this.micromedicionService.listarLecturas(filtro).subscribe({
+          next: (data) => {
+            this.cargando = false;
 
-    next: (data) => {
+            console.log("API:", data.data);
 
-      this.cargando = false;
+            this.pintarLecturas(data.data || []);
+          },
 
-      console.log("API:", data.data);
+          error: () => {
+            this.cargando = false;
 
-      this.pintarLecturas(data.data || []);
+            this.limpiarCapa();
 
-    },
+            this.messageService.add({
+              severity: "error",
+              summary: "Aviso de usuario",
+              detail: "Ocurrió un error al cargar las lecturas",
+            });
+          },
+        });
+      })
+      .catch(() => {
+        this.cargando = false;
 
-    error: () => {
+        this.messageService.add({
+          severity: "error",
+          summary: "GeoServer",
+          detail: "No se pudieron cargar las coordenadas",
+        });
+      }); // fin de cargar coordenadas geoserver
+  }
 
-      this.cargando = false;
+  private pintarLecturas(lecturas: any[]): void {
+    const source = this.lecturasLayer.getSource()!;
 
-      this.limpiarCapa();
+    source.clear();
 
-      this.messageService.add({
-        severity: "error",
-        summary: "Aviso de usuario",
-        detail: "Ocurrió un error al cargar las lecturas",
+    this.popup.setPosition(undefined);
+    this.lecturaSeleccionada = null;
+
+    this.totalLecturas = lecturas.length;
+    this.totalSinCoordenadas = 0;
+
+    const features: Feature[] = [];
+
+    lecturas.forEach((l) => {
+      const suministro = Number(l.codcliente);
+
+      const coordenada = this.coordenadasGeoServer.get(suministro);
+
+      console.log(
+        "Suministro:",
+        suministro,
+        "Existe:",
+        this.coordenadasGeoServer.has(suministro),
+      );
+
+      if (!coordenada) {
+        this.totalSinCoordenadas++;
+        return;
+      }
+
+      const punto = transform(coordenada, "EPSG:32718", "EPSG:4326");
+      console.log("UTM:", coordenada);
+      console.log("Transformado:", punto);
+
+      const feature = new Feature({
+        geometry: new Point(punto),
       });
 
-    }
+      feature.setProperties(l);
 
-  });
-
-}).catch(() => {
-
-  this.cargando = false;
-
-  this.messageService.add({
-    severity: "error",
-    summary: "GeoServer",
-    detail: "No se pudieron cargar las coordenadas",
-  });
-
-}); // fin de cargar coordenadas geoserver
-  }
-
-private pintarLecturas(lecturas: any[]): void {
-
-  const source = this.lecturasLayer.getSource()!;
-
-  source.clear();
-
-  this.popup.setPosition(undefined);
-  this.lecturaSeleccionada = null;
-
-  this.totalLecturas = lecturas.length;
-  this.totalSinCoordenadas = 0;
-
-  const features: Feature[] = [];
-
-  lecturas.forEach((l) => {
-
-  const suministro = Number(l.codcliente);
-
-const coordenada = this.coordenadasGeoServer.get(suministro);
-
-console.log(
-  "Suministro:",
-  suministro,
-  "Existe:",
-  this.coordenadasGeoServer.has(suministro)
-);
-
-if (!coordenada) {
-  this.totalSinCoordenadas++;
-  return;
-}
-
-
-  const punto = transform(
-  coordenada,
-  "EPSG:32718",
-  "EPSG:4326"
-  );
-  console.log("UTM:", coordenada);
-console.log("Transformado:", punto);
-
-
-const feature = new Feature({
-  geometry: new Point(punto)
-});
-
-
-    feature.setProperties(l);
-
-
-    features.push(feature);
-
-
-  });
-
-
-  source.addFeatures(features);
-
-
-  if (features.length > 0) {
-  const extent = source.getExtent();
-  if (extent) {
-    this.map.getView().fit(extent, {
-      duration: 800,
-      maxZoom: 18,
-      padding: [60, 60, 60, 60]
+      features.push(feature);
     });
+
+    source.addFeatures(features);
+
+    if (features.length > 0) {
+      const extent = source.getExtent();
+      if (extent) {
+        this.map.getView().fit(extent, {
+          duration: 800,
+          maxZoom: 18,
+          padding: [60, 60, 60, 60],
+        });
+      }
+      this.messageService.add({
+        severity: "success",
+        summary: "Proceso completado",
+        detail: `${features.length} lecturas en el mapa`,
+      });
+    } else {
+      this.messageService.add({
+        severity: "info",
+        summary: "Aviso",
+        detail: "No se encontraron coordenadas",
+      });
+    }
   }
-  this.messageService.add({
-    severity: "success",
-    summary: "Proceso completado",
-    detail: `${features.length} lecturas en el mapa`
-  });
-} else {
-  this.messageService.add({
-    severity: "info",
-    summary: "Aviso",
-    detail: "No se encontraron coordenadas"
-  });
-}
-}
 
   limpiar(): void {
-
- this.selectedSector = this.totalSectores2.length > 0
-    ? this.totalSectores2[0]
-    : null;
-
     this.selectedSector = this.totalSectores2?.[0] || null;
     this.selectedEstados = [];
-    this.consumoini = null;
-    this.consumofin = null;
+    this.consumoini = 0;
+    this.consumofin = 99999;
+    this.selectedTipoPromedio = null; // nuevo
     if (this.fechaCiclos) {
       this.selectedAnio = this.fechaCiclos.year;
       this.selectedMes = this.fechaCiclos.month;
@@ -459,18 +462,18 @@ const feature = new Feature({
     const base = new LayerGroup({
       layers: [new TileLayer({ source: new OSM(), visible: true })],
     });
-      //==== capa de lotes (WMS) ====
-  this.lotesLayer = new TileLayer({
-  source: new TileWMS({
-    url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
-    params: {
-      LAYERS: "eps_yurimaguas:yurimaguas_sig_lotes",
-      TILED: false,
-    },
-    serverType: "geoserver",
-    transition: 0,
-  }),
-});
+    //==== capa de lotes (WMS) ====
+    this.lotesLayer = new TileLayer({
+      source: new TileWMS({
+        url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+        params: {
+          LAYERS: "eps_yurimaguas:yurimaguas_sig_lotes",
+          TILED: false,
+        },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
     this.lecturasLayer = new VectorLayer({
       source: new VectorSource(),
       style: (feature) => this.estiloLectura(feature),
@@ -478,11 +481,7 @@ const feature = new Feature({
 
     this.map = new OlMap({
       target: "map",
-     layers: [
-        base,
-         this.lotesLayer,
-        this.lecturasLayer,
-],
+      layers: [base, this.lotesLayer, this.lecturasLayer],
       view: new View({
         projection: "EPSG:4326",
         center: [-76.1223, -5.9018], // ---Yurimaguas)
@@ -494,9 +493,11 @@ const feature = new Feature({
   private estiloLectura(feature: any): Style {
     const estado = feature.get("estadolectura");
     let color = "#22c55e"; // 000 normal → verde
-    if (estado === "008") color = "#ef4444";                          // atípico → rojo
-    else if (estado === "003" || estado === "999") color = "#f97316"; // sin registro → naranja
-    else if (estado !== "000") color = "#3b82f6";                     // observados → azul
+    if (estado === "008")
+      color = "#ef4444"; // atípico → rojo
+    else if (estado === "003" || estado === "999")
+      color = "#f97316"; // sin registro → naranja
+    else if (estado !== "000") color = "#3b82f6"; // observados → azul
 
     return new Style({
       image: new CircleStyle({

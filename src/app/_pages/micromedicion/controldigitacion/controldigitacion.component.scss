@@ -248,3 +248,324 @@
     }
   }
 }
+
+
+.gis-sidebar-container {
+  position: absolute;
+  margin-left: 20px;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  font-family: 'Segoe UI', Arial, sans-serif;
+
+  .gis-sidebar-panel {
+    width: 220px;
+    background: #ffffff;
+    border: 1px solid #d0dbe3;
+    border-radius: 3px 0 0 3px;
+    box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 250px);
+    overflow: hidden;
+  }
+
+  .sidebar-title {
+    border-left: 3px solid #00bcd4;
+    padding-left: 10px;
+    margin: 10px 0 4px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #5a8fa0;
+    letter-spacing: 1.2px;
+  }
+
+  .base-layers {
+    display: flex;
+    gap: 5px;
+    padding: 0 8px 10px;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 3px;
+      border: 1px solid #c8d8e0;
+      background: #f5f8fa;
+      color: #7a9aaa;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      .icon {
+        font-size: 9px;
+      }
+
+      &.active {
+        border-color: #00bcd4;
+        background: rgba(0, 188, 212, 0.08);
+        color: #009aad;
+      }
+    }
+  }
+
+  .divider {
+    height: 1px;
+    background: #e0eaf0;
+  }
+
+  .commercial-layers {
+    overflow-y: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    .c-layer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-bottom: 1px solid #edf2f5;
+      cursor: pointer;
+
+      span {
+        font-size: 11px;
+        color: #8aacbc;
+        &.active-text {
+          color: #1a2d3e;
+        }
+      }
+
+      .custom-toggle {
+        width: 36px;
+        height: 18px;
+        border-radius: 9px;
+        background: #c5d0d8;
+        border: 1px solid #aebec8;
+        position: relative;
+        flex-shrink: 0;
+        transition: background 0.18s, border-color 0.18s;
+
+        .toggle-circle {
+          position: absolute;
+          top: 1px;
+          left: 1px;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #fff;
+          transition: left 0.18s;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        }
+
+        &.on {
+          background: #1a73e8;
+          border-color: #1560c0;
+
+          .toggle-circle {
+            left: 19px;
+          }
+        }
+      }
+    }
+  }
+
+  .sidebar-toggle-btn {
+    width: 20px;
+    align-self: stretch;
+    background: #009aad;
+    border: none;
+    border-radius: 0 3px 3px 0;
+    color: #ffffff;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+    writing-mode: vertical-lr; // Mantiene el estilo vertical del texto
+    letter-spacing: 1px;
+    transition: border-radius 0.2s;
+
+    &.closed {
+      border-radius: 3px;
+    }
+  }
+}
+
+
+/* =========================
+   POPUP OL - ESTILO CLARO CON GRID
+========================= */
+.ol-popup.light-theme-grid {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid #cbd5e1;
+  padding: 16px 14px;
+  min-width: 340px;
+  max-width: 360px;
+  bottom: 14px;
+  left: -50px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  
+  /* Triángulo del popup hacia abajo */
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 48px;
+    border: 10px solid transparent;
+    border-top-color: #ffffff;
+  }
+  &::before {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 48px;
+    border: 10px solid transparent;
+    border-top-color: #cbd5e1;
+    margin-top: 1px; /* Para el borde del triángulo */
+    z-index: -1;
+  }
+
+  .popup-header-light {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+
+    .title {
+      font-weight: 800;
+      color: #1e293b;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .logo-icon { 
+        color: #1a73e8;
+        font-size: 14px; 
+      }
+    }
+
+    .cerrar {
+      color: #94a3b8;
+      cursor: pointer;
+      &:hover { color: #ef4444; }
+    }
+  }
+
+  .popup-scroll-content {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 4px;
+    
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  }
+
+  /* Tarjeta Titular Principal */
+  .card-titular {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #f8fafc;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+
+    .icon-user {
+      background: #e0f2fe;
+      color: #0284c7;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .info {
+      display: flex;
+      flex-direction: column;
+      small { color: #64748b; font-size: 9px; font-weight: 700; }
+      strong { color: #0f172a; font-size: 14px; font-weight: 800; }
+    }
+  }
+
+  /* Grid 2 Columnas */
+  .grid-datos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+
+    .data-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+
+      i { color: #94a3b8; font-size: 16px; }
+      
+      div {
+        display: flex;
+        flex-direction: column;
+        small { color: #64748b; font-size: 8px; font-weight: 700; text-transform: uppercase; }
+        strong { color: #1e293b; font-size: 12px; font-weight: 700; margin-top: 2px; }
+      }
+
+      /* Resaltados */
+      &.highlight {
+        border-color: #bfdbfe;
+        background: #eff6ff;
+        i { color: #3b82f6; }
+      }
+      &.highlight-warning {
+        border-color: #fde68a;
+        background: #fffbeb;
+        i { color: #d97706; }
+        strong { color: #b45309; font-size: 13px; }
+      }
+      &.full-width {
+        grid-column: span 2;
+      }
+    }
+  }
+
+  /* Galería de imágenes horizontal */
+  .images-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+
+    &::-webkit-scrollbar { height: 6px; }
+    &::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    img {
+      height: 110px;
+      width: 140px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      flex-shrink: 0;
+    }
+  }
+}
