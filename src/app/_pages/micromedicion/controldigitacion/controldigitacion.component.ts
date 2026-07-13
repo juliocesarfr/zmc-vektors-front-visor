@@ -4,15 +4,18 @@ import {
   OnInit,
   CUSTOM_ELEMENTS_SCHEMA,
 } from "@angular/core";
-import { DatePipe } from "@angular/common";
+import { CommonModule, DatePipe } from "@angular/common";
+import { HttpClient } from "@angular/common/http";
+import { transform } from "ol/proj";
 
-import Map from "ol/Map";
+import OlMap from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import LayerGroup from "ol/layer/Group";
 import OSM from "ol/source/OSM";
 import VectorSource from "ol/source/Vector";
+import TileWMS from "ol/source/TileWMS";
 import Overlay from "ol/Overlay";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
@@ -25,22 +28,38 @@ import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.service";
 import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
-import { PrimeNGModule } from "@host/_modulos/primeng.module";
 import { ValidacionSistemaService } from "@host/_servicios/validar/validacion-sistema.service";
+import { FormsModule } from "@angular/forms";
+import { DropdownModule } from "primeng/dropdown";
+import { ButtonModule } from "primeng/button";
+import { MultiSelectModule } from "primeng/multiselect";
+import { InputNumberModule } from "primeng/inputnumber";
+import { ToastModule } from "primeng/toast";
+import { TagModule } from "primeng/tag";
 
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
-  imports: [PrimeNGModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    DropdownModule,
+    MultiSelectModule,
+    ButtonModule,
+    InputNumberModule,
+    ToastModule,
+    TagModule,
+  ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
   providers: [DatePipe, ValidacionSistemaService, MessageService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent implements OnInit, AfterViewInit {
-  map!: Map;
+  map!: OlMap;
   popup!: Overlay;
   lecturasLayer!: VectorLayer<VectorSource>;
+  lotesLayer!: TileLayer<TileWMS>;
 
   //==================================
   // FILTROS
@@ -60,8 +79,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   selectedEstados: string[] = [];
   selectedAnio: string = "";
   selectedMes: string = "";
-  consumoini: number | null = null;
-  consumofin: number | null = null;
+  consumoini: number | null = 0;
+  consumofin: number | null = 99999;
 
   listaYear: any[] = [];
   listaMeses: any[] = [
@@ -91,6 +110,48 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   totalSinCoordenadas = 0;
   lecturaSeleccionada: any = null;
   mostrarLeyenda = true;
+  selectedTipoPromedio: any = null;
+  private coordenadasGeoServer = new Map<number, number[]>(); // codernadas geoserver
+
+  private cargarCoordenadasGeoServer(): Promise<void> {
+    const url =
+      "http://167.88.36.54:8085/geoserver/eps_yurimaguas/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=eps_yurimaguas:usuarios_xy&outputFormat=application/json";
+
+    return new Promise((resolve, reject) => {
+      console.log(url);
+
+      this.http.get<any>(url).subscribe({
+        next: (geojson) => {
+          console.log(geojson);
+
+          this.coordenadasGeoServer.clear();
+          console.log("========== CARGANDO COORDENADAS ==========");
+
+          geojson.features.forEach((f: any) => {
+            console.log("Total coordenadas:", this.coordenadasGeoServer.size);
+            console.log("Tamaño del Map:", this.coordenadasGeoServer.size);
+            //console.log("Coordenada 130687:", this.coordenadasGeoServer.get(130687));
+
+            const suministro = Number(f.properties.SUMINISTRO);
+
+            if (!suministro) return;
+
+            this.coordenadasGeoServer.set(suministro, f.geometry.coordinates);
+          });
+
+          console.log("Coordenadas cargadas:", geojson.features.length);
+
+          resolve();
+        },
+
+        error: (error) => {
+          console.error("ERROR GEOSERVER:", error);
+
+          reject(error);
+        },
+      });
+    });
+  } // fin de constructor para traer  cordenadas de geoserver
 
   constructor(
     private aperturaservices: AperturaMicromedicionService,
@@ -99,6 +160,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     private consultaService: ConsulGenericService,
     private micromedicionService: MicromedicionService,
     private messageService: MessageService,
+    private http: HttpClient,
   ) {
     this._codsede = sessionStorage.getItem("codsede");
     this._codemp = sessionStorage.getItem("codemp");
@@ -106,6 +168,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     for (let i = 0; i <= 5; i++) {
       this.listaYear.push({ anio: (currentYear - i).toString() });
     }
+    this.selectedTipoPromedio = this.tipopromedio[0]; // default: MEDIDO
   }
 
   ngOnInit(): void {
@@ -125,9 +188,11 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     this.crearMapa();
     this.initPopup();
     this.initClick();
+    this.cargarCoordenadasGeoServer(); // para cordenadas geoserver
     // el layout de la toolbar puede cambiar el alto del contenedor tras el primer render
     setTimeout(() => this.map.updateSize(), 300);
   }
+  //// crear mapa
 
   //==================================
   // CASCADA DE FILTROS
@@ -219,29 +284,53 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
       estadolectura: (this.selectedEstados || []).join(","),
       consumoini: this.consumoini,
       consumofin: this.consumofin,
+      tipopromedio: this.selectedTipoPromedio?.codigo ?? "",
     };
 
     this.cargando = true;
-    this.micromedicionService.listarLecturas(filtro).subscribe({
-      next: (data) => {
+
+    this.cargarCoordenadasGeoServer()
+      .then(() => {
+        // para cordenadas geoserver
+
+        this.micromedicionService.listarLecturas(filtro).subscribe({
+          next: (data) => {
+            this.cargando = false;
+
+            console.log("API:", data.data);
+
+            this.pintarLecturas(data.data || []);
+          },
+
+          error: () => {
+            this.cargando = false;
+
+            this.limpiarCapa();
+
+            this.messageService.add({
+              severity: "error",
+              summary: "Aviso de usuario",
+              detail: "Ocurrió un error al cargar las lecturas",
+            });
+          },
+        });
+      })
+      .catch(() => {
         this.cargando = false;
-        this.pintarLecturas(data.data || []);
-      },
-      error: () => {
-        this.cargando = false;
-        this.limpiarCapa();
+
         this.messageService.add({
           severity: "error",
-          summary: "Aviso de usuario",
-          detail: "Ocurrió un error al cargar las lecturas",
+          summary: "GeoServer",
+          detail: "No se pudieron cargar las coordenadas",
         });
-      },
-    });
+      }); // fin de cargar coordenadas geoserver
   }
 
   private pintarLecturas(lecturas: any[]): void {
     const source = this.lecturasLayer.getSource()!;
+
     source.clear();
+
     this.popup.setPosition(undefined);
     this.lecturaSeleccionada = null;
 
@@ -249,43 +338,58 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     this.totalSinCoordenadas = 0;
 
     const features: Feature[] = [];
+
     lecturas.forEach((l) => {
-      const lat = parseFloat(l.latitud);
-      const lon = parseFloat(l.longitud);
-      if (!isFinite(lat) || !isFinite(lon) || (lat === 0 && lon === 0)) {
+      const suministro = Number(l.codcliente);
+
+      const coordenada = this.coordenadasGeoServer.get(suministro);
+
+      console.log(
+        "Suministro:",
+        suministro,
+        "Existe:",
+        this.coordenadasGeoServer.has(suministro),
+      );
+
+      if (!coordenada) {
         this.totalSinCoordenadas++;
         return;
       }
-      const f = new Feature({ geometry: new Point([lon, lat]) });
-      f.setProperties(l);
-      features.push(f);
+
+      const punto = transform(coordenada, "EPSG:32718", "EPSG:4326");
+      console.log("UTM:", coordenada);
+      console.log("Transformado:", punto);
+
+      const feature = new Feature({
+        geometry: new Point(punto),
+      });
+
+      feature.setProperties(l);
+
+      features.push(feature);
     });
 
     source.addFeatures(features);
 
     if (features.length > 0) {
-      this.map.getView().fit(source.getExtent(), {
-        duration: 800,
-        maxZoom: 18,
-        padding: [60, 60, 60, 60],
-      });
+      const extent = source.getExtent();
+      if (extent) {
+        this.map.getView().fit(extent, {
+          duration: 800,
+          maxZoom: 18,
+          padding: [60, 60, 60, 60],
+        });
+      }
       this.messageService.add({
         severity: "success",
         summary: "Proceso completado",
-        detail:
-          `${features.length} lecturas en el mapa` +
-          (this.totalSinCoordenadas > 0
-            ? ` (${this.totalSinCoordenadas} sin coordenadas)`
-            : ""),
+        detail: `${features.length} lecturas en el mapa`,
       });
     } else {
       this.messageService.add({
         severity: "info",
-        summary: "Aviso de usuario",
-        detail:
-          this.totalLecturas === 0
-            ? "No se encontraron lecturas con esos filtros"
-            : "Las lecturas encontradas no tienen coordenadas registradas",
+        summary: "Aviso",
+        detail: "No se encontraron coordenadas",
       });
     }
   }
@@ -293,8 +397,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   limpiar(): void {
     this.selectedSector = this.totalSectores2?.[0] || null;
     this.selectedEstados = [];
-    this.consumoini = null;
-    this.consumofin = null;
+    this.consumoini = 0;
+    this.consumofin = 99999;
+    this.selectedTipoPromedio = null; // nuevo
     if (this.fechaCiclos) {
       this.selectedAnio = this.fechaCiclos.year;
       this.selectedMes = this.fechaCiclos.month;
@@ -317,18 +422,29 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     const base = new LayerGroup({
       layers: [new TileLayer({ source: new OSM(), visible: true })],
     });
-
+    //==== capa de lotes (WMS) ====
+    this.lotesLayer = new TileLayer({
+      source: new TileWMS({
+        url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+        params: {
+          LAYERS: "eps_yurimaguas:yurimaguas_sig_lotes",
+          TILED: false,
+        },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
     this.lecturasLayer = new VectorLayer({
       source: new VectorSource(),
       style: (feature) => this.estiloLectura(feature),
     });
 
-    this.map = new Map({
+    this.map = new OlMap({
       target: "map",
-      layers: [base, this.lecturasLayer],
+      layers: [base, this.lotesLayer, this.lecturasLayer],
       view: new View({
         projection: "EPSG:4326",
-        center: [-74.9727, -12.7862], // Huancavelica (antes estaba Yurimaguas)
+        center: [-76.1223, -5.9018], // ---Yurimaguas)
         zoom: 14,
       }),
     });

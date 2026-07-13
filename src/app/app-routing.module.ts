@@ -2,8 +2,8 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
 const routes: Routes = [{
-  path: '',
-  loadChildren: () => import("./pages-georeferencia/pages-georeferencia.module").then(x => x.PagesGeoreferenciaModule)
+  path:'',
+  loadChildren: () => import('./pages-georeferencia/pages-georeferencia.module').then(x => x.PagesGeoreferenciaModule)
 }];
 
 @NgModule({

@@ -248,3 +248,15 @@
     }
   }
 }
+.cd-leyenda {
+  z-index: 1000; // antes 5
+  // resto igual
+}
+
+.cd-leyenda-toggle {
+  z-index: 1000; // antes 5
+}
+
+.cd-resumen {
+  z-index: 1000; // consistencia, antes 5
+}

@@ -108,24 +108,37 @@
         </p-multiSelect>
         <label>Estado de Lectura</label>
       </span>
-
+<span class="p-float-label" *ngIf="selectedSucursal">
+  <p-dropdown
+    [options]="tipopromedio"
+    [(ngModel)]="selectedTipoPromedio"
+    optionLabel="descripcion"
+    [showClear]="true"
+    [style]="{ width: '160px' }"
+    placeholder="Tipo Promedio"
+    [appendTo]="'body'"
+  ></p-dropdown>
+  <label>Tipo Promedio</label>
+</span>
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-inputNumber
-          [(ngModel)]="consumoini"
-          [style]="{ width: '110px' }"
-          inputStyleClass="w-full"
-          [showButtons]="false"
-        ></p-inputNumber>
+    <p-inputNumber
+      [(ngModel)]="consumoini"
+      [style]="{ width: '110px' }"
+      inputStyleClass="w-full"
+      [showButtons]="false"
+      [max]="99999"
+    ></p-inputNumber>
         <label>Consumo Ini.</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
         <p-inputNumber
-          [(ngModel)]="consumofin"
-          [style]="{ width: '110px' }"
-          inputStyleClass="w-full"
-          [showButtons]="false"
-        ></p-inputNumber>
+        [(ngModel)]="consumofin"
+        [style]="{ width: '110px' }"
+        inputStyleClass="w-full"
+        [showButtons]="false"
+         [max]="99999"       
+          ></p-inputNumber>
         <label>Consumo Fin.</label>
       </span>
 
