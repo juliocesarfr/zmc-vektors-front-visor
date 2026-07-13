@@ -4,7 +4,7 @@ import {
   OnInit,
   CUSTOM_ELEMENTS_SCHEMA,
 } from "@angular/core";
-import { DatePipe } from "@angular/common";
+import { CommonModule, DatePipe } from "@angular/common";
 import { HttpClient } from "@angular/common/http";
 import { transform } from "ol/proj";
 
@@ -28,13 +28,27 @@ import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.service";
 import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
-import { PrimeNGModule } from "@host/_modulos/primeng.module";
 import { ValidacionSistemaService } from "@host/_servicios/validar/validacion-sistema.service";
+import { FormsModule } from "@angular/forms";
+import { DropdownModule } from "primeng/dropdown";
+import { ButtonModule } from "primeng/button";
+import { MultiSelectModule } from "primeng/multiselect";
+import { InputNumberModule } from "primeng/inputnumber";
+import { ToastModule } from "primeng/toast";
+import { TagModule } from "primeng/tag";
 
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
-  imports: [PrimeNGModule],
+  imports: [
+    CommonModule,
+  FormsModule,
+  DropdownModule,
+  MultiSelectModule,
+  ButtonModule,
+  InputNumberModule,
+  ToastModule,
+  TagModule,],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
   providers: [DatePipe, ValidacionSistemaService, MessageService],
@@ -45,7 +59,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   popup!: Overlay;
   lecturasLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
-  
+
   //==================================
   // FILTROS
   //==================================
@@ -191,7 +205,7 @@ error:(error)=>{
     // el layout de la toolbar puede cambiar el alto del contenedor tras el primer render
     setTimeout(() => this.map.updateSize(), 300);
   }
-//// crear mapa 
+//// crear mapa
 
 
   //==================================
@@ -391,36 +405,26 @@ const feature = new Feature({
 
 
   if (features.length > 0) {
-
-    this.map.getView().fit(source.getExtent(), {
-
+  const extent = source.getExtent();
+  if (extent) {
+    this.map.getView().fit(extent, {
       duration: 800,
       maxZoom: 18,
-      padding: [60,60,60,60]
-
+      padding: [60, 60, 60, 60]
     });
-
-
-    this.messageService.add({
-
-      severity: "success",
-      summary: "Proceso completado",
-      detail: `${features.length} lecturas en el mapa`
-
-    });
-
-
-  } else {
-
-    this.messageService.add({
-
-      severity: "info",
-      summary: "Aviso",
-      detail: "No se encontraron coordenadas"
-
-    });
-
   }
+  this.messageService.add({
+    severity: "success",
+    summary: "Proceso completado",
+    detail: `${features.length} lecturas en el mapa`
+  });
+} else {
+  this.messageService.add({
+    severity: "info",
+    summary: "Aviso",
+    detail: "No se encontraron coordenadas"
+  });
+}
 }
 
   limpiar(): void {

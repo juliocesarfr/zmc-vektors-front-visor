@@ -29,12 +29,11 @@ const routes: Routes = [{
               },
               {
                 path: "micromedicion/control-digitacion",
-                loadChildren: () =>
-                  import("../_pages/micromedicion/controldigitacion/controldigitacion.component").then(
-                    (m) => m.ControldigitacionComponent,
-                  ),
+                loadComponent: () =>
+                  import("../_pages/micromedicion/controldigitacion/controldigitacion.component")
+                    .then(m => m.ControldigitacionComponent),
               },
-              //{ path: '', redirectTo:'/main' , pathMatch: 'full'},
+              { path: '', redirectTo:'/main' , pathMatch: 'full'},
             ];
 
 @NgModule({
