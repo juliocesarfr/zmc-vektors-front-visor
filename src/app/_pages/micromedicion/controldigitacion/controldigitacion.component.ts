@@ -54,9 +54,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   totalSectores2: any[] = [];
   lista_estadolec: any[] = [];
 
-  selectedCiclo: any = null;       // objeto ciclo
-  selectedSucursal: any = null;    // objeto sucursal
-  selectedSector: any = null;      // objeto sector ('%' = todos)
+  selectedCiclo: any = null; // objeto ciclo
+  selectedSucursal: any = null; // objeto sucursal
+  selectedSector: any = null; // objeto sector ('%' = todos)
   selectedEstados: string[] = [];
   selectedAnio: string = "";
   selectedMes: string = "";
@@ -78,7 +78,11 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     { mes: "NOVIEMBRE", numero: "11" },
     { mes: "DICIEMBRE", numero: "12" },
   ];
-
+  tipopromedio: any[] = [
+    { descripcion: "MEDIDO", codigo: "0" },
+    { descripcion: "ASIGNADO", codigo: "1" },
+    { descripcion: "PROMEDIADO", codigo: "1" },
+  ];
   //==================================
   // ESTADO UI / RESUMEN
   //==================================
@@ -268,7 +272,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
       this.messageService.add({
         severity: "success",
         summary: "Proceso completado",
-        detail: `${features.length} lecturas en el mapa` +
+        detail:
+          `${features.length} lecturas en el mapa` +
           (this.totalSinCoordenadas > 0
             ? ` (${this.totalSinCoordenadas} sin coordenadas)`
             : ""),
@@ -332,9 +337,11 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   private estiloLectura(feature: any): Style {
     const estado = feature.get("estadolectura");
     let color = "#22c55e"; // 000 normal → verde
-    if (estado === "008") color = "#ef4444";                          // atípico → rojo
-    else if (estado === "003" || estado === "999") color = "#f97316"; // sin registro → naranja
-    else if (estado !== "000") color = "#3b82f6";                     // observados → azul
+    if (estado === "008")
+      color = "#ef4444"; // atípico → rojo
+    else if (estado === "003" || estado === "999")
+      color = "#f97316"; // sin registro → naranja
+    else if (estado !== "000") color = "#3b82f6"; // observados → azul
 
     return new Style({
       image: new CircleStyle({
