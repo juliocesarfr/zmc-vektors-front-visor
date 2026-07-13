@@ -97,6 +97,48 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     { mes: "DICIEMBRE", numero: "12" },
   ];
 
+  //sidebar capas
+  // Variables de estado para el sidebar
+sidebarOpen: boolean = true;
+baseActive: string | null = 'osm';
+
+// Datos de las capas
+baseLayers = [
+  { id: 'osm', label: 'OSM', icon: '◉' },
+  { id: 'satelital', label: 'Satelital', icon: '⊡' },
+];
+
+commercialLayers = [
+  { id: 'usuarios', label: 'Usuarios', active: true },
+  { id: 'caja_agua', label: 'Caja Ficha Agua', active: false },
+  { id: 'acometida', label: 'Acometida de Agua', active: false },
+  { id: 'ficha_alc', label: 'Ficha Alcantarillado', active: false },
+  { id: 'acc_alc', label: 'Acometida de Alcantarillado', active: false },
+  { id: 'ruta_lectura', label: 'Ruta Lectura', active: false },
+  { id: 'ruta_reparto', label: 'Ruta Reparto', active: false },
+  { id: 'sec_lectura', label: 'Secuencia Lectura', active: false },
+  { id: 'sec_reparto', label: 'Secuencia Reparto', active: false },
+  { id: 'lotes', label: 'Lotes', active: false },
+  { id: 'manzanas', label: 'Manzanas', active: false },
+  { id: 'sectores', label: 'Sectores Comerciales', active: false },
+  { id: 'calles', label: 'Calles', active: false },
+];
+
+// Métodos de interacción
+toggleSidebar() {
+  this.sidebarOpen = !this.sidebarOpen;
+}
+
+setBaseLayer(id: string) {
+  this.baseActive = this.baseActive === id ? null : id;
+}
+
+toggleCommercialLayer(layer: any) {
+  layer.active = !layer.active;
+}
+
+
+
   //==================================
   // ESTADO UI / RESUMEN
   //==================================

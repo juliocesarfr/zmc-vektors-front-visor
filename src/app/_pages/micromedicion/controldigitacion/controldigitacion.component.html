@@ -6,78 +6,42 @@
        BARRA DE FILTROS (arriba)
   ========================= -->
   <div class="cd-toolbar">
-
     <div class="cd-title">
       <img src="assets/images/img-medicion/writing.png" alt="control" />
       <h3>CONTROL DIGITACIÓN <span>| Mapa</span></h3>
     </div>
 
     <div class="cd-filtros">
-
       <span class="p-float-label">
-        <p-dropdown
-          [options]="dataCiclos"
-          [(ngModel)]="selectedCiclo"
-          optionLabel="descripcion"
-          (ngModelChange)="onCicloChange()"
-          [style]="{ width: '160px' }"
-          placeholder="Ciclos"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
+          (ngModelChange)="onCicloChange()" [style]="{ width: '160px' }" placeholder="Ciclos"
+          [appendTo]="'body'"></p-dropdown>
         <label>Seleccionar el Ciclo</label>
       </span>
 
       <span class="p-float-label" *ngIf="fechaCiclos">
-        <p-dropdown
-          [options]="listaMeses"
-          [(ngModel)]="selectedMes"
-          optionLabel="mes"
-          optionValue="numero"
-          [style]="{ width: '130px' }"
-          placeholder="Mes"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
+          [style]="{ width: '130px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
         <label>Mes</label>
       </span>
 
       <span class="p-float-label" *ngIf="fechaCiclos">
-        <p-dropdown
-          [options]="listaYear"
-          [(ngModel)]="selectedAnio"
-          optionLabel="anio"
-          optionValue="anio"
-          [style]="{ width: '110px' }"
-          placeholder="Año"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
+          [style]="{ width: '110px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
         <label>Año</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedCiclo">
-        <p-dropdown
-          [options]="listaSucursalesxusr"
-          [(ngModel)]="selectedSucursal"
-          optionLabel="nombre"
-          (ngModelChange)="onSucursalChange()"
-          [style]="{ width: '190px' }"
-          placeholder="Sucursales"
-          [appendTo]="'body'"
-        ></p-dropdown>
+        <p-dropdown [options]="listaSucursalesxusr" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+          (ngModelChange)="onSucursalChange()" [style]="{ width: '190px' }" placeholder="Sucursales"
+          [appendTo]="'body'"></p-dropdown>
         <label>Seleccionar Sucursal</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown
-          [options]="totalSectores2"
-          [(ngModel)]="selectedSector"
-          optionLabel="descripcion"
-          [filter]="true"
-          filterBy="descripcion"
-          [showClear]="true"
-          [style]="{ width: '190px' }"
-          placeholder="Sector"
-          [appendTo]="'body'"
-        >
+        <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion" [filter]="true"
+          filterBy="descripcion" [showClear]="true" [style]="{ width: '190px' }" placeholder="Sector"
+          [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
             <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
           </ng-template>
@@ -89,19 +53,9 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-multiSelect
-          [options]="lista_estadolec"
-          [(ngModel)]="selectedEstados"
-          optionLabel="descripcion"
-          optionValue="codigo"
-          [filter]="true"
-          [showClear]="true"
-          [style]="{ width: '230px' }"
-          placeholder="Estados de Lectura"
-          [appendTo]="'body'"
-          [maxSelectedLabels]="1"
-          selectedItemsLabel="{0} estados"
-        >
+        <p-multiSelect [options]="lista_estadolec" [(ngModel)]="selectedEstados" optionLabel="descripcion"
+          optionValue="codigo" [filter]="true" [showClear]="true" [style]="{ width: '230px' }"
+          placeholder="Estados de Lectura" [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} estados">
           <ng-template let-estado pTemplate="item">
             <div>({{ estado.codigo }}) - {{ estado.descripcion }}</div>
           </ng-template>
@@ -110,42 +64,22 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-inputNumber
-          [(ngModel)]="consumoini"
-          [style]="{ width: '110px' }"
-          inputStyleClass="w-full"
-          [showButtons]="false"
-        ></p-inputNumber>
+        <p-inputNumber [(ngModel)]="consumoini" [style]="{ width: '110px' }" inputStyleClass="w-full"
+          [showButtons]="false"></p-inputNumber>
         <label>Consumo Ini.</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-inputNumber
-          [(ngModel)]="consumofin"
-          [style]="{ width: '110px' }"
-          inputStyleClass="w-full"
-          [showButtons]="false"
-        ></p-inputNumber>
+        <p-inputNumber [(ngModel)]="consumofin" [style]="{ width: '110px' }" inputStyleClass="w-full"
+          [showButtons]="false"></p-inputNumber>
         <label>Consumo Fin.</label>
       </span>
 
-      <p-button
-        *ngIf="selectedSucursal"
-        (click)="procesar()"
-        icon="pi pi-cog"
-        label="PROCESAR"
-        severity="warning"
-        [loading]="cargando"
-      ></p-button>
+      <p-button *ngIf="selectedSucursal" (click)="procesar()" icon="pi pi-cog" label="PROCESAR" severity="warning"
+        [loading]="cargando"></p-button>
 
-      <p-button
-        *ngIf="selectedSucursal"
-        (click)="limpiar()"
-        icon="pi pi-filter-slash"
-        label="Limpiar"
-        [outlined]="true"
-      ></p-button>
-
+      <p-button *ngIf="selectedSucursal" (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar"
+        [outlined]="true"></p-button>
     </div>
   </div>
 
@@ -154,6 +88,45 @@
   ========================= -->
   <div class="cd-map-container">
     <div id="map" class="map"></div>
+
+    <!-- NUEVO: MENÚ LATERAL GIS -->
+    <div class="gis-sidebar-container">
+      <div class="gis-sidebar-panel" *ngIf="sidebarOpen">
+        
+        <!-- CAPAS BASE -->
+        <div class="sidebar-title">CAPAS BASE</div>
+        <div class="base-layers">
+          <button *ngFor="let l of baseLayers" 
+                  [class.active]="l.id === baseActive"
+                  (click)="setBaseLayer(l.id)">
+            <span class="icon">{{ l.icon }}</span>
+            <span>{{ l.label }}</span>
+          </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- CAPAS COMERCIALES -->
+        <div class="sidebar-title">CAPAS COMERCIALES</div>
+        <div class="commercial-layers">
+          <div class="c-layer" *ngFor="let l of commercialLayers" (click)="toggleCommercialLayer(l)">
+            <span [class.active-text]="l.active">{{ l.label }}</span>
+            <!-- Toggle Switch Personalizado -->
+            <div class="custom-toggle" [class.on]="l.active">
+              <div class="toggle-circle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de apertura/cierre -->
+      <button class="sidebar-toggle-btn" 
+              [class.closed]="!sidebarOpen"
+              (click)="toggleSidebar()" 
+              [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
+        {{ sidebarOpen ? '◀' : '▶' }}
+      </button>
+    </div>
 
     <!-- RESUMEN flotante -->
     <div class="cd-resumen" *ngIf="totalLecturas > 0">
@@ -182,12 +155,8 @@
       <div><span class="punto naranja"></span> No registró lectura</div>
       <div><span class="punto azul"></span> Otras observaciones</div>
     </div>
-    <button
-      class="cd-leyenda-toggle"
-      *ngIf="!mostrarLeyenda"
-      (click)="mostrarLeyenda = true"
-      title="Mostrar leyenda"
-    >
+    
+    <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda" (click)="mostrarLeyenda = true" title="Mostrar leyenda">
       <i class="pi pi-map-marker"></i>
     </button>
 
