@@ -563,6 +563,12 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     this.imagenZoom = 1;
   }
 
+  getDescripcionEstadoLectura(codigo: string): string {
+    if (!codigo) return '-';
+    const estado = this.lista_estadolec.find(e => e.codigo === codigo);
+    return estado ? estado.descripcion : codigo;
+  }
+
   siguienteImagen(event?: Event): void {
     if (event) {
       event.stopPropagation();
@@ -633,7 +639,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     };
 
     const urlImg = `${environment.HOST_API_EXTERNA}ftp/generico/download/read_x_tipo`;
-    // Endpoint ficha catastral completa: devuelve {clie, pred, calidad, conx_agua, medidor_cliente, unidades}
     const urlCliente = `${environment.HOST_API_CATASTRO}clientes/obtiene-datos-ficha-catastral/${codsuc}/${codcliente}`;
 
     forkJoin({
@@ -643,7 +648,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
       next: ({ imagenes, cliente }) => {
         this.cargandoImagenes = false;
 
-        // Aplanar: datos principales en clientes/clie, sub-objetos con prefijo _
         if (cliente) {
           const clie = cliente.clie || cliente.clientes || {};
           this.datosClientePopup = {

@@ -195,10 +195,6 @@
               <div><small>LOTE</small><strong>{{ datosClientePopup?.nrolote || lecturaSeleccionada.nrolote || '-' }}</strong></div>
             </div>
 
-            <div class="dp-card">
-              <i class="pi pi-cog"></i>
-              <div><small>SERVICIO</small><strong>{{ datosClientePopup?.destiposervicio || (datosClientePopup?.tiposervicio === '002' ? 'AGUA' : datosClientePopup?.tiposervicio) || 'AGUA' }}</strong></div>
-            </div>
 
             <div class="dp-card full">
               <i class="pi pi-map-marker"></i>
@@ -242,10 +238,30 @@
               <i class="pi pi-server"></i>
               <div><small>NÚMERO DE MEDIDOR</small><strong>{{ datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || '-' }}</strong></div>
             </div>
+          
+            <div class="dp-card">
+              <i class="pi pi-clock"></i>
+              <div><small>Lec. Anterior</small><strong>{{ lecturaSeleccionada.lecturaanterior ?? datosClientePopup?._medidor?.lecturaanterior ?? '-' }}</strong></div>
+            </div>
 
             <div class="dp-card">
-              <i class="pi pi-server"></i>
-              <div><small>MARCA DEL MEDIDOR</small><strong>{{ datosClientePopup?._medidor?.marcamed || '-' }}</strong></div>
+              <i class="pi pi-check-circle"></i>
+              <div><small>Lec. Actual</small><strong>{{ lecturaSeleccionada.lecturaultima ?? lecturaSeleccionada.lectura ?? lecturaSeleccionada.lecturaactual ?? '-' }}</strong></div>
+            </div>
+
+            <div class="dp-card">
+              <i class="pi pi-info-circle"></i>
+              <div><small>Est. Lectura</small><strong>{{ getDescripcionEstadoLectura(lecturaSeleccionada.estadolectura ?? datosClientePopup?._medidor?.estadolectura) }}</strong></div>
+            </div>
+
+            <div class="dp-card">
+              <i class="pi pi-sliders-h"></i>
+              <div><small>Est. Medidor</small><strong>{{ lecturaSeleccionada.desestadomed || lecturaSeleccionada.c_desestmed || (lecturaSeleccionada.estadomed === '001' || lecturaSeleccionada.estadomed === 'BU' ? 'BUENO' : lecturaSeleccionada.estadomed === '002' || lecturaSeleccionada.estadomed === 'MA' ? 'MALOGRADO' : datosClientePopup?._medidor?.desestadomed || lecturaSeleccionada.estadomed || '-') }}</strong></div>
+            </div>
+
+            <div class="dp-card full" *ngIf="lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion">
+              <i class="pi pi-comment"></i>
+              <div><small>Observación</small><strong>{{ lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion || '-' }}</strong></div>
             </div>
 
           </div>
@@ -294,25 +310,21 @@
     <i class="pi pi-times"></i>
   </button>
 
-  <!-- Botón Anterior -->
   <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)" title="Anterior">
     <i class="pi pi-chevron-left"></i>
   </button>
 
-  <!-- Contenedor central de la imagen -->
   <div class="lightbox-content" (click)="$event.stopPropagation()">
     <img [src]="imagenAbierta"
          [style.transform]="'scale(' + imagenZoom + ')'"
          (error)="$any($event.target).src='assets/images/no-image.png'"
          alt="Imagen completa" />
          
-    <!-- Indicador de cantidad -->
     <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">
       {{ imagenAbiertaIndex + 1 }} de {{ imagenesPopup.length }}
     </div>
   </div>
 
-  <!-- Botón Siguiente -->
   <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)" title="Siguiente">
     <i class="pi pi-chevron-right"></i>
   </button>
