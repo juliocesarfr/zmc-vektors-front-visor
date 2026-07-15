@@ -2,7 +2,6 @@
   display: flex;
   flex-direction: column;
   position: fixed;
-  /* Ajusta este valor al alto real de la navbar+breadcrumbs del host */
   top: var(--app-header-height, 90px);
   left: 0;
   right: 0;
@@ -858,6 +857,7 @@
   .up-section {
     border: 1px solid #f1f5f9;
     border-radius: 6px;
+
     .up-section-title {
       display: flex;
       align-items: center;
@@ -976,6 +976,23 @@
           color: #7c3aed;
           font-style: italic;
           font-weight: 600;
+        }
+
+        &.inspector-name {
+          color: #0369a1;
+          background: #e0f2fe;
+          padding: 2px 6px;
+          border-radius: 4px;
+          border: 1px solid #bae6fd;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 1px;
+          
+          i {
+            font-size: 10px;
+            color: #0284c7;
+          }
         }
       }
     }
@@ -1389,9 +1406,6 @@
   grid-column: span 2;
 }
 
-// ====================================================
-// RESPONSIVE: TABLET (max-width: 768px)
-// ====================================================
 @media (max-width: 768px) {
   .cd-toolbar {
     padding: 0 10px;
@@ -1524,7 +1538,7 @@
   }
 
   .cd-leyenda {
-    display: none; // En móvil muy pequeño, ocultar leyenda
+    display: none; 
   }
 
   .user-popup {
@@ -1567,7 +1581,6 @@
     }
   }
 
-  // Grids del popup colapsan a 2 columnas en móvil
   .up-grid.grid-3,
   .up-grid.grid-4 {
     grid-template-columns: 1fr 1fr;
