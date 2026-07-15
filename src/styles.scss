@@ -1,1 +1,23 @@
 /* You can add global styles to this file, and also import other style files */
+
+/* Ensures router-outlet sibling elements (the routed components) fill the available space */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+app-controldigitacion {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
