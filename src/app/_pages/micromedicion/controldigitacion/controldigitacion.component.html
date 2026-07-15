@@ -34,7 +34,8 @@
         </span>
         <span class="filtro-chip consumo" *ngIf="consumoini != null || consumofin != null">
           <i class="pi pi-gauge"></i>
-          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin }}</ng-container>
+          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin
+            }}</ng-container>
           <ng-container *ngIf="consumoini != null && consumofin == null">≥{{ consumoini }}</ng-container>
           <ng-container *ngIf="consumoini == null && consumofin != null">≤{{ consumofin }}</ng-container>
         </span>
@@ -97,8 +98,8 @@
 
         <span class="p-float-label" *ngIf="selectedSucursal">
           <p-multiSelect [options]="lista_estadolec" [(ngModel)]="selectedEstados" optionLabel="descripcion"
-            optionValue="codigo" [filter]="true" [showClear]="true" [style]="{ width: '210px' }"
-            placeholder="Estados" [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} estados">
+            optionValue="codigo" [filter]="true" [showClear]="true" [style]="{ width: '210px' }" placeholder="Estados"
+            [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} estados">
             <ng-template let-estado pTemplate="item">
               <div>({{ estado.codigo }}) - {{ estado.descripcion }}</div>
             </ng-template>
@@ -126,10 +127,9 @@
         </span>
 
         <div class="filtros-btns" *ngIf="selectedSucursal">
-          <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR"
-            severity="warning" [loading]="cargando"></p-button>
-          <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar"
-            [outlined]="true"></p-button>
+          <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
+            [loading]="cargando"></p-button>
+          <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar" [outlined]="true"></p-button>
         </div>
       </div>
     </div>
@@ -144,9 +144,7 @@
           <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
         </div>
         <div class="base-layers">
-          <button *ngFor="let l of baseLayers"
-                  [class.active]="l.id === baseActive"
-                  (click)="setBaseLayer(l.id)">
+          <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
             <span class="icon">{{ l.icon }}</span>
             <span>{{ l.label }}</span>
           </button>
@@ -164,10 +162,8 @@
           </div>
         </div>
       </div>
-      <button class="sidebar-toggle-btn"
-              [class.closed]="!sidebarOpen"
-              (click)="toggleSidebar()"
-              [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
+      <button class="sidebar-toggle-btn" [class.closed]="!sidebarOpen" (click)="toggleSidebar()"
+        [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
         <span *ngIf="!sidebarOpen" class="stb-text">VER CAPAS</span>
         <i class="pi" [class.pi-chevron-left]="sidebarOpen" [class.pi-chevron-right]="!sidebarOpen"></i>
       </button>
@@ -208,7 +204,8 @@
           <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
           <div class="up-header-info">
             <span class="up-label">TITULAR DEL PREDIO</span>
-            <strong class="up-name">{{ datosClientePopup?.propietario || lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
+            <strong class="up-name">{{ datosClientePopup?.propietario || lecturaSeleccionada.propietario || 'SIN
+              REGISTRO' }}</strong>
           </div>
         </div>
         <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
@@ -230,40 +227,77 @@
 
       <div class="up-body">
         <div class="up-section">
-          <div class="up-section-title loc"><img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO</div>
+          <div class="up-section-title loc"><img src="assets/images/img-georeferencia/ubication-icon.gif"
+              class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO</div>
           <div class="up-grid grid-3">
-            <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ datosClientePopup?.codsector || lecturaSeleccionada.codsector || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ datosClientePopup?.codmza || lecturaSeleccionada.codmza || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Lote</span><span class="uc-val">{{ datosClientePopup?.nrolote || lecturaSeleccionada.nrolote || '-' }}</span></div>
-            
-            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ datosClientePopup?.direcc || ((datosClientePopup?.descripcioncorta || lecturaSeleccionada.descripcioncorta || '') + ' ' + (datosClientePopup?.descripcioncalle || lecturaSeleccionada.descripcioncalle || '') + ' ' + (datosClientePopup?.nrocalle || lecturaSeleccionada.nrocalle || '')) }}</span></div>
-            
-            <div class="up-cell"><span class="uc-label">Piso</span><span class="uc-val">{{ datosClientePopup?.unidaddom ?? '1' }}</span></div>
-            <div class="up-cell span-2"><span class="uc-label">Tipo de Servicio</span><span class="uc-val">{{ datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA') }}</span></div>
-            
-            <div class="up-cell span-2"><span class="uc-label">Uso / Inmueble</span><span class="uc-val">{{ datosClientePopup?.actividad || lecturaSeleccionada.tipoactividad || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{ datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ datosClientePopup?.codsector
+                || lecturaSeleccionada.codsector || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ datosClientePopup?.codmza ||
+                lecturaSeleccionada.codmza || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Lote</span><span class="uc-val">{{ datosClientePopup?.nrolote ||
+                lecturaSeleccionada.nrolote || '-' }}</span></div>
+
+            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{
+                datosClientePopup?.direcc || ((datosClientePopup?.descripcioncorta ||
+                lecturaSeleccionada.descripcioncorta || '') + ' ' + (datosClientePopup?.descripcioncalle ||
+                lecturaSeleccionada.descripcioncalle || '') + ' ' + (datosClientePopup?.nrocalle ||
+                lecturaSeleccionada.nrocalle || '')) }}</span></div>
+
+            <div class="up-cell"><span class="uc-label">Piso</span><span class="uc-val">{{ datosClientePopup?.unidaddom
+                ?? '1' }}</span></div>
+            <div class="up-cell span-2"><span class="uc-label">Tipo de Servicio</span><span class="uc-val">{{
+                datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA
+                Y ALCANTARILLADO' : 'AGUA') }}</span></div>
+
+                <div class="up-cell span-2">
+            <span class="uc-label">Tarifa / Inmueble</span>
+            <span class="uc-val">
+              {{ lecturaSeleccionada.tarifas || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}
+            </span>
+          </div>
+            <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{
+                datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
           </div>
         </div>
 
         <div class="up-section">
           <div class="up-section-title medidor">
-            <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Medidor"> NRO. MEDIDOR: {{ datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR' }}
+            <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Medidor"> NRO. MEDIDOR: {{
+            datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR' }}
           </div>
-          
+
           <div class="up-lecturas-row">
-            <div class="up-lec-badge prev"><span class="ulb-label">LECT ANT.</span><span class="ulb-val">{{ lecturaSeleccionada.lecturaanterior ?? datosClientePopup?._medidor?.lecturaanterior ?? '-' }}</span></div>
+            <div class="up-lec-badge prev"><span class="ulb-label">LECT ANT.</span><span class="ulb-val">{{
+                lecturaSeleccionada.lecturaanterior ?? datosClientePopup?._medidor?.lecturaanterior ?? '-' }}</span>
+            </div>
             <i class="pi pi-arrow-right up-lec-arrow"></i>
-            <div class="up-lec-badge curr"><span class="ulb-label"> LECT ACT.</span><span class="ulb-val">{{ lecturaSeleccionada.lecturaultima ?? lecturaSeleccionada.lectura ?? lecturaSeleccionada.lecturaactual ?? '-' }}</span></div>
+            <div class="up-lec-badge curr"><span class="ulb-label"> LECT ACT.</span><span class="ulb-val">{{
+                lecturaSeleccionada.lecturaultima ?? lecturaSeleccionada.lectura ?? lecturaSeleccionada.lecturaactual ??
+                '-' }}</span></div>
           </div>
 
           <div class="up-grid grid-2">
-            <div class="up-cell"><span class="uc-label">Est. Lect.</span><span class="uc-val badge-est">{{ getDescripcionEstadoLectura(lecturaSeleccionada.estadolectura ?? datosClientePopup?._medidor?.estadolectura) }}</span></div>
-            <div class="up-cell"><span class="uc-label">Est. Med.</span><span class="uc-val badge-est">{{ lecturaSeleccionada.desestadomed || lecturaSeleccionada.c_desestmed || (lecturaSeleccionada.estadomed === '001' || lecturaSeleccionada.estadomed === 'BU' ? 'BUENO' : lecturaSeleccionada.estadomed === '002' || lecturaSeleccionada.estadomed === 'MA' ? 'MALOGRADO' : datosClientePopup?._medidor?.desestadomed || lecturaSeleccionada.estadomed || '-') }}</span></div>
-            
-            <div class="up-cell full" *ngIf="lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion">
+            <div class="up-cell"><span class="uc-label">Est. Lect.</span><span class="uc-val badge-est">{{
+                getDescripcionEstadoLectura(lecturaSeleccionada.estadolectura ??
+                datosClientePopup?._medidor?.estadolectura) }}</span></div>
+                <div class="up-cell">
+              <span class="uc-label">Est. Med.</span>
+              <span class="uc-val badge-est">
+                {{ lecturaSeleccionada.estadomedidor || '-' }}
+              </span>
+            </div>
+            <div class="up-cell full">
+              <span class="uc-label">Inspector</span>
+              <span class="uc-val inspector-name">
+                {{ lecturaSeleccionada.inspector || '-' }}
+              </span>
+            </div>
+
+            <div class="up-cell full"
+              *ngIf="lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion">
               <span class="uc-label">Obs.</span>
-              <span class="uc-val obs">{{ lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion }}</span>
+              <span class="uc-val obs">{{ lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura ||
+                datosClientePopup?._medidor?.observacion }}</span>
             </div>
           </div>
         </div>
@@ -276,7 +310,8 @@
           <div class="up-img-loading" *ngIf="cargandoImagenes"><i class="pi pi-spin pi-spinner"></i> Cargando...</div>
           <div class="up-img-scroll" *ngIf="!cargandoImagenes">
             <ng-container *ngIf="imagenesPopup.length > 0; else sinImg">
-              <div class="up-thumb" *ngFor="let img of imagenesPopup; let idx = index" (click)="abrirImagenCompleta(idx)">
+              <div class="up-thumb" *ngFor="let img of imagenesPopup; let idx = index"
+                (click)="abrirImagenCompleta(idx)">
                 <img [src]="img.src" (error)="$any($event.target).src='assets/images/no-image.png'" alt="Evidencia" />
                 <span class="up-tipo" *ngIf="img.tiporecepcionimages">{{ img.tiporecepcionimages }}</span>
               </div>
@@ -293,12 +328,22 @@
 
 <div class="img-lightbox" *ngIf="imagenAbierta" (click)="cerrarImagenCompleta()" (wheel)="onWheelZoom($event)">
   <button class="lightbox-close" (click)="cerrarImagenCompleta()" title="Cerrar"><i class="pi pi-times"></i></button>
-  <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)" title="Anterior"><i class="pi pi-chevron-left"></i></button>
+  <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)"
+    title="Anterior"><i class="pi pi-chevron-left"></i></button>
   <div class="lightbox-content" (click)="$event.stopPropagation()">
-    <img [src]="imagenAbierta" [style.transform]="'scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'" (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
-    <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{ imagenesPopup.length }}</div>
+    <img [src]="imagenAbierta" 
+         [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
+         [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'"
+         (mousedown)="onDragStart($event)"
+         (mousemove)="onDragMove($event)"
+         (mouseup)="onDragEnd()"
+         (mouseleave)="onDragEnd()"
+      (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
+    <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
+      imagenesPopup.length }}</div>
   </div>
-  <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)" title="Siguiente"><i class="pi pi-chevron-right"></i></button>
+  <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)"
+    title="Siguiente"><i class="pi pi-chevron-right"></i></button>
   <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
     <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda">
       <i class="pi pi-refresh pi-espejo"></i>
