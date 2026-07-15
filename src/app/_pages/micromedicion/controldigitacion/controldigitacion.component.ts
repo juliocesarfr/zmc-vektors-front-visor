@@ -137,6 +137,19 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     { id: "sectores", label: "Sectores Comerciales", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
+//==================================
+// SECTORES DE LOTES  agregado 15/07 9.46
+//==================================
+// sectores = [
+//   { codigo: "01", nombre: "Sector 1" },
+//   { codigo: "02", nombre: "Sector 2" },
+//   { codigo: "03", nombre: "Sector 3" },
+//   { codigo: "04", nombre: "Sector 4" },
+//   { codigo: "05", nombre: "Sector 5" },
+//   { codigo: "06", nombre: "Sector 6" },
+// ];
+
+sectorActivo = "01";
 
   // Métodos de interacción
   toggleSidebar() {
@@ -150,6 +163,22 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   toggleCommercialLayer(layer: any) {
     layer.active = !layer.active;
   }
+// buscador de lotes 
+seleccionarSector(codigo: string): void {
+
+  // Convierte 001 -> 01
+  codigo = codigo.substring(codigo.length - 2);
+
+  console.log(codigo);
+
+  const source = this.lotesLayer.getSource() as TileWMS;
+
+  source.updateParams({
+    LAYERS: `eps_yurimaguas:yurimaguas_sig_lotes_sector_${codigo}`
+  });
+
+  source.refresh();
+}
 
   //==================================
   // ESTADO UI / RESUMEN
