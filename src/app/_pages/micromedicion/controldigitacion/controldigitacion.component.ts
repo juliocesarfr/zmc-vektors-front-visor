@@ -105,6 +105,12 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     { descripcion: "ASIGNADO", codigo: "1" },
     { descripcion: "PROMEDIADO", codigo: "1" },
   ];
+  // Filtros panel
+  filtrosVisible: boolean = false;
+  toggleFiltros() {
+    this.filtrosVisible = !this.filtrosVisible;
+  }
+
   //sidebar capas
   // Variables de estado para el sidebar
   sidebarOpen: boolean = true;
@@ -112,8 +118,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
 
   // Datos de las capas
   baseLayers = [
-    { id: "osm", label: "OSM", icon: "◉" },
-    { id: "satelital", label: "Satelital", icon: "⊡" },
+    { id: "osm", label: "OSM", iconUrl: "assets/images/img-georeferencia/capa-icon.gif" },
+    { id: "satelital", label: "Satelital", iconUrl: "assets/images/img-georeferencia/satellital-icon.gif" },
   ];
 
   commercialLayers = [
@@ -155,6 +161,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   mostrarLeyenda = true;
   selectedTipoPromedio: any = null;
   private coordenadasGeoServer = new Map<number, number[]>(); // codernadas geoserver
+  featureSeleccionado: any = null;
 
   // ==================================
   // IMÁGENES DEL POPUP
@@ -165,6 +172,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   imagenAbierta: string | null = null; // lightbox
   imagenAbiertaIndex = -1;
   imagenZoom = 1;                       // zoom del lightbox
+  imagenRotacion = 0;                   // rotacion del lightbox
 
   private readonly TIPOS_RECEPCION_IMG = [
     { tipo: "000" }, { tipo: "050" }, { tipo: "046" }, { tipo: "045" },
@@ -355,6 +363,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
         this.micromedicionService.listarLecturas(filtro).subscribe({
           next: (data) => {
             this.cargando = false;
+            this.filtrosVisible = false;
 
             console.log("API:", data.data);
 
@@ -468,6 +477,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   private limpiarCapa(): void {
     this.lecturasLayer?.getSource()?.clear();
     this.lecturaSeleccionada = null;
+    this.featureSeleccionado = null;
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -516,11 +526,16 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
       color = "#f97316"; // sin registro → naranja
     else if (estado !== "000") color = "#3b82f6"; // observados → azul
 
+    const isSelected = feature === this.featureSeleccionado;
+
     return new Style({
       image: new CircleStyle({
-        radius: 6,
+        radius: isSelected ? 9 : 6,
         fill: new Fill({ color }),
-        stroke: new Stroke({ color: "#ffffff", width: 1.5 }),
+        stroke: new Stroke({ 
+          color: isSelected ? "#000000" : "#ffffff", 
+          width: isSelected ? 2.5 : 1.5 
+        }),
       }),
     });
   }
@@ -530,6 +545,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   //==================================
   cerrarPopup(): void {
     this.lecturaSeleccionada = null;
+    this.featureSeleccionado = null;
+    this.lecturasLayer?.changed();
   }
 
   private initClick(): void {
@@ -538,6 +555,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
         hitTolerance: 5,
       });
       if (feature) {
+        this.featureSeleccionado = feature;
+        this.lecturasLayer.changed();
         this.lecturaSeleccionada = feature.getProperties();
         this.cargarDatosPopup(this.lecturaSeleccionada);
       } else {
@@ -554,6 +573,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
       this.imagenAbiertaIndex = index;
       this.imagenAbierta = this.imagenesPopup[index].src;
       this.imagenZoom = 1;
+      this.imagenRotacion = 0;
     }
   }
 
@@ -561,6 +581,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     this.imagenAbierta = null;
     this.imagenAbiertaIndex = -1;
     this.imagenZoom = 1;
+    this.imagenRotacion = 0;
   }
 
   getDescripcionEstadoLectura(codigo: string): string {
@@ -601,7 +622,12 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
 
   zoomIn(): void  { this.imagenZoom = Math.min(this.imagenZoom + 0.25, 5); }
   zoomOut(): void { this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25); }
-  resetZoom(): void { this.imagenZoom = 1; }
+  resetZoom(): void { 
+    this.imagenZoom = 1; 
+    this.imagenRotacion = 0;
+  }
+  rotarIzquierda(): void { this.imagenRotacion -= 90; }
+  rotarDerecha(): void { this.imagenRotacion += 90; }
 
   onWheelZoom(e: WheelEvent): void {
     e.preventDefault();
