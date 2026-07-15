@@ -31,6 +31,8 @@ import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service
 import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.service";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.service";
+import { ControlImgService } from "@host/_servicios/procesar-img/control-img.service";
+import { ClientesService } from "@host/_servicios/catastro/clientes.service";
 import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
 import { ValidacionSistemaService } from "@host/_servicios/validar/validacion-sistema.service";
 import { FormsModule } from "@angular/forms";
@@ -64,9 +66,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
   lecturasLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
 
-  //==================================
-  // FILTROS
-  //==================================
   _codsede: any;
   _codemp: any;
 
@@ -105,7 +104,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
     { descripcion: "ASIGNADO", codigo: "1" },
     { descripcion: "PROMEDIADO", codigo: "1" },
   ];
-  // Filtros panel
+
   filtrosVisible: boolean = false;
   toggleFiltros() {
     this.filtrosVisible = !this.filtrosVisible;
@@ -151,7 +150,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit {
 
 sectorActivo = "01";
 
-  // Métodos de interacción
   toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
   }
@@ -180,9 +178,6 @@ seleccionarSector(codigo: string): void {
   source.refresh();
 }
 
-  //==================================
-  // ESTADO UI / RESUMEN
-  //==================================
   cargando = false;
   totalLecturas = 0;
   totalSinCoordenadas = 0;
@@ -192,16 +187,18 @@ seleccionarSector(codigo: string): void {
   private coordenadasGeoServer = new Map<number, number[]>(); // codernadas geoserver
   featureSeleccionado: any = null;
 
-  // ==================================
-  // IMÁGENES DEL POPUP
-  // ==================================
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
   datosClientePopup: any = null;
-  imagenAbierta: string | null = null; // lightbox
+  imagenAbierta: string | null = null; 
   imagenAbiertaIndex = -1;
-  imagenZoom = 1;                       // zoom del lightbox
-  imagenRotacion = 0;                   // rotacion del lightbox
+  imagenZoom = 1;                    
+  imagenRotacion = 0;                  
+  isDragging = false;
+  dragStartX = 0;
+  dragStartY = 0;
+  imgOffsetX = 0;
+  imgOffsetY = 0;
 
   private readonly TIPOS_RECEPCION_IMG = [
     { tipo: "000" }, { tipo: "050" }, { tipo: "046" }, { tipo: "045" },
@@ -256,6 +253,8 @@ seleccionarSector(codigo: string): void {
     private sectoresService: SectoresCicloService,
     private consultaService: ConsulGenericService,
     private micromedicionService: MicromedicionService,
+    private controlImgService: ControlImgService,
+    private clientesService: ClientesService,
     private messageService: MessageService,
     private http: HttpClient,
   ) {
@@ -290,9 +289,6 @@ seleccionarSector(codigo: string): void {
   }
   //// crear mapa
 
-  //==================================
-  // CASCADA DE FILTROS
-  //==================================
   onCicloChange(): void {
     this.selectedSucursal = null;
     this.selectedSector = null;
@@ -335,14 +331,11 @@ seleccionarSector(codigo: string): void {
             estareg: null,
           });
           this.totalSectores2 = sectores;
-          this.selectedSector = sectores[0]; // TODOS por defecto
+          this.selectedSector = sectores[0]; 
         },
       });
   }
 
-  //==================================
-  // PROCESAR → API → PUNTOS EN MAPA
-  //==================================
   procesar(): void {
     if (
       !this.selectedCiclo ||
@@ -511,9 +504,6 @@ seleccionarSector(codigo: string): void {
     this.totalSinCoordenadas = 0;
   }
 
-  //==================================
-  // MAPA
-  //==================================
   private crearMapa(): void {
     const base = new LayerGroup({
       layers: [new TileLayer({ source: new OSM(), visible: true })],
@@ -569,9 +559,6 @@ seleccionarSector(codigo: string): void {
     });
   }
 
-  //==================================
-  // POPUP
-  //==================================
   cerrarPopup(): void {
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
@@ -594,15 +581,14 @@ seleccionarSector(codigo: string): void {
     });
   }
 
-  // ==================================
-  // LIGHTBOX
-  // ==================================
   abrirImagenCompleta(index: number): void {
     if (index >= 0 && index < this.imagenesPopup.length) {
       this.imagenAbiertaIndex = index;
       this.imagenAbierta = this.imagenesPopup[index].src;
       this.imagenZoom = 1;
       this.imagenRotacion = 0;
+      this.imgOffsetX = 0;
+      this.imgOffsetY = 0;
     }
   }
 
@@ -611,6 +597,8 @@ seleccionarSector(codigo: string): void {
     this.imagenAbiertaIndex = -1;
     this.imagenZoom = 1;
     this.imagenRotacion = 0;
+    this.imgOffsetX = 0;
+    this.imgOffsetY = 0;
   }
 
   getDescripcionEstadoLectura(codigo: string): string {
@@ -650,10 +638,18 @@ seleccionarSector(codigo: string): void {
   }
 
   zoomIn(): void  { this.imagenZoom = Math.min(this.imagenZoom + 0.25, 5); }
-  zoomOut(): void { this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25); }
+  zoomOut(): void { 
+    this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25); 
+    if (this.imagenZoom <= 1) {
+      this.imgOffsetX = 0;
+      this.imgOffsetY = 0;
+    }
+  }
   resetZoom(): void { 
     this.imagenZoom = 1; 
     this.imagenRotacion = 0;
+    this.imgOffsetX = 0;
+    this.imgOffsetY = 0;
   }
   rotarIzquierda(): void { this.imagenRotacion -= 90; }
   rotarDerecha(): void { this.imagenRotacion += 90; }
@@ -662,11 +658,30 @@ seleccionarSector(codigo: string): void {
     e.preventDefault();
     const delta = e.deltaY < 0 ? 0.15 : -0.15;
     this.imagenZoom = Math.min(Math.max(this.imagenZoom + delta, 0.25), 5);
+    if (this.imagenZoom <= 1) {
+      this.imgOffsetX = 0;
+      this.imgOffsetY = 0;
+    }
   }
 
-  // ==================================
-  // CARGA DE DATOS DEL POPUP
-  // ==================================
+  onDragStart(event: MouseEvent): void {
+    if (this.imagenZoom <= 1) return;
+    this.isDragging = true;
+    this.dragStartX = event.clientX - this.imgOffsetX;
+    this.dragStartY = event.clientY - this.imgOffsetY;
+    event.preventDefault(); // Evita el comportamiento por defecto de arrastrar imagenes
+  }
+
+  onDragMove(event: MouseEvent): void {
+    if (!this.isDragging || this.imagenZoom <= 1) return;
+    this.imgOffsetX = event.clientX - this.dragStartX;
+    this.imgOffsetY = event.clientY - this.dragStartY;
+  }
+
+  onDragEnd(): void {
+    this.isDragging = false;
+  }
+
   private cargarDatosPopup(lectura: any): void {
     this.imagenesPopup = [];
     this.datosClientePopup = null;
@@ -675,7 +690,6 @@ seleccionarSector(codigo: string): void {
     const codsuc = lectura.codsuc || this.selectedSucursal?.codsuc || '002';
     const codcliente = lectura.codcliente;
 
-    // Calcular rango de últimos 2 meses
     const hoy = new Date();
     const fechaFinal = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
     const fechaInicial = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
@@ -693,27 +707,27 @@ seleccionarSector(codigo: string): void {
       tiporecepcion: this.TIPOS_RECEPCION_IMG,
     };
 
-    const urlImg = `${environment.HOST_API_EXTERNA}ftp/generico/download/read_x_tipo`;
-    const urlCliente = `${environment.HOST_API_CATASTRO}clientes/obtiene-datos-ficha-catastral/${codsuc}/${codcliente}`;
-
     forkJoin({
-      imagenes: this.http.post<any>(urlImg, payloadImg).pipe(catchError(() => of({ mensaje: 'ERROR', data: [] }))),
-      cliente: this.http.get<any>(urlCliente).pipe(catchError(() => of(null))),
+      // Se usa el servicio de imágenes
+      imagenes: this.controlImgService.read_x_tipolistar(payloadImg).pipe(catchError(() => of({ mensaje: 'ERROR', data: [] }))),
+      
+      // Se usa el servicio de clientes
+      cliente: this.clientesService.obtener_datos_ficha_catastral(codsuc, codcliente).pipe(catchError(() => of(null))),
     }).subscribe({
       next: ({ imagenes, cliente }) => {
         this.cargandoImagenes = false;
-
+    
         if (cliente) {
-          const clie = cliente.clie || cliente.clientes || {};
+          const clie = cliente.clie || {};
           this.datosClientePopup = {
             ...clie,
-            _predio:       cliente.pred        || cliente.predio        || {},
-            _medidor:      cliente.medidor_cliente || cliente.medidor   || {},
-            _conexionAgua: cliente.conx_agua   || cliente.conexion_agua || {},
-            _calidad:      cliente.calidad     || {},
+            _predio:       cliente.pred || {},
+            _medidor:      cliente.medidor_cliente || {},
+            _conexionAgua: cliente.conx_agua || {},
+            _calidad:      cliente.calidad || {},
           };
         }
-
+    
         if (imagenes?.mensaje === 'EXITO' && imagenes?.data?.length > 0) {
           this.imagenesPopup = imagenes.data
             .filter((e: any) => {
