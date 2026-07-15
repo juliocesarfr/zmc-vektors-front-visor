@@ -36,7 +36,7 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion" [filter]="true"
+        <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" (ngModelChange)="onSectorChange()" optionLabel="descripcion" [filter]="true"
           filterBy="descripcion" [showClear]="true" [style]="{ width: '190px' }" placeholder="Sector"
           [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
