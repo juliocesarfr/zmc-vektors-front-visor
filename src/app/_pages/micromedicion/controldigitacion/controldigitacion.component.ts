@@ -90,6 +90,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   cajaAguaLayer!: VectorLayer<VectorSource>;
   fichaAlcLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
+  sectoresComercialesLayer!: TileLayer<TileWMS>;
+  callesLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<any>;
   satelitalLayer!: TileLayer<any>;
   tipoPopup: 'lectura' | 'agua' | 'alcantarillado' = 'lectura';
@@ -150,16 +152,11 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
+    { id: "lotes", label: "Lotes", active: true },
     { id: "caja_agua", label: "Ficha Agua", active: false },
     { id: "acometida", label: "Acometida de Agua", active: false },
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
-    { id: "ruta_lectura", label: "Ruta Lectura", active: false },
-    { id: "ruta_reparto", label: "Ruta Reparto", active: false },
-    { id: "sec_lectura", label: "Secuencia Lectura", active: false },
-    { id: "sec_reparto", label: "Secuencia Reparto", active: false },
-    { id: "lotes", label: "Lotes", active: false },
-    { id: "manzanas", label: "Manzanas", active: false },
     { id: "sectores", label: "Sectores Comerciales", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
@@ -512,11 +509,37 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     });
 
     this.lotesLayer = new TileLayer({
-      visible: false,
+      visible: true,
       source: new TileWMS({
         url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
         params: {
           LAYERS: "eps_yurimaguas:yurimaguas_sig_lotes",
+          TILED: false,
+        },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
+
+    this.sectoresComercialesLayer = new TileLayer({
+      visible: false,
+      source: new TileWMS({
+        url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+        params: {
+          LAYERS: "eps_yurimaguas:yurimaguas_sig_sectores_comerciales",
+          TILED: false,
+        },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
+
+    this.callesLayer = new TileLayer({
+      visible: false,
+      source: new TileWMS({
+        url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+        params: {
+          LAYERS: "eps_yurimaguas:yurimaguas_sig_calles",
           TILED: false,
         },
         serverType: "geoserver",
@@ -544,7 +567,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
     this.map = new OlMap({
       target: "map",
-      layers: [base, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer],
+      layers: [base, this.sectoresComercialesLayer, this.callesLayer, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer],
       view: new View({
         projection: PROYECCION_MAPA,
         center: [-76.1223, -5.9018], // Yurimaguas
@@ -784,6 +807,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       this.cajaAguaLayer.setVisible(layer.active);
     } else if (layer.id === 'ficha_alc') {
       this.fichaAlcLayer.setVisible(layer.active);
+    } else if (layer.id === 'sectores') {
+      this.sectoresComercialesLayer.setVisible(layer.active);
+    } else if (layer.id === 'calles') {
+      this.callesLayer.setVisible(layer.active);
     }
   }
 
@@ -925,7 +952,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       if (geom) {
         this.map.getView().animate({
           center: geom.getCoordinates(),
-          zoom: 19,
+          zoom: 21,
           duration: 800
         });
       }

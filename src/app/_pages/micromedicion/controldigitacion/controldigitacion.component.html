@@ -480,19 +480,17 @@
       (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
     <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
       imagenesPopup.length }}</div>
+    <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
+      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda">
+        <i class="pi pi-refresh pi-espejo"></i>
+      </button>
+      <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
+      <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
+      <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
+      <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
+    </div>
   </div>
   
   <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)"
     title="Siguiente"><i class="pi pi-chevron-right"></i></button>
-    
-  <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
-    <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda">
-      <i class="pi pi-refresh pi-espejo"></i>
-    </button>
-    <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
-    <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
-    <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
-    <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
-    
-  </div>
 </div>

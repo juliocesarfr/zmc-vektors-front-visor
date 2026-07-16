@@ -1351,7 +1351,7 @@
 
   .lightbox-close {
     position: absolute;
-    top: 24px;
+    top: 100px;
     right: 24px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1387,12 +1387,16 @@
 
   .lightbox-zoom-bar {
     position: absolute;
-    bottom: 40px;
+    top: 50%;
+    right: -75px;
+    transform: translateY(-50%);
+    bottom: auto;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
-    padding: 6px 8px;
+    padding: 6px 6px;
     border-radius: 40px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 4px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
@@ -1409,7 +1413,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      font-size: 14px;
       cursor: pointer;
       transition: all 0.2s ease;
 
@@ -1424,11 +1428,11 @@
 
       &.reset {
         color: #64748b;
-        margin-left: 6px;
-        padding-left: 6px;
-        border-left: 1px solid #cbd5e1;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #cbd5e1;
         border-radius: 0;
-        width: 38px;
+        height: auto;
 
         &:hover {
           background: transparent;
@@ -1454,7 +1458,6 @@
   }
 }
 
-/* Agrega esto debajo de tus estilos de .up-grid */
 .up-grid.grid-4 {
   grid-template-columns: repeat(4, 1fr);
 }
@@ -1643,7 +1646,11 @@
     }
 
     .lightbox-zoom-bar {
-      bottom: 16px;
+      top: auto;
+      bottom: 24px;
+      right: 50%;
+      transform: translateX(50%);
+      flex-direction: row;
       padding: 4px 6px;
 
       .lz-btn {
@@ -1655,6 +1662,7 @@
       .lz-pct {
         font-size: 11px;
         min-width: 42px;
+        text-align: center;
       }
     }
   }
