@@ -34,8 +34,7 @@
         </span>
         <span class="filtro-chip consumo" *ngIf="consumoini != null || consumofin != null">
           <i class="pi pi-gauge"></i>
-          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin
-            }}</ng-container>
+          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin }}</ng-container>
           <ng-container *ngIf="consumoini != null && consumofin == null">≥{{ consumoini }}</ng-container>
           <ng-container *ngIf="consumoini == null && consumofin != null">≤{{ consumofin }}</ng-container>
         </span>
@@ -83,7 +82,8 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector"  (onChange)="seleccionarSector($event.value.codsector)" optionLabel="descripcion" [filter]="true"
+          <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector"
+            (onChange)="seleccionarSector($event.value.codsector)" optionLabel="descripcion" [filter]="true"
             filterBy="descripcion" [showClear]="true" [style]="{ width: '180px' }" placeholder="Sector"
             [appendTo]="'body'">
             <ng-template let-sector pTemplate="item">
@@ -136,6 +136,11 @@
   </div>
 
   <div class="cd-map-container">
+    <div *ngIf="cargando" class="map-loading-overlay">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Cargando conexiones...</span>
+    </div>
+
     <div id="map" class="map"></div>
 
     <div class="gis-sidebar-container">
@@ -198,7 +203,21 @@
       <i class="pi pi-map-marker"></i>
     </button>
 
-    <div class="user-popup" *ngIf="lecturaSeleccionada">
+    <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
+      <div class="search-header">
+        <span><i class="pi pi-search"></i> Buscar Cliente</span>
+        <i class="pi pi-times cerrar" (click)="mostrarSearchPanel = false"></i>
+      </div>
+      <div class="search-body">
+        <input type="text" placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente" (keyup.enter)="buscarPorCodCliente()">
+        <button (click)="buscarPorCodCliente()">Buscar</button>
+      </div>
+    </div>
+    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="mostrarSearchPanel = true; searchCodCliente = ''">
+      <i class="pi pi-search"></i>
+    </button>
+
+    <div class="user-popup" *ngIf="lecturaSeleccionada && tipoPopup === 'lectura'">
       <div class="up-header">
         <div class="up-header-left">
           <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
@@ -249,12 +268,12 @@
                 datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA
                 Y ALCANTARILLADO' : 'AGUA') }}</span></div>
 
-                <div class="up-cell span-2">
-            <span class="uc-label">Tarifa / Inmueble</span>
-            <span class="uc-val">
-              {{ lecturaSeleccionada.tarifas || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}
-            </span>
-          </div>
+            <div class="up-cell span-2">
+              <span class="uc-label">Tarifa / Inmueble</span>
+              <span class="uc-val">
+                {{ lecturaSeleccionada.tarifas || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}
+              </span>
+            </div>
             <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{
                 datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
           </div>
@@ -280,7 +299,7 @@
             <div class="up-cell"><span class="uc-label">Est. Lect.</span><span class="uc-val badge-est">{{
                 getDescripcionEstadoLectura(lecturaSeleccionada.estadolectura ??
                 datosClientePopup?._medidor?.estadolectura) }}</span></div>
-                <div class="up-cell">
+            <div class="up-cell">
               <span class="uc-label">Est. Med.</span>
               <span class="uc-val badge-est">
                 {{ lecturaSeleccionada.estadomedidor || '-' }}
@@ -317,8 +336,128 @@
               </div>
             </ng-container>
             <ng-template #sinImg>
-              <div class="up-noimg"><i class="pi pi-image"></i><span>Sin imágenes</span></div>
+              <div class="up-empty" *ngIf="!cargandoImagenes && imagenesPopup.length === 0">
+                <i class="pi pi-image"></i>
+                <span>No se encontraron imágenes para esta lectura.</span>
+              </div>
             </ng-template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POPUP CAJA FICHA AGUA -->
+    <div class="user-popup" *ngIf="lecturaSeleccionada && tipoPopup === 'agua'">
+      <div class="up-header">
+        <div class="up-header-left">
+          <div class="up-avatar"><img src="assets/images/img-georeferencia/ficha-agua-icon.gif" alt="Ficha Agua"></div>
+          <div class="up-header-info">
+            <span class="up-label">CAJA FICHA AGUA</span>
+            <strong class="up-name">Ficha: {{ datosClientePopup?.codcatastral || lecturaSeleccionada?.fichacatastral || '-' }}</strong>
+          </div>
+        </div>
+        <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="up-body">
+        <div class="up-section">
+          <div class="up-grid grid-2">
+            <div class="up-cell full">
+               <span class="uc-label">CÓDIGO MEDIDOR</span>
+               <span class="uc-val">{{ datosClientePopup?._medidor?.nromed || datosClientePopup?.nromed || lecturaSeleccionada?.nromed || '-' }}</span>
+            </div>
+            <div class="up-cell full">
+               <span class="uc-label">ESTADO CONEXIÓN</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionAgua?.desestconexion || datosClientePopup?.descripcionestservicio || '-' }}</span>
+            </div>
+            
+            <div class="up-cell">
+               <span class="uc-label">MATERIAL CAJA</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionAgua?.destipocaja || datosClientePopup?._conexionAgua?.tipocaja || '-' }}</span>
+            </div>
+            <div class="up-cell">
+               <span class="uc-label">DIAMETRO CONEXIÓN</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionAgua?.desdiametro || datosClientePopup?.desdiametro || '-' }}</span>
+            </div>
+
+            <div class="up-cell">
+               <span class="uc-label">ESTADO MEDIDOR</span>
+               <span class="uc-val">{{ datosClientePopup?._medidor?.desestadomed || datosClientePopup?.desestadomed || lecturaSeleccionada?.estadomedidor || '-' }}</span>
+            </div>
+            <div class="up-cell">
+               <span class="uc-label">DIAMETRO MEDIDOR</span>
+               <span class="uc-val">{{ datosClientePopup?._medidor?.desdiametro || datosClientePopup?.desdiametro || '-' }}</span>
+            </div>
+
+            <div class="up-cell">
+               <span class="uc-label">NÚMERO MEDIDOR</span>
+               <span class="uc-val">{{ datosClientePopup?._medidor?.nromed || datosClientePopup?.nromed || lecturaSeleccionada?.nromed || '-' }}</span>
+            </div>
+            <div class="up-cell">
+               <span class="uc-label">MARCA MEDIDOR</span>
+               <span class="uc-val">{{ datosClientePopup?._medidor?.desmarcamed || datosClientePopup?._medidor?.marcamed || '-' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- POPUP FICHA ALCANTARILLADO -->
+    <div class="user-popup" *ngIf="lecturaSeleccionada && tipoPopup === 'alcantarillado'">
+      <div class="up-header">
+        <div class="up-header-left">
+          <div class="up-avatar"><img src="assets/images/img-georeferencia/ficha-desague-icon.gif" alt="Ficha Alcantarillado"></div>
+          <div class="up-header-info">
+            <span class="up-label">FICHA ALCANTARILLADO</span>
+            <strong class="up-name">Ficha: {{ datosClientePopup?.codcatastral || lecturaSeleccionada?.fichacatastral || '-' }}</strong>
+          </div>
+        </div>
+        <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="up-body">
+        <div class="up-section">
+          <div class="up-grid grid-2">
+            <div class="up-cell full">
+               <span class="uc-label">CONDICIÓN</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipocon || datosClientePopup?._conexionDesague?.tipocon || datosClientePopup?.destiposervicio || '-' }}</span>
+            </div>
+            <div class="up-cell full">
+               <span class="uc-label">UBICACIÓN CAJA DESAGUE</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desloccaja || datosClientePopup?._conexionDesague?.loccaja || '-' }}</span>
+            </div>
+            
+            <div class="up-cell">
+               <span class="uc-label">ESTADO CONEXIÓN DESAGUE</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desestconexion || datosClientePopup?._conexionDesague?.estconexion || '-' }}</span>
+            </div>
+            <div class="up-cell">
+               <span class="uc-label">MARCO TAPA DESAGUE</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipotapa || datosClientePopup?._conexionDesague?.tipotapa || '-' }}</span>
+            </div>
+
+            <div class="up-cell">
+               <span class="uc-label">ESTADO TAPA CAJA</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desesttapa || datosClientePopup?._conexionDesague?.esttapa || '-' }}</span>
+            </div>
+            <div class="up-cell">
+               <span class="uc-label">MATERIAL TAPA CAJA</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipotapa || datosClientePopup?._conexionDesague?.tipotapa || '-' }}</span>
+            </div>
+
+            <div class="up-cell">
+               <span class="uc-label">ESTADO CAJA DESAGUE</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desestadocaja || datosClientePopup?._conexionDesague?.estadocaja || '-' }}</span>
+            </div>
+            <div class="up-cell">
+               <span class="uc-label">MATERIAL CAJA DESAGUE</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipomaterial || datosClientePopup?._conexionDesague?.tipomaterial || '-' }}</span>
+            </div>
+
+            <div class="up-cell full">
+               <span class="uc-label">DIÁMETRO CONEXIÓN DESAGUE</span>
+               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desdiametro || datosClientePopup?.desdiametro || '-' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -331,13 +470,10 @@
   <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)"
     title="Anterior"><i class="pi pi-chevron-left"></i></button>
   <div class="lightbox-content" (click)="$event.stopPropagation()">
-    <img [src]="imagenAbierta" 
-         [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
-         [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'"
-         (mousedown)="onDragStart($event)"
-         (mousemove)="onDragMove($event)"
-         (mouseup)="onDragEnd()"
-         (mouseleave)="onDragEnd()"
+    <img [src]="imagenAbierta"
+      [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
+      [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'" (mousedown)="onDragStart($event)"
+      (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()" (mouseleave)="onDragEnd()"
       (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
     <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
       imagenesPopup.length }}</div>
@@ -352,6 +488,5 @@
     <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
     <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
     <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
-    <button class="lz-btn reset" (click)="resetZoom()" title="Restablecer"><i class="pi pi-sync"></i></button>
   </div>
 </div>
