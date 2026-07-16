@@ -45,6 +45,7 @@ import { MultiSelectModule } from "primeng/multiselect";
 import { InputNumberModule } from "primeng/inputnumber";
 import { ToastModule } from "primeng/toast";
 import { TagModule } from "primeng/tag";
+import { InputTextModule } from "primeng/inputtext";
 export type OrigenCoordenada = "usuario" | "predio" | "agua" | "desague";
 
 interface ConfigOrigenCoordenada {
@@ -74,6 +75,7 @@ const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
     InputNumberModule,
     ToastModule,
     TagModule,
+    InputTextModule,
   ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
@@ -108,7 +110,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   selectedAnio = "";
   selectedMes = "";
   consumoini: number | null = 0;
-  consumofin: number | null = 99999;
+  consumofin: number | null = 0;
   resultadoBusquedaJson: any = null;
 
   listaYear: { anio: string }[] = [];
@@ -136,6 +138,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   ];
 
   filtrosVisible = false;
+
+  private styleCache: { [key: string]: Style } = {};
   sidebarOpen = true;
   baseActive: string | null = "osm";
 
@@ -301,9 +305,15 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
           ...data,
         ];
         this.totalSectores2 = sectores;
-        this.selectedSector = sectores[0];
+
+        // Find Sector 1 or default
+        const defaultSector = sectores.find(s => s.codsector === '01' || s.codsector === '1') || sectores[1] || sectores[0];
+        this.selectedSector = defaultSector;
+        this.consumoini = 0;
+        this.consumofin = 0;
 
         if (autoLoad === true) {
+          this.avisar("info", "Búsqueda por defecto", `Se cargó por defecto el Sector ${this.selectedSector.codsector} y Consumo 0 a 0`);
           this.procesar();
         }
       });
@@ -353,10 +363,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   }
 
   limpiar(): void {
-    this.selectedSector = this.totalSectores2?.[0] || null;
+    this.selectedSector = this.totalSectores2?.find(s => s.codsector === '01' || s.codsector === '1') || this.totalSectores2?.[1] || this.totalSectores2?.[0] || null;
     this.selectedEstados = [];
     this.consumoini = 0;
-    this.consumofin = 99999;
+    this.consumofin = 0;
     this.selectedTipoPromedio = null;
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
@@ -373,6 +383,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   private actualizarCapasComerciales(fitBounds: boolean = true): void {
     const sourceUsuarios = this.lecturasLayer.getSource()!;
     const sourceCajaAgua = this.cajaAguaLayer.getSource()!;
+
+    // Limpiar el cache de estilos para liberar memoria de textos de usuarios anteriores
+    this.styleCache = {};
 
     sourceUsuarios.clear();
     sourceCajaAgua.clear();
@@ -397,6 +410,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       .map(r => this.crearFeature(r, ORIGENES_COORDENADA["desague"]))
       .filter((f): f is Feature => f !== null);
     const sourceFichaAlc = this.fichaAlcLayer.getSource() as VectorSource;
+    sourceFichaAlc.clear();
     sourceFichaAlc.addFeatures(featuresAlc);
 
     this.totalLecturas = registros.length;
@@ -456,12 +470,14 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       coordenada = transform(coordenada, config.proyeccion, PROYECCION_MAPA);
     }
 
-    const feature = new Feature({ geometry: new Point(coordenada) });
-    feature.setProperties(registro);
+    const feature = new Feature({
+      ...registro,
+      geometry: new Point(coordenada)
+    });
     return feature;
   }
 
-  private  limpiarCapa(): void {
+  private limpiarCapa(): void {
     if (this.lecturasLayer) {
       const source = this.lecturasLayer.getSource() as VectorSource;
       source.clear();
@@ -486,7 +502,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.osmLayer = new TileLayer({ source: new OSM(), visible: this.baseActive === 'osm' });
     this.satelitalLayer = new TileLayer({
       source: new XYZ({
-        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+        url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
       }),
       visible: this.baseActive === 'satelital'
     });
@@ -556,6 +572,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     let radius = isSelected ? 9 : 6;
+    let strokeColor = isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff");
+    let strokeWidth = isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5);
+
     if (!isSelected) {
       if (zoom < 14) radius = 3;
       else if (zoom < 16) radius = 4;
@@ -563,31 +582,36 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       else radius = 7;
     }
 
+    const codcliente = feature.get("codcliente") || "";
+    const cacheKey = showText 
+      ? `lec_${color}_${radius}_${strokeColor}_${strokeWidth}_${codcliente}`
+      : `lec_${color}_${radius}_${strokeColor}_${strokeWidth}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey];
+    }
+
     const styleParams: any = {
       image: new CircleStyle({
         radius: radius,
         fill: new Fill({ color }),
-        stroke: new Stroke({
-          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
-          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
-        }),
+        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
       }),
     };
 
-    if (showText) {
-      const codcliente = feature.get("codcliente");
-      if (codcliente) {
-        styleParams.text = new Text({
-          text: String(codcliente),
-          font: 'bold 11px Arial',
-          fill: new Fill({ color: '#000000' }),
-          stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          offsetY: -12,
-        });
-      }
+    if (showText && codcliente) {
+      styleParams.text = new Text({
+        text: String(codcliente),
+        font: 'bold 11px Arial',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+        offsetY: -12,
+      });
     }
 
-    return new Style(styleParams);
+    const style = new Style(styleParams);
+    this.styleCache[cacheKey] = style;
+    return style;
   }
 
   private estiloCajaAgua(feature: any, resolution?: number): Style {
@@ -603,6 +627,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     let radius = isSelected ? 11 : 8;
+    let strokeColor = isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff");
+    let strokeWidth = isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5);
+
     if (!isSelected) {
       if (zoom < 14) radius = 4;
       else if (zoom < 16) radius = 6;
@@ -610,33 +637,38 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       else radius = 9;
     }
 
+    const codcliente = feature.get("codcliente") || "";
+    const cacheKey = showText 
+      ? `caja_${radius}_${strokeColor}_${strokeWidth}_${codcliente}`
+      : `caja_${radius}_${strokeColor}_${strokeWidth}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey];
+    }
+
     const styleParams: any = {
       image: new RegularShape({
         fill: new Fill({ color: '#00bfff' }), // celeste
-        stroke: new Stroke({
-          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
-          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
-        }),
+        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
         points: 4,
         radius: radius,
         angle: Math.PI / 4,
       }),
     };
 
-    if (showText) {
-      const codcliente = feature.get("codcliente");
-      if (codcliente) {
-        styleParams.text = new Text({
-          text: String(codcliente),
-          font: 'bold 11px Arial',
-          fill: new Fill({ color: '#000000' }),
-          stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          offsetY: -15,
-        });
-      }
+    if (showText && codcliente) {
+      styleParams.text = new Text({
+        text: String(codcliente),
+        font: 'bold 11px Arial',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+        offsetY: -15,
+      });
     }
 
-    return new Style(styleParams);
+    const style = new Style(styleParams);
+    this.styleCache[cacheKey] = style;
+    return style;
   }
 
   private estiloFichaAlc(feature: any, resolution?: number): Style {
@@ -652,6 +684,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     let radius = isSelected ? 11 : 8;
+    let strokeColor = isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff");
+    let strokeWidth = isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5);
+
     if (!isSelected) {
       if (zoom < 14) radius = 4;
       else if (zoom < 16) radius = 6;
@@ -660,36 +695,38 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     const color = '#8b4513'; // marron
+    const codcliente = feature.get("codcliente") || "";
+    const cacheKey = showText 
+      ? `alc_${radius}_${strokeColor}_${strokeWidth}_${codcliente}`
+      : `alc_${radius}_${strokeColor}_${strokeWidth}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey];
+    }
 
     const styleParams: any = {
       image: new RegularShape({
         fill: new Fill({ color }),
-        stroke: new Stroke({
-          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
-          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
-        }),
+        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
         points: 4,
         radius: radius,
-        angle: 0, // square
+        angle: Math.PI / 4,
       }),
     };
 
-    if (showText) {
-      const codcliente = feature.get("codcliente");
-      if (codcliente) {
-        styleParams.text = new Text({
-          text: String(codcliente),
-          font: 'bold 11px Arial',
-          fill: new Fill({ color: '#000000' }),
-          stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          offsetY: -15,
-        });
-      }
+    if (showText && codcliente) {
+      styleParams.text = new Text({
+        text: String(codcliente),
+        font: 'bold 11px Arial',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+        offsetY: -15,
+      });
     }
 
-    return new Style(styleParams);
-
-    return new Style(styleParams);
+    const style = new Style(styleParams);
+    this.styleCache[cacheKey] = style;
+    return style;
   }
 
   private initClick(): void {
@@ -883,7 +920,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       this.fichaAlcLayer.changed();
       this.lecturaSeleccionada = foundFeature.getProperties();
       this.cargarDatosPopup(this.lecturaSeleccionada);
-      
+
       const geom = foundFeature.getGeometry() as any;
       if (geom) {
         this.map.getView().animate({

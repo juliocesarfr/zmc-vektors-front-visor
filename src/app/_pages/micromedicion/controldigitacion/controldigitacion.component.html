@@ -208,9 +208,9 @@
         <span><i class="pi pi-search"></i> Buscar Cliente</span>
         <i class="pi pi-times cerrar" (click)="mostrarSearchPanel = false"></i>
       </div>
-      <div class="search-body">
-        <input type="text" placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente" (keyup.enter)="buscarPorCodCliente()">
-        <button (click)="buscarPorCodCliente()">Buscar</button>
+      <div class="search-body p-inputgroup mt-2">
+        <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente" (keyup.enter)="buscarPorCodCliente()">
+        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"></button>
       </div>
     </div>
     <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="mostrarSearchPanel = true; searchCodCliente = ''">
@@ -466,9 +466,12 @@
 </div>
 
 <div class="img-lightbox" *ngIf="imagenAbierta" (click)="cerrarImagenCompleta()" (wheel)="onWheelZoom($event)">
+  <!-- Botón de cerrar superior (opcional, si lo quieres mantener) -->
   <button class="lightbox-close" (click)="cerrarImagenCompleta()" title="Cerrar"><i class="pi pi-times"></i></button>
+  
   <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)"
     title="Anterior"><i class="pi pi-chevron-left"></i></button>
+    
   <div class="lightbox-content" (click)="$event.stopPropagation()">
     <img [src]="imagenAbierta"
       [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
@@ -478,8 +481,10 @@
     <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
       imagenesPopup.length }}</div>
   </div>
+  
   <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)"
     title="Siguiente"><i class="pi pi-chevron-right"></i></button>
+    
   <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
     <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda">
       <i class="pi pi-refresh pi-espejo"></i>
@@ -488,5 +493,6 @@
     <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
     <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
     <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
+    
   </div>
 </div>
