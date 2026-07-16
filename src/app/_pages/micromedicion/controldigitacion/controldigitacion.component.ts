@@ -11,6 +11,7 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule, DatePipe } from "@angular/common";
 import { transform } from "ol/proj";
+import { extend } from "ol/extent";
 import { forkJoin, of } from "rxjs";
 import { catchError } from "rxjs/operators";
 
@@ -20,11 +21,12 @@ import TileLayer from "ol/layer/Tile";
 import VectorLayer from "ol/layer/Vector";
 import LayerGroup from "ol/layer/Group";
 import OSM from "ol/source/OSM";
+import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
-import { Style, Circle as CircleStyle, Fill, Stroke } from "ol/style";
+import { Style, Circle as CircleStyle, Fill, Stroke, Text, RegularShape } from "ol/style";
 
 import { MessageService } from "primeng/api";
 import { AperturaMicromedicionService } from "@host/_servicios/micromedicion/apertura-micromedicion.service";
@@ -54,9 +56,9 @@ interface ConfigOrigenCoordenada {
 const PROYECCION_MAPA = "EPSG:4326";
 
 const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
-  usuario: { lonField: "lon",        latField: "lat",        proyeccion: "EPSG:4326" },
-  predio:  { lonField: "lonpredio",  latField: "latpredio",  proyeccion: "EPSG:4326" },
-  agua:    { lonField: "lonagua",    latField: "latagua",    proyeccion: "EPSG:4326" },
+  usuario: { lonField: "lon", latField: "lat", proyeccion: "EPSG:4326" },
+  predio: { lonField: "lonpredio", latField: "latpredio", proyeccion: "EPSG:4326" },
+  agua: { lonField: "lonagua", latField: "latagua", proyeccion: "EPSG:4326" },
   desague: { lonField: "londesague", latField: "latdesague", proyeccion: "EPSG:4326" },
 };
 
@@ -79,11 +81,16 @@ const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDestroy {
-    private readonly destroyRef = inject(DestroyRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   map!: OlMap;
   lecturasLayer!: VectorLayer<VectorSource>;
+  cajaAguaLayer!: VectorLayer<VectorSource>;
+  fichaAlcLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
+  osmLayer!: TileLayer<any>;
+  satelitalLayer!: TileLayer<any>;
+  tipoPopup: 'lectura' | 'agua' | 'alcantarillado' = 'lectura';
 
   _codsede: string | null;
   _codemp: string | null;
@@ -102,6 +109,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   selectedMes = "";
   consumoini: number | null = 0;
   consumofin: number | null = 99999;
+  resultadoBusquedaJson: any = null;
 
   listaYear: { anio: string }[] = [];
   listaMeses = [
@@ -138,7 +146,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
-    { id: "caja_agua", label: "Caja Ficha Agua", active: false },
+    { id: "caja_agua", label: "Ficha Agua", active: false },
     { id: "acometida", label: "Acometida de Agua", active: false },
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
@@ -157,6 +165,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   totalSinCoordenadas = 0;
   lecturaSeleccionada: any = null;
   mostrarLeyenda = true;
+  mostrarSearchPanel = false;
+  searchCodCliente = '';
   selectedTipoPromedio: any = null;
   featureSeleccionado: Feature | null = null;
 
@@ -211,6 +221,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       .subscribe((response) => {
         if (response.status === "SUCCESS") {
           this.dataCiclos = response.data;
+          if (this.dataCiclos && this.dataCiclos.length > 0) {
+            this.selectedCiclo = this.dataCiclos[0];
+            this.onCicloChange(true);
+          }
         }
       });
 
@@ -241,7 +255,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.filtrosVisible = !this.filtrosVisible;
   }
 
-  onCicloChange(): void {
+  onCicloChange(autoLoad: boolean = false): void {
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.limpiarCapa();
@@ -258,11 +272,17 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
         this.seguridadService
           .drop_sucursales_x_ciclo(this.selectedCiclo.codciclo)
           .pipe(takeUntilDestroyed(this.destroyRef))
-          .subscribe((data) => (this.listaSucursalesxusr = data));
+          .subscribe((data) => {
+            this.listaSucursalesxusr = data;
+            if (autoLoad === true && this.listaSucursalesxusr && this.listaSucursalesxusr.length > 0) {
+              this.selectedSucursal = this.listaSucursalesxusr[0];
+              this.onSucursalChange(true);
+            }
+          });
       });
   }
 
-  onSucursalChange(): void {
+  onSucursalChange(autoLoad: boolean = false): void {
     this.selectedSector = null;
     if (!this.selectedSucursal) return;
 
@@ -282,6 +302,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
         ];
         this.totalSectores2 = sectores;
         this.selectedSector = sectores[0];
+
+        if (autoLoad === true) {
+          this.procesar();
+        }
       });
   }
 
@@ -317,7 +341,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
         next: (data) => {
           this.cargando = false;
           this.filtrosVisible = false;
-          this.pintarPuntos(data.data || [], "usuario");
+          this.resultadoBusquedaJson = data.data || [];
+          this.actualizarCapasComerciales();
         },
         error: () => {
           this.cargando = false;
@@ -333,6 +358,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.consumoini = 0;
     this.consumofin = 99999;
     this.selectedTipoPromedio = null;
+    this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
       this.selectedAnio = this.fechaCiclos.year;
       this.selectedMes = this.fechaCiclos.month;
@@ -344,33 +370,67 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   // PINTADO DE PUNTOS (genérico y escalable)
   // ============================================================
 
-  private pintarPuntos(registros: any[], origen: OrigenCoordenada): void {
-    const source = this.lecturasLayer.getSource()!;
-    source.clear();
+  private actualizarCapasComerciales(fitBounds: boolean = true): void {
+    const sourceUsuarios = this.lecturasLayer.getSource()!;
+    const sourceCajaAgua = this.cajaAguaLayer.getSource()!;
+
+    sourceUsuarios.clear();
+    sourceCajaAgua.clear();
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
 
-    const config = ORIGENES_COORDENADA[origen];
+    const registros = this.resultadoBusquedaJson || [];
+    if (registros.length === 0) return;
 
-    const features = registros
-      .map((r) => this.crearFeature(r, config))
+    const featuresUsr = registros
+      .map(r => this.crearFeature(r, ORIGENES_COORDENADA["usuario"]))
       .filter((f): f is Feature => f !== null);
+    sourceUsuarios.addFeatures(featuresUsr);
+    const totalFeatUsr = featuresUsr.length;
+
+    const featuresAgua = registros
+      .map(r => this.crearFeature(r, ORIGENES_COORDENADA["agua"]))
+      .filter((f): f is Feature => f !== null);
+    sourceCajaAgua.addFeatures(featuresAgua);
+
+    const featuresAlc = registros
+      .map(r => this.crearFeature(r, ORIGENES_COORDENADA["desague"]))
+      .filter((f): f is Feature => f !== null);
+    const sourceFichaAlc = this.fichaAlcLayer.getSource() as VectorSource;
+    sourceFichaAlc.addFeatures(featuresAlc);
 
     this.totalLecturas = registros.length;
-    this.totalSinCoordenadas = registros.length - features.length;
+    this.totalSinCoordenadas = registros.length - totalFeatUsr;
 
-    if (features.length === 0) {
-      this.avisar("info", "Aviso", "No se encontraron coordenadas");
+    const featUsrLen = sourceUsuarios.getFeatures().length;
+    const featAguaLen = sourceCajaAgua.getFeatures().length;
+
+    if (featUsrLen === 0 && featAguaLen === 0) {
+      this.avisar("info", "Aviso", "No se encontraron coordenadas para los registros");
       return;
     }
 
-    source.addFeatures(features);
-    this.map.getView().fit(source.getExtent(), {
-      duration: 800,
-      maxZoom: 18,
-      padding: [60, 60, 60, 60],
-    });
-    this.avisar("success", "Proceso completado", `${features.length} lecturas en el mapa`);
+    let extent: any = null;
+    if (featUsrLen > 0) {
+      extent = sourceUsuarios.getExtent();
+    }
+    if (featAguaLen > 0) {
+      const ext2 = sourceCajaAgua.getExtent();
+      if (extent) {
+        extent = extend(extent, ext2);
+      } else {
+        extent = ext2;
+      }
+    }
+
+    if (extent && fitBounds) {
+      this.map.getView().fit(extent, {
+        duration: 800,
+        maxZoom: 18,
+        padding: [60, 60, 60, 60],
+      });
+    }
+    this.avisar("success", "Proceso completado", `Lecturas cargadas en el mapa`);
   }
 
   /**
@@ -401,10 +461,19 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     return feature;
   }
 
-  private limpiarCapa(): void {
-    this.lecturasLayer?.getSource()?.clear();
-    this.lecturaSeleccionada = null;
-    this.featureSeleccionado = null;
+  private  limpiarCapa(): void {
+    if (this.lecturasLayer) {
+      const source = this.lecturasLayer.getSource() as VectorSource;
+      source.clear();
+    }
+    if (this.cajaAguaLayer) {
+      const source = this.cajaAguaLayer.getSource() as VectorSource;
+      source.clear();
+    }
+    if (this.fichaAlcLayer) {
+      const source = this.fichaAlcLayer.getSource() as VectorSource;
+      source.clear();
+    }
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -414,11 +483,20 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   // ============================================================
 
   private crearMapa(): void {
+    this.osmLayer = new TileLayer({ source: new OSM(), visible: this.baseActive === 'osm' });
+    this.satelitalLayer = new TileLayer({
+      source: new XYZ({
+        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+      }),
+      visible: this.baseActive === 'satelital'
+    });
+
     const base = new LayerGroup({
-      layers: [new TileLayer({ source: new OSM(), visible: true })],
+      layers: [this.osmLayer, this.satelitalLayer],
     });
 
     this.lotesLayer = new TileLayer({
+      visible: false,
       source: new TileWMS({
         url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
         params: {
@@ -432,12 +510,25 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
     this.lecturasLayer = new VectorLayer({
       source: new VectorSource(),
-      style: (feature) => this.estiloLectura(feature),
+      visible: true,
+      style: (feature, resolution) => this.estiloLectura(feature, resolution),
+    });
+
+    this.cajaAguaLayer = new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+      style: (feature, resolution) => this.estiloCajaAgua(feature, resolution),
+    });
+
+    this.fichaAlcLayer = new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+      style: (feature, resolution) => this.estiloFichaAlc(feature, resolution),
     });
 
     this.map = new OlMap({
       target: "map",
-      layers: [base, this.lotesLayer, this.lecturasLayer],
+      layers: [base, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer],
       view: new View({
         projection: PROYECCION_MAPA,
         center: [-76.1223, -5.9018], // Yurimaguas
@@ -446,7 +537,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     });
   }
 
-  private estiloLectura(feature: any): Style {
+  private estiloLectura(feature: any, resolution?: number): Style {
     const estado = feature.get("estadolectura");
     let color = "#22c55e"; // 000 normal → verde
     if (estado === "008") color = "#ef4444"; // atípico → rojo
@@ -455,27 +546,175 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
     const isSelected = feature === this.featureSeleccionado;
 
-    return new Style({
+    let showText = isSelected;
+    let zoom = 14;
+    if (this.map) {
+      zoom = this.map.getView().getZoom() || 14;
+      if (!showText && zoom >= 17) {
+        showText = true;
+      }
+    }
+
+    let radius = isSelected ? 9 : 6;
+    if (!isSelected) {
+      if (zoom < 14) radius = 3;
+      else if (zoom < 16) radius = 4;
+      else if (zoom < 18) radius = 6;
+      else radius = 7;
+    }
+
+    const styleParams: any = {
       image: new CircleStyle({
-        radius: isSelected ? 9 : 6,
+        radius: radius,
         fill: new Fill({ color }),
         stroke: new Stroke({
-          color: isSelected ? "#000000" : "#ffffff",
-          width: isSelected ? 2.5 : 1.5,
+          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
+          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
         }),
       }),
-    });
+    };
+
+    if (showText) {
+      const codcliente = feature.get("codcliente");
+      if (codcliente) {
+        styleParams.text = new Text({
+          text: String(codcliente),
+          font: 'bold 11px Arial',
+          fill: new Fill({ color: '#000000' }),
+          stroke: new Stroke({ color: '#ffffff', width: 2 }),
+          offsetY: -12,
+        });
+      }
+    }
+
+    return new Style(styleParams);
+  }
+
+  private estiloCajaAgua(feature: any, resolution?: number): Style {
+    const isSelected = feature === this.featureSeleccionado;
+
+    let showText = isSelected;
+    let zoom = 14;
+    if (this.map) {
+      zoom = this.map.getView().getZoom() || 14;
+      if (!showText && zoom >= 17) {
+        showText = true;
+      }
+    }
+
+    let radius = isSelected ? 11 : 8;
+    if (!isSelected) {
+      if (zoom < 14) radius = 4;
+      else if (zoom < 16) radius = 6;
+      else if (zoom < 18) radius = 8;
+      else radius = 9;
+    }
+
+    const styleParams: any = {
+      image: new RegularShape({
+        fill: new Fill({ color: '#00bfff' }), // celeste
+        stroke: new Stroke({
+          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
+          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
+        }),
+        points: 4,
+        radius: radius,
+        angle: Math.PI / 4,
+      }),
+    };
+
+    if (showText) {
+      const codcliente = feature.get("codcliente");
+      if (codcliente) {
+        styleParams.text = new Text({
+          text: String(codcliente),
+          font: 'bold 11px Arial',
+          fill: new Fill({ color: '#000000' }),
+          stroke: new Stroke({ color: '#ffffff', width: 2 }),
+          offsetY: -15,
+        });
+      }
+    }
+
+    return new Style(styleParams);
+  }
+
+  private estiloFichaAlc(feature: any, resolution?: number): Style {
+    const isSelected = feature === this.featureSeleccionado;
+
+    let showText = isSelected;
+    let zoom = 14;
+    if (this.map) {
+      zoom = this.map.getView().getZoom() || 14;
+      if (!showText && zoom >= 17) {
+        showText = true;
+      }
+    }
+
+    let radius = isSelected ? 11 : 8;
+    if (!isSelected) {
+      if (zoom < 14) radius = 4;
+      else if (zoom < 16) radius = 6;
+      else if (zoom < 18) radius = 8;
+      else radius = 9;
+    }
+
+    const color = '#8b4513'; // marron
+
+    const styleParams: any = {
+      image: new RegularShape({
+        fill: new Fill({ color }),
+        stroke: new Stroke({
+          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
+          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
+        }),
+        points: 4,
+        radius: radius,
+        angle: 0, // square
+      }),
+    };
+
+    if (showText) {
+      const codcliente = feature.get("codcliente");
+      if (codcliente) {
+        styleParams.text = new Text({
+          text: String(codcliente),
+          font: 'bold 11px Arial',
+          fill: new Fill({ color: '#000000' }),
+          stroke: new Stroke({ color: '#ffffff', width: 2 }),
+          offsetY: -15,
+        });
+      }
+    }
+
+    return new Style(styleParams);
+
+    return new Style(styleParams);
   }
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
+      let clickedLayer: any = null;
+      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f, layer) => {
+        clickedLayer = layer;
+        return f;
+      }, {
         hitTolerance: 5,
       }) as Feature | undefined;
 
       if (feature) {
+        if (clickedLayer === this.cajaAguaLayer) {
+          this.tipoPopup = 'agua';
+        } else if (clickedLayer === this.fichaAlcLayer) {
+          this.tipoPopup = 'alcantarillado';
+        } else {
+          this.tipoPopup = 'lectura';
+        }
+
         this.featureSeleccionado = feature;
         this.lecturasLayer.changed();
+        this.cajaAguaLayer.changed();
+        this.fichaAlcLayer.changed();
         this.lecturaSeleccionada = feature.getProperties();
         this.cargarDatosPopup(this.lecturaSeleccionada);
       } else {
@@ -494,10 +733,21 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
   setBaseLayer(id: string): void {
     this.baseActive = this.baseActive === id ? null : id;
+    if (this.osmLayer) this.osmLayer.setVisible(this.baseActive === 'osm');
+    if (this.satelitalLayer) this.satelitalLayer.setVisible(this.baseActive === 'satelital');
   }
 
   toggleCommercialLayer(layer: any): void {
     layer.active = !layer.active;
+    if (layer.id === 'lotes') {
+      this.lotesLayer.setVisible(layer.active);
+    } else if (layer.id === 'usuarios') {
+      this.lecturasLayer.setVisible(layer.active);
+    } else if (layer.id === 'caja_agua') {
+      this.cajaAguaLayer.setVisible(layer.active);
+    } else if (layer.id === 'ficha_alc') {
+      this.fichaAlcLayer.setVisible(layer.active);
+    }
   }
 
   /** Cambia la capa WMS de lotes según el sector ('001' -> '01'). */
@@ -521,6 +771,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
     this.lecturasLayer?.changed();
+    this.cajaAguaLayer?.changed();
+    this.fichaAlcLayer?.changed();
   }
 
   getDescripcionEstadoLectura(codigo: string): string {
@@ -572,6 +824,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
               _predio: cliente.pred || {},
               _medidor: cliente.medidor_cliente || {},
               _conexionAgua: cliente.conx_agua || {},
+              _conexionDesague: cliente.conx_desague || {},
               _calidad: cliente.calidad || {},
             };
           }
@@ -589,6 +842,60 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
         },
         error: () => (this.cargandoImagenes = false),
       });
+  }
+
+  // ============================================================
+  // BUSCADOR POR CODIGO
+  // ============================================================
+
+  buscarPorCodCliente(): void {
+    if (!this.searchCodCliente) return;
+
+    const query = String(this.searchCodCliente).trim();
+    const layers = [
+      { layer: this.lecturasLayer, type: 'lectura' },
+      { layer: this.cajaAguaLayer, type: 'agua' },
+      { layer: this.fichaAlcLayer, type: 'alcantarillado' }
+    ];
+
+    let foundFeature: Feature | null = null;
+    let foundType: string = 'lectura';
+
+    for (const { layer, type } of layers) {
+      if (!layer) continue;
+      const features = (layer.getSource() as VectorSource).getFeatures();
+      for (const feat of features) {
+        const codcliente = String(feat.get('codcliente'));
+        if (codcliente === query) {
+          foundFeature = feat as Feature;
+          foundType = type;
+          break;
+        }
+      }
+      if (foundFeature) break;
+    }
+
+    if (foundFeature) {
+      this.tipoPopup = foundType as 'lectura' | 'agua' | 'alcantarillado';
+      this.featureSeleccionado = foundFeature;
+      this.lecturasLayer.changed();
+      this.cajaAguaLayer.changed();
+      this.fichaAlcLayer.changed();
+      this.lecturaSeleccionada = foundFeature.getProperties();
+      this.cargarDatosPopup(this.lecturaSeleccionada);
+      
+      const geom = foundFeature.getGeometry() as any;
+      if (geom) {
+        this.map.getView().animate({
+          center: geom.getCoordinates(),
+          zoom: 19,
+          duration: 800
+        });
+      }
+      this.mostrarSearchPanel = false;
+    } else {
+      this.avisar('warn', 'Aviso', 'No se encontró un usuario con ese código en el mapa actual.');
+    }
   }
 
   // ============================================================
@@ -628,6 +935,83 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     if (event.key === "ArrowRight") this.siguienteImagen();
     else if (event.key === "ArrowLeft") this.anteriorImagen();
     else if (event.key === "Escape") this.cerrarImagenCompleta();
+  }
+
+  @HostListener("window:buscar-codcliente", ["$event"])
+  onBuscarCodCliente(event: any): void {
+    const codcliente = event.detail.codcliente;
+    if (!codcliente) return;
+
+    if (!this.selectedCiclo || !this.selectedSucursal || !this.selectedAnio || !this.selectedMes) {
+      this.avisar("warn", "Aviso de usuario", "Debe seleccionar Ciclo, Sucursal, Año y Mes antes de realizar la búsqueda");
+      return;
+    }
+
+    const filtro: FiltroLecturas = {
+      codsuc: this.selectedSucursal.codsuc,
+      codsede: this._codsede ? this._codsede : "%",
+      codsector: this.selectedSector?.codsector || "%",
+      codciclo: this.selectedCiclo.codciclo,
+      anio: this.selectedAnio,
+      mes: this.selectedMes,
+      estadolectura: (this.selectedEstados || []).join(","),
+      consumoini: this.consumoini,
+      consumofin: this.consumofin,
+      tipopromedio: this.selectedTipoPromedio?.codigo ?? "",
+      codcliente: codcliente,
+    };
+
+    this.cargando = true;
+
+    this.micromedicionService
+      .listarLecturas(filtro)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.cargando = false;
+          this.filtrosVisible = false;
+
+          const query = codcliente.trim();
+          const rawData = data.data || [];
+
+          // Filtrado en front-end por si acaso
+          const filteredData = query
+            ? rawData.filter((r: any) =>
+              String(r.codcliente || "").toLowerCase().includes(query.toLowerCase())
+            )
+            : rawData;
+
+          this.resultadoBusquedaJson = filteredData;
+          this.actualizarCapasComerciales();
+
+          if (filteredData.length > 0) {
+            const firstMatch = filteredData[0];
+            this.lecturaSeleccionada = firstMatch;
+            this.cargarDatosPopup(firstMatch);
+
+            // Centrar mapa
+            const config = ORIGENES_COORDENADA["usuario"];
+            const lon = Number(firstMatch[config.lonField]);
+            const lat = Number(firstMatch[config.latField]);
+            if (lon && lat && !(lon === 0 && lat === 0)) {
+              let coordenada = [lon, lat];
+              if (config.proyeccion !== PROYECCION_MAPA) {
+                coordenada = transform(coordenada, config.proyeccion, PROYECCION_MAPA);
+              }
+              this.map.getView().setCenter(coordenada);
+              this.map.getView().setZoom(17);
+            }
+          } else {
+            this.avisar("info", "Aviso", "No se encontró ningún registro para el Código de Cliente");
+          }
+        },
+        error: () => {
+          this.cargando = false;
+          this.limpiarCapa();
+          this.resultadoBusquedaJson = null;
+          this.avisar("error", "Aviso de usuario", "Ocurrió un error al buscar el Código de Cliente");
+        },
+      });
   }
 
   zoomIn(): void {
