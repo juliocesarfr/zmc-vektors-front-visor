@@ -411,6 +411,11 @@
   color: #334155;
   line-height: 1.9;
 
+  @media (max-width: 768px) {
+    z-index: 1001;
+    bottom: 80px;
+  }
+
   .leyenda-header {
     display: flex;
     justify-content: space-between;
@@ -474,6 +479,11 @@
   cursor: pointer;
   transition: all 0.2s;
 
+  @media (max-width: 768px) {
+    z-index: 1001;
+    bottom: 80px;
+  }
+
   &:hover {
     background: #0284c7;
   }
@@ -498,6 +508,11 @@
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   padding: 12px 14px;
   width: 280px;
+
+  @media (max-width: 768px) {
+    z-index: 1001;
+    bottom: 80px;
+  }
 
   .search-header {
     display: flex;
@@ -600,6 +615,11 @@
   display: flex;
   align-items: flex-start;
   font-family: 'Segoe UI', Arial, sans-serif;
+
+  @media (max-width: 768px) {
+    z-index: 1001;
+    margin-left: 0;
+  }
 
   .gis-sidebar-panel {
     width: 240px;
@@ -773,10 +793,10 @@
   position: absolute;
   top: 58px;
   right: 10px;
-  width: min(360px, 92vw);
+  width: min(360px, calc(100vw - 20px));
   min-width: 260px;
   height: auto;
-  max-height: calc(100% - 20px) !important;
+  max-height: calc(100% - 75px) !important;
   z-index: 1000;
   background: #ffffff;
   border-radius: 8px;
@@ -786,6 +806,14 @@
   flex-direction: column;
   overflow: hidden;
   font-family: 'Segoe UI', Arial, sans-serif;
+  transition: all 0.3s ease;
+
+  @media (max-width: 768px) {
+    top: auto;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+    max-height: calc(100% - 130px) !important;
+  }
 
   .up-header {
     background: #0284c7;
@@ -1603,7 +1631,7 @@
   }
 
   .gis-sidebar-container {
-    display: none; // En móvil muy pequeño, ocultar sidebar de capas
+    /* Mantenemos visible el sidebar en móvil */
   }
 
   .cd-resumen {
@@ -1628,7 +1656,9 @@
   }
 
   .cd-leyenda {
-    display: none;
+    /* display: none; - removido para que sea visible */
+    bottom: 80px;
+    z-index: 1001;
   }
 
   .user-popup {
