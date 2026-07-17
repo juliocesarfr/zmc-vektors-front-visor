@@ -214,8 +214,6 @@
 
     .toggle-icon-wrap {
       position: relative;
-      display: flex;
-      align-items: center;
 
       i {
         font-size: 12px;
@@ -1550,14 +1548,24 @@
   }
 
   .cd-filtros-panel {
-    top: 48px;
-
     &.visible {
-      max-height: 260px;
+      max-height: 500px;
     }
 
     .cd-filtros {
-      gap: 8px;
+      gap: 20px 10px;
+
+      .p-float-label {
+        flex: 1 1 calc(50% - 10px);
+        min-width: 130px;
+        width: 100%;
+
+        ::ng-deep .p-dropdown,
+        ::ng-deep .p-multiselect,
+        ::ng-deep .p-inputnumber {
+          width: 100% !important;
+        }
+      }
     }
   }
 
@@ -1615,10 +1623,8 @@
   }
 
   .cd-filtros-panel {
-    top: 44px;
-
     &.visible {
-      max-height: 320px;
+      max-height: 500px;
     }
 
     .cd-filtros-inner {
@@ -1626,12 +1632,8 @@
     }
 
     .cd-filtros {
-      gap: 6px;
+      gap: 20px 10px;
     }
-  }
-
-  .gis-sidebar-container {
-    /* Mantenemos visible el sidebar en móvil */
   }
 
   .cd-resumen {
@@ -1656,7 +1658,6 @@
   }
 
   .cd-leyenda {
-    /* display: none; - removido para que sea visible */
     bottom: 80px;
     z-index: 1001;
   }

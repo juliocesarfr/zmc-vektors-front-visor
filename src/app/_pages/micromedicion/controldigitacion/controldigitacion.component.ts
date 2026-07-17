@@ -14,6 +14,8 @@ import { transform } from "ol/proj";
 import { extend } from "ol/extent";
 import { forkJoin, of } from "rxjs";
 import { catchError } from "rxjs/operators";
+import { DialogService, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { ConsultaUsuarioComponent } from '@mf-consulta/_pages/consulta-usuario/consulta-usuario.component';
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -82,7 +84,7 @@ const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
   ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
-  providers: [DatePipe, ValidacionSistemaService, MessageService],
+  providers: [DatePipe, ValidacionSistemaService, MessageService, DialogService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -205,6 +207,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     private controlImgService: ControlImgService,
     private clientesService: ClientesService,
     private messageService: MessageService,
+    private dialogService: DialogService
   ) {
     this._codsede = sessionStorage.getItem("codsede");
     this._codemp = sessionStorage.getItem("codemp");
@@ -308,15 +311,14 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
         ];
         this.totalSectores2 = sectores;
 
-        // Find Sector 1 or default
         const defaultSector = sectores.find(s => s.codsector === '01' || s.codsector === '1') || sectores[1] || sectores[0];
         this.selectedSector = defaultSector;
         this.consumoini = 0;
         this.consumofin = 0;
 
         if (autoLoad === true) {
-          this.avisar("info", "Búsqueda por defecto", `Se cargó por defecto el Sector ${this.selectedSector.codsector} y Consumo 0 a 0`);
-          this.procesar();
+          // this.avisar("info", "Búsqueda por defecto", `Se cargó por defecto el Sector ${this.selectedSector.codsector} y Consumo 0 a 0`);
+          // this.procesar();
         }
       });
   }
@@ -464,11 +466,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.avisar("success", "Proceso completado", `Lecturas cargadas en el mapa`);
   }
 
-  /**
-   * Crea el feature de un registro a partir de su lon/lat.
-   * Devuelve null si el registro no tiene coordenadas válidas
-   * (nulas, no numéricas o el par 0,0).
-   */
   private crearFeature(registro: any, config: ConfigOrigenCoordenada): Feature | null {
     const lon = Number(registro[config.lonField]);
     const lat = Number(registro[config.latField]);
@@ -657,7 +654,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       view: new View({
         projection: PROYECCION_MAPA,
         center: [-76.1223, -5.9018], // Yurimaguas
-        zoom: 14,
+        zoom: 18,
       }),
     });
   }
@@ -1046,6 +1043,33 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   // ============================================================
   // POPUP DE USUARIO
   // ============================================================
+
+  ref: DynamicDialogRef | undefined;
+
+  verMasInformacion(codcliente: any) {
+    if (!codcliente) return;
+    
+    const datos = {
+      codcliente: codcliente,
+      codsuc: this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc,
+      operacion: "vizualizar",
+    };
+
+    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
+      header: "Consulta General de Usuario",
+      width: "90%",
+      height: "95%",
+      baseZIndex: 10000,
+      maximizable: true,
+      data: datos,
+      contentStyle: {
+        overflow: "auto",
+        background: "#f4f4f9", // better background
+        color: "#000000",
+      },
+      styleClass: "custom-dialog-instalacion",
+    });
+  }
 
   cerrarPopup(): void {
     this.lecturaSeleccionada = null;
