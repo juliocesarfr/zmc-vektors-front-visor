@@ -246,8 +246,18 @@
 
       <div class="up-body">
         <div class="up-section">
-          <div class="up-section-title loc"><img src="assets/images/img-georeferencia/ubication-icon.gif"
-              class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO</div>
+          <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO
+            </div>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning" 
+                    title="Ver en Google Street View" 
+                    (click)="abrirStreetView(datosClientePopup?.longitud ?? datosClientePopup?._predio?.longitud ?? datosClientePopup?._predio?.lonpredio ?? lecturaSeleccionada?.lonpredio, datosClientePopup?.latitud ?? datosClientePopup?._predio?.latitud ?? datosClientePopup?._predio?.latpredio ?? lecturaSeleccionada?.latpredio)"
+                    style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;" alt="Street View">
+                    <span style="font-weight: 900;">Ver en Maps</span>
+            </button>
+          </div>
           <div class="up-grid grid-3">
             <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ datosClientePopup?.codsector
                 || lecturaSeleccionada.codsector || '-' }}</span></div>
@@ -473,11 +483,13 @@
     title="Anterior"><i class="pi pi-chevron-left"></i></button>
     
   <div class="lightbox-content" (click)="$event.stopPropagation()">
-    <img [src]="imagenAbierta"
-      [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
-      [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'" (mousedown)="onDragStart($event)"
-      (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()" (mouseleave)="onDragEnd()"
-      (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
+    <div class="img-container">
+      <img [src]="imagenAbierta"
+        [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
+        [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'" (mousedown)="onDragStart($event)"
+        (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()" (mouseleave)="onDragEnd()"
+        (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
+    </div>
     <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
       imagenesPopup.length }}</div>
     <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
