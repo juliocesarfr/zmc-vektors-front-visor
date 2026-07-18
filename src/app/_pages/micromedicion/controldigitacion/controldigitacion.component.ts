@@ -1052,7 +1052,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     const datos = {
       codcliente: codcliente,
       codsuc: this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc,
-      operacion: "vizualizar",
+      operacion: "Vektors",
     };
 
     this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
@@ -1062,15 +1062,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       baseZIndex: 10000,
       maximizable: true,
       data: datos,
-      contentStyle: {
-        overflow: "auto",
-        background: "#f4f4f9", // better background
-        color: "#000000",
-      },
-      styleClass: "custom-dialog-instalacion",
     });
   }
-
   cerrarPopup(): void {
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
