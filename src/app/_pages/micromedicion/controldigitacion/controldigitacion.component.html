@@ -150,10 +150,10 @@
           <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
         </div>
         <div class="base-layers">
-          <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
-            <span class="icon">{{ l.icon }}</span>
-            <span>{{ l.label }}</span>
-          </button>
+     <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
+        <span class="icon">{{ l.icon }}</span>
+        <span>{{ l.label }}</span>
+      </button>
         </div>
         <div class="divider"></div>
         <div class="sidebar-title">
