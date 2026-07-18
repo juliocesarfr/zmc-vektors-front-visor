@@ -21,3 +21,70 @@ app-controldigitacion {
   min-height: 0;
   overflow: hidden;
 }
+
+/* Custom styling for the "Ver mas info" button */
+.btn-ver-mas {
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+  border: none !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.5px !important;
+  box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3) !important;
+  transition: all 0.2s ease !important;
+  border-radius: 8px !important;
+  padding: 0.5rem 1rem !important;
+
+  &:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #0c4a6e 100%) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 14px rgba(2, 132, 199, 0.4) !important;
+  }
+  
+  &:active {
+    transform: translateY(1px) !important;
+    box-shadow: 0 2px 5px rgba(2, 132, 199, 0.3) !important;
+  }
+
+  .pi {
+    font-size: 1.1rem !important;
+    margin-right: 6px !important;
+  }
+}
+
+/* Custom styling for the dynamic dialog header */
+.custom-dialog-instalacion {
+  .p-dialog-header {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    padding: 1rem 1.25rem !important;
+    border-bottom: 1px solid #0369a1 !important;
+
+    .p-dialog-title {
+      font-weight: 800 !important;
+      letter-spacing: 0.5px !important;
+      font-size: 1.1rem !important;
+      color: #ffffff !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      text-transform: none !important;
+
+      &::before {
+        content: "\e92b" !important; /* user icon in primeicons */
+        font-family: 'primeicons' !important;
+        font-size: 1.2rem !important;
+        color: #bae6fd !important;
+      }
+    }
+
+    .p-dialog-header-icon {
+      color: #ffffff !important;
+      transition: all 0.2s !important;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+      }
+    }
+  }
+}

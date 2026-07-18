@@ -14,6 +14,8 @@ import { transform } from "ol/proj";
 import { extend } from "ol/extent";
 import { forkJoin, of } from "rxjs";
 import { catchError } from "rxjs/operators";
+import { DialogService, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { ConsultaUsuarioComponent } from '@mf-consulta/_pages/consulta-usuario/consulta-usuario.component';
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -26,6 +28,7 @@ import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
+import LineString from "ol/geom/LineString";
 import { Style, Circle as CircleStyle, Fill, Stroke, Text, RegularShape } from "ol/style";
 
 import { MessageService } from "primeng/api";
@@ -45,7 +48,8 @@ import { MultiSelectModule } from "primeng/multiselect";
 import { InputNumberModule } from "primeng/inputnumber";
 import { ToastModule } from "primeng/toast";
 import { TagModule } from "primeng/tag";
-export type OrigenCoordenada = "usuario" | "predio" | "agua" | "desague";
+import { InputTextModule } from "primeng/inputtext";
+export type OrigenCoordenada = "usuario" | "predio" | "agua" | "desague" | "acomagua" | "acomdesague";
 
 interface ConfigOrigenCoordenada {
   lonField: string;
@@ -60,6 +64,8 @@ const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
   predio: { lonField: "lonpredio", latField: "latpredio", proyeccion: "EPSG:4326" },
   agua: { lonField: "lonagua", latField: "latagua", proyeccion: "EPSG:4326" },
   desague: { lonField: "londesague", latField: "latdesague", proyeccion: "EPSG:4326" },
+  acomagua: { lonField: "lonacometidaagua", latField: "latacometidaagua", proyeccion: "EPSG:4326"},
+  acomdesague: {lonField: "lonacometidadesague", latField: "latacometidadesague", proyeccion: "EPSG:4326"}
 };
 
 @Component({
@@ -74,10 +80,11 @@ const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
     InputNumberModule,
     ToastModule,
     TagModule,
+    InputTextModule,
   ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
-  providers: [DatePipe, ValidacionSistemaService, MessageService],
+  providers: [DatePipe, ValidacionSistemaService, MessageService, DialogService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -88,6 +95,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   cajaAguaLayer!: VectorLayer<VectorSource>;
   fichaAlcLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
+  sectoresComercialesLayer!: TileLayer<TileWMS>;
+  callesLayer!: TileLayer<TileWMS>;
+  acomAguaLayer!: VectorLayer<VectorSource>;
+  acomDesagueLayer!: VectorLayer<VectorSource>;
   osmLayer!: TileLayer<any>;
   satelitalLayer!: TileLayer<any>;
   tipoPopup: 'lectura' | 'agua' | 'alcantarillado' = 'lectura';
@@ -108,7 +119,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   selectedAnio = "";
   selectedMes = "";
   consumoini: number | null = 0;
-  consumofin: number | null = 99999;
+  consumofin: number | null = 0;
   resultadoBusquedaJson: any = null;
 
   listaYear: { anio: string }[] = [];
@@ -136,6 +147,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   ];
 
   filtrosVisible = false;
+
+  private styleCache: { [key: string]: Style | Style[] } = {};
   sidebarOpen = true;
   baseActive: string | null = "osm";
 
@@ -146,16 +159,11 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
+    { id: "lotes", label: "Lotes", active: true },
     { id: "caja_agua", label: "Ficha Agua", active: false },
     { id: "acometida", label: "Acometida de Agua", active: false },
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
-    { id: "ruta_lectura", label: "Ruta Lectura", active: false },
-    { id: "ruta_reparto", label: "Ruta Reparto", active: false },
-    { id: "sec_lectura", label: "Secuencia Lectura", active: false },
-    { id: "sec_reparto", label: "Secuencia Reparto", active: false },
-    { id: "lotes", label: "Lotes", active: false },
-    { id: "manzanas", label: "Manzanas", active: false },
     { id: "sectores", label: "Sectores Comerciales", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
@@ -199,6 +207,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     private controlImgService: ControlImgService,
     private clientesService: ClientesService,
     private messageService: MessageService,
+    private dialogService: DialogService
   ) {
     this._codsede = sessionStorage.getItem("codsede");
     this._codemp = sessionStorage.getItem("codemp");
@@ -301,10 +310,15 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
           ...data,
         ];
         this.totalSectores2 = sectores;
-        this.selectedSector = sectores[0];
+
+        const defaultSector = sectores.find(s => s.codsector === '01' || s.codsector === '1') || sectores[1] || sectores[0];
+        this.selectedSector = defaultSector;
+        this.consumoini = 0;
+        this.consumofin = 0;
 
         if (autoLoad === true) {
-          this.procesar();
+          // this.avisar("info", "Búsqueda por defecto", `Se cargó por defecto el Sector ${this.selectedSector.codsector} y Consumo 0 a 0`);
+          // this.procesar();
         }
       });
   }
@@ -353,10 +367,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   }
 
   limpiar(): void {
-    this.selectedSector = this.totalSectores2?.[0] || null;
+    this.selectedSector = this.totalSectores2?.find(s => s.codsector === '01' || s.codsector === '1') || this.totalSectores2?.[1] || this.totalSectores2?.[0] || null;
     this.selectedEstados = [];
     this.consumoini = 0;
-    this.consumofin = 99999;
+    this.consumofin = 0;
     this.selectedTipoPromedio = null;
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
@@ -373,9 +387,15 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   private actualizarCapasComerciales(fitBounds: boolean = true): void {
     const sourceUsuarios = this.lecturasLayer.getSource()!;
     const sourceCajaAgua = this.cajaAguaLayer.getSource()!;
+    const sourceAcomAgua = this.acomAguaLayer.getSource()!;
+    const sourceAcomDesague = this.acomDesagueLayer.getSource()!;
+
+    this.styleCache = {};
 
     sourceUsuarios.clear();
     sourceCajaAgua.clear();
+    sourceAcomAgua.clear();
+    sourceAcomDesague.clear();
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
 
@@ -397,7 +417,20 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       .map(r => this.crearFeature(r, ORIGENES_COORDENADA["desague"]))
       .filter((f): f is Feature => f !== null);
     const sourceFichaAlc = this.fichaAlcLayer.getSource() as VectorSource;
+    sourceFichaAlc.clear();
     sourceFichaAlc.addFeatures(featuresAlc);
+
+    const lineasAcomAgua = registros
+      .map(r => this.crearLineaFeature(r, ORIGENES_COORDENADA["agua"], ORIGENES_COORDENADA["acomagua"]))
+      .filter((f): f is Feature => f !== null);
+
+    sourceAcomAgua.addFeatures(lineasAcomAgua);
+
+    const lineasAcomDesague = registros
+      .map(r => this.crearLineaFeature(r, ORIGENES_COORDENADA["desague"], ORIGENES_COORDENADA["acomdesague"]))
+      .filter((f): f is Feature => f !== null);
+
+    sourceAcomDesague.addFeatures(lineasAcomDesague);
 
     this.totalLecturas = registros.length;
     this.totalSinCoordenadas = registros.length - totalFeatUsr;
@@ -433,11 +466,6 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.avisar("success", "Proceso completado", `Lecturas cargadas en el mapa`);
   }
 
-  /**
-   * Crea el feature de un registro a partir de su lon/lat.
-   * Devuelve null si el registro no tiene coordenadas válidas
-   * (nulas, no numéricas o el par 0,0).
-   */
   private crearFeature(registro: any, config: ConfigOrigenCoordenada): Feature | null {
     const lon = Number(registro[config.lonField]);
     const lat = Number(registro[config.latField]);
@@ -456,12 +484,60 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       coordenada = transform(coordenada, config.proyeccion, PROYECCION_MAPA);
     }
 
-    const feature = new Feature({ geometry: new Point(coordenada) });
-    feature.setProperties(registro);
+    const feature = new Feature({
+      ...registro,
+      geometry: new Point(coordenada)
+    });
     return feature;
   }
 
-  private  limpiarCapa(): void {
+  private crearLineaFeature(registro: any, config1: ConfigOrigenCoordenada, config2: ConfigOrigenCoordenada): Feature | null {
+    const lon1 = Number(registro[config1.lonField]);
+    const lat1 = Number(registro[config1.latField]);
+    const lon2 = Number(registro[config2.lonField]);
+    const lat2 = Number(registro[config2.latField]);
+
+    const invalida =
+      registro[config1.lonField] == null || registro[config1.latField] == null ||
+      registro[config2.lonField] == null || registro[config2.latField] == null ||
+      !Number.isFinite(lon1) || !Number.isFinite(lat1) ||
+      !Number.isFinite(lon2) || !Number.isFinite(lat2) ||
+      (lon1 === 0 && lat1 === 0) || (lon2 === 0 && lat2 === 0);
+
+    if (invalida) return null;
+
+    const R = 6371e3; // metres
+    const f1 = lat1 * Math.PI/180;
+    const f2 = lat2 * Math.PI/180;
+    const df = (lat2-lat1) * Math.PI/180;
+    const dl = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(df/2) * Math.sin(df/2) +
+              Math.cos(f1) * Math.cos(f2) *
+              Math.sin(dl/2) * Math.sin(dl/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+
+    if (distance > 50) return null;
+
+    let coord1: number[] = [lon1, lat1];
+    if (config1.proyeccion !== PROYECCION_MAPA) {
+      coord1 = transform(coord1, config1.proyeccion, PROYECCION_MAPA);
+    }
+
+    let coord2: number[] = [lon2, lat2];
+    if (config2.proyeccion !== PROYECCION_MAPA) {
+      coord2 = transform(coord2, config2.proyeccion, PROYECCION_MAPA);
+    }
+
+    const feature = new Feature({
+      ...registro,
+      esLinea: true,
+      geometry: new LineString([coord1, coord2])
+    });
+    return feature;
+  }
+
+  private limpiarCapa(): void {
     if (this.lecturasLayer) {
       const source = this.lecturasLayer.getSource() as VectorSource;
       source.clear();
@@ -472,6 +548,14 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
     if (this.fichaAlcLayer) {
       const source = this.fichaAlcLayer.getSource() as VectorSource;
+      source.clear();
+    }
+    if (this.acomAguaLayer) {
+      const source = this.acomAguaLayer.getSource() as VectorSource;
+      source.clear();
+    }
+    if (this.acomDesagueLayer) {
+      const source = this.acomDesagueLayer.getSource() as VectorSource;
       source.clear();
     }
     this.totalLecturas = 0;
@@ -486,7 +570,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.osmLayer = new TileLayer({ source: new OSM(), visible: this.baseActive === 'osm' });
     this.satelitalLayer = new TileLayer({
       source: new XYZ({
-        url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+        url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}'
       }),
       visible: this.baseActive === 'satelital'
     });
@@ -496,11 +580,37 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     });
 
     this.lotesLayer = new TileLayer({
-      visible: false,
+      visible: true,
       source: new TileWMS({
         url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
         params: {
           LAYERS: "eps_yurimaguas:yurimaguas_sig_lotes",
+          TILED: false,
+        },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
+
+    this.sectoresComercialesLayer = new TileLayer({
+      visible: false,
+      source: new TileWMS({
+        url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+        params: {
+          LAYERS: "eps_yurimaguas:yurimaguas_sig_sectores_comerciales",
+          TILED: false,
+        },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
+
+    this.callesLayer = new TileLayer({
+      visible: false,
+      source: new TileWMS({
+        url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+        params: {
+          LAYERS: "eps_yurimaguas:yurimaguas_sig_calles",
           TILED: false,
         },
         serverType: "geoserver",
@@ -526,13 +636,25 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       style: (feature, resolution) => this.estiloFichaAlc(feature, resolution),
     });
 
+    this.acomAguaLayer = new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+      style: (feature, resolution) => this.estiloAcomAgua(feature, resolution),
+    });
+
+    this.acomDesagueLayer = new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+      style: (feature, resolution) => this.estiloAcomDesague(feature, resolution),
+    });
+
     this.map = new OlMap({
       target: "map",
-      layers: [base, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer],
+      layers: [base, this.sectoresComercialesLayer, this.callesLayer, this.lotesLayer, this.acomAguaLayer, this.acomDesagueLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer],
       view: new View({
         projection: PROYECCION_MAPA,
         center: [-76.1223, -5.9018], // Yurimaguas
-        zoom: 14,
+        zoom: 18,
       }),
     });
   }
@@ -556,6 +678,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     let radius = isSelected ? 9 : 6;
+    let strokeColor = isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff");
+    let strokeWidth = isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5);
+
     if (!isSelected) {
       if (zoom < 14) radius = 3;
       else if (zoom < 16) radius = 4;
@@ -563,31 +688,36 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       else radius = 7;
     }
 
+    const codcliente = feature.get("codcliente") || "";
+    const cacheKey = showText 
+      ? `lec_${color}_${radius}_${strokeColor}_${strokeWidth}_${codcliente}`
+      : `lec_${color}_${radius}_${strokeColor}_${strokeWidth}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey] as Style;
+    }
+
     const styleParams: any = {
       image: new CircleStyle({
         radius: radius,
         fill: new Fill({ color }),
-        stroke: new Stroke({
-          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
-          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
-        }),
+        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
       }),
     };
 
-    if (showText) {
-      const codcliente = feature.get("codcliente");
-      if (codcliente) {
-        styleParams.text = new Text({
-          text: String(codcliente),
-          font: 'bold 11px Arial',
-          fill: new Fill({ color: '#000000' }),
-          stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          offsetY: -12,
-        });
-      }
+    if (showText && codcliente) {
+      styleParams.text = new Text({
+        text: String(codcliente),
+        font: 'bold 11px Arial',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+        offsetY: -12,
+      });
     }
 
-    return new Style(styleParams);
+    const style = new Style(styleParams);
+    this.styleCache[cacheKey] = style;
+    return style;
   }
 
   private estiloCajaAgua(feature: any, resolution?: number): Style {
@@ -603,6 +733,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     let radius = isSelected ? 11 : 8;
+    let strokeColor = isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff");
+    let strokeWidth = isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5);
+
     if (!isSelected) {
       if (zoom < 14) radius = 4;
       else if (zoom < 16) radius = 6;
@@ -610,33 +743,38 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       else radius = 9;
     }
 
+    const codcliente = feature.get("codcliente") || "";
+    const cacheKey = showText 
+      ? `caja_${radius}_${strokeColor}_${strokeWidth}_${codcliente}`
+      : `caja_${radius}_${strokeColor}_${strokeWidth}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey] as Style;
+    }
+
     const styleParams: any = {
       image: new RegularShape({
         fill: new Fill({ color: '#00bfff' }), // celeste
-        stroke: new Stroke({
-          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
-          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
-        }),
+        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
         points: 4,
         radius: radius,
         angle: Math.PI / 4,
       }),
     };
 
-    if (showText) {
-      const codcliente = feature.get("codcliente");
-      if (codcliente) {
-        styleParams.text = new Text({
-          text: String(codcliente),
-          font: 'bold 11px Arial',
-          fill: new Fill({ color: '#000000' }),
-          stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          offsetY: -15,
-        });
-      }
+    if (showText && codcliente) {
+      styleParams.text = new Text({
+        text: String(codcliente),
+        font: 'bold 11px Arial',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+        offsetY: -15,
+      });
     }
 
-    return new Style(styleParams);
+    const style = new Style(styleParams);
+    this.styleCache[cacheKey] = style;
+    return style;
   }
 
   private estiloFichaAlc(feature: any, resolution?: number): Style {
@@ -652,6 +790,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     let radius = isSelected ? 11 : 8;
+    let strokeColor = isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff");
+    let strokeWidth = isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5);
+
     if (!isSelected) {
       if (zoom < 14) radius = 4;
       else if (zoom < 16) radius = 6;
@@ -660,36 +801,158 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     }
 
     const color = '#8b4513'; // marron
+    const codcliente = feature.get("codcliente") || "";
+    const cacheKey = showText 
+      ? `alc_${radius}_${strokeColor}_${strokeWidth}_${codcliente}`
+      : `alc_${radius}_${strokeColor}_${strokeWidth}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey] as Style;
+    }
 
     const styleParams: any = {
       image: new RegularShape({
         fill: new Fill({ color }),
-        stroke: new Stroke({
-          color: isSelected ? "#000000" : (zoom < 16 ? "#333333" : "#ffffff"),
-          width: isSelected ? 2.5 : (zoom < 16 ? 0.8 : 1.5),
-        }),
+        stroke: new Stroke({ color: strokeColor, width: strokeWidth }),
         points: 4,
         radius: radius,
-        angle: 0, // square
+        angle: Math.PI / 4,
       }),
     };
 
-    if (showText) {
-      const codcliente = feature.get("codcliente");
-      if (codcliente) {
-        styleParams.text = new Text({
-          text: String(codcliente),
-          font: 'bold 11px Arial',
-          fill: new Fill({ color: '#000000' }),
-          stroke: new Stroke({ color: '#ffffff', width: 2 }),
-          offsetY: -15,
-        });
-      }
+    if (showText && codcliente) {
+      styleParams.text = new Text({
+        text: String(codcliente),
+        font: 'bold 11px Arial',
+        fill: new Fill({ color: '#000000' }),
+        stroke: new Stroke({ color: '#ffffff', width: 2 }),
+        offsetY: -15,
+      });
     }
 
-    return new Style(styleParams);
+    const style = new Style(styleParams);
+    this.styleCache[cacheKey] = style;
+    return style;
+  }
 
-    return new Style(styleParams);
+  private estiloAcomAgua(feature: any, resolution?: number): Style | Style[] {
+    const isSelected = feature === this.featureSeleccionado;
+    const color = '#00bfff'; // mismo color de la ficha de agua
+    const outlineColor = '#ffffff'; // outline
+    const innerWidth = isSelected ? 5 : 3;
+    const outerWidth = innerWidth + 3;
+
+    const zoomInt = this.map ? Math.floor(this.map.getView().getZoom() || 14) : 14;
+    const currentRes = this.map ? this.map.getView().getResolution() : resolution;
+    const cacheKey = `line_acomagua_${innerWidth}_${zoomInt}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey];
+    }
+
+    const geometryFn = function(f: any) {
+      const geom = f.getGeometry();
+      if (geom && geom.getType() === 'LineString' && currentRes) {
+        const coords = geom.getCoordinates();
+        if (coords.length === 2) {
+          const p1 = coords[0];
+          const p2 = coords[1];
+          const dx = p2[0] - p1[0];
+          const dy = p2[1] - p1[1];
+          const mapLen = Math.sqrt(dx * dx + dy * dy);
+          if (mapLen > 0) {
+            const pxLen = mapLen / currentRes;
+            if (pxLen < 25) {
+              const scale = 25 / pxLen;
+              return new LineString([p1, [p1[0] + dx * scale, p1[1] + dy * scale]]);
+            }
+          }
+        }
+      }
+      return geom;
+    };
+
+    const style = [
+      new Style({
+        stroke: new Stroke({
+          color: outlineColor,
+          width: outerWidth,
+        }),
+        zIndex: 10,
+        geometry: geometryFn
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: color,
+          width: innerWidth,
+        }),
+        zIndex: 11,
+        geometry: geometryFn
+      })
+    ];
+
+    this.styleCache[cacheKey] = style;
+    return style;
+  }
+
+  private estiloAcomDesague(feature: any, resolution?: number): Style | Style[] {
+    const isSelected = feature === this.featureSeleccionado;
+    const color = '#8b4513'; // mismo color de la ficha alcantarillado
+    const outlineColor = '#ffffff'; // outline
+    const innerWidth = isSelected ? 5 : 3;
+    const outerWidth = innerWidth + 3;
+
+    const zoomInt = this.map ? Math.floor(this.map.getView().getZoom() || 14) : 14;
+    const currentRes = this.map ? this.map.getView().getResolution() : resolution;
+    const cacheKey = `line_acomdesague_${innerWidth}_${zoomInt}`;
+
+    if (this.styleCache[cacheKey]) {
+      return this.styleCache[cacheKey];
+    }
+
+    const geometryFn = function(f: any) {
+      const geom = f.getGeometry();
+      if (geom && geom.getType() === 'LineString' && currentRes) {
+        const coords = geom.getCoordinates();
+        if (coords.length === 2) {
+          const p1 = coords[0];
+          const p2 = coords[1];
+          const dx = p2[0] - p1[0];
+          const dy = p2[1] - p1[1];
+          const mapLen = Math.sqrt(dx * dx + dy * dy);
+          if (mapLen > 0) {
+            const pxLen = mapLen / currentRes;
+            if (pxLen < 25) {
+              const scale = 25 / pxLen;
+              return new LineString([p1, [p1[0] + dx * scale, p1[1] + dy * scale]]);
+            }
+          }
+        }
+      }
+      return geom;
+    };
+
+    const style = [
+      new Style({
+        stroke: new Stroke({
+          color: outlineColor,
+          width: outerWidth,
+        }),
+        zIndex: 10,
+        geometry: geometryFn
+      }),
+      new Style({
+        stroke: new Stroke({
+          color: color,
+          width: innerWidth,
+        }),
+        zIndex: 11,
+        geometry: geometryFn
+      })
+    ];
+
+    this.styleCache[cacheKey] = style;
+    return style;
   }
 
   private initClick(): void {
@@ -707,6 +970,10 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
           this.tipoPopup = 'agua';
         } else if (clickedLayer === this.fichaAlcLayer) {
           this.tipoPopup = 'alcantarillado';
+        } else if (clickedLayer === this.acomAguaLayer) {
+          this.tipoPopup = 'agua';
+        } else if (clickedLayer === this.acomDesagueLayer) {
+          this.tipoPopup = 'alcantarillado';
         } else {
           this.tipoPopup = 'lectura';
         }
@@ -715,6 +982,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
         this.lecturasLayer.changed();
         this.cajaAguaLayer.changed();
         this.fichaAlcLayer.changed();
+        this.acomAguaLayer.changed();
+        this.acomDesagueLayer.changed();
         this.lecturaSeleccionada = feature.getProperties();
         this.cargarDatosPopup(this.lecturaSeleccionada);
       } else {
@@ -745,8 +1014,16 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       this.lecturasLayer.setVisible(layer.active);
     } else if (layer.id === 'caja_agua') {
       this.cajaAguaLayer.setVisible(layer.active);
+    } else if (layer.id === 'acometida') {
+      this.acomAguaLayer.setVisible(layer.active);
     } else if (layer.id === 'ficha_alc') {
       this.fichaAlcLayer.setVisible(layer.active);
+    } else if (layer.id === 'acc_alc') {
+      this.acomDesagueLayer.setVisible(layer.active);
+    } else if (layer.id === 'sectores') {
+      this.sectoresComercialesLayer.setVisible(layer.active);
+    } else if (layer.id === 'calles') {
+      this.callesLayer.setVisible(layer.active);
     }
   }
 
@@ -767,12 +1044,34 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   // POPUP DE USUARIO
   // ============================================================
 
+  ref: DynamicDialogRef | undefined;
+
+  verMasInformacion(codcliente: any) {
+    if (!codcliente) return;
+    
+    const datos = {
+      codcliente: codcliente,
+      codsuc: this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc,
+      operacion: "Vektors",
+    };
+
+    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
+      header: "Consulta General de Usuario",
+      width: "90%",
+      height: "95%",
+      baseZIndex: 10000,
+      maximizable: true,
+      data: datos,
+    });
+  }
   cerrarPopup(): void {
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
     this.lecturasLayer?.changed();
     this.cajaAguaLayer?.changed();
     this.fichaAlcLayer?.changed();
+    this.acomAguaLayer?.changed();
+    this.acomDesagueLayer?.changed();
   }
 
   getDescripcionEstadoLectura(codigo: string): string {
@@ -855,7 +1154,9 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     const layers = [
       { layer: this.lecturasLayer, type: 'lectura' },
       { layer: this.cajaAguaLayer, type: 'agua' },
-      { layer: this.fichaAlcLayer, type: 'alcantarillado' }
+      { layer: this.fichaAlcLayer, type: 'alcantarillado' },
+      { layer: this.acomAguaLayer, type: 'agua' },
+      { layer: this.acomDesagueLayer, type: 'alcantarillado' }
     ];
 
     let foundFeature: Feature | null = null;
@@ -881,14 +1182,16 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       this.lecturasLayer.changed();
       this.cajaAguaLayer.changed();
       this.fichaAlcLayer.changed();
+      this.acomAguaLayer.changed();
+      this.acomDesagueLayer.changed();
       this.lecturaSeleccionada = foundFeature.getProperties();
       this.cargarDatosPopup(this.lecturaSeleccionada);
-      
+
       const geom = foundFeature.getGeometry() as any;
       if (geom) {
         this.map.getView().animate({
           center: geom.getCoordinates(),
-          zoom: 19,
+          zoom: 21,
           duration: 800
         });
       }
@@ -1067,9 +1370,31 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
     this.imgOffsetY = 0;
   }
 
-  // ============================================================
-  // UTILITARIOS
-  // ============================================================
+  abrirStreetView(coordX: any, coordY: any): void {
+    const x = Number(coordX);
+    const y = Number(coordY);
+
+    if (!x || !y || (x === 0 && y === 0)) {
+      this.avisar("warn", "Aviso", "No hay coordenadas válidas para abrir Street View.");
+      return;
+    }
+
+    let lngWGS84 = x;
+    let latWGS84 = y;
+
+    if (Math.abs(x) > 180 || Math.abs(y) > 90) {
+      const coordsWGS84 = transform(
+        [x, y], 
+        'EPSG:32718', 
+        'EPSG:4326' 
+      );
+      lngWGS84 = coordsWGS84[0];
+      latWGS84 = coordsWGS84[1];
+    }
+
+    const url = `https://www.google.com/maps?layer=c&cbll=${latWGS84},${lngWGS84}`;
+    window.open(url, '_blank');
+  }
 
   private avisar(severity: "success" | "info" | "warn" | "error", summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail });
