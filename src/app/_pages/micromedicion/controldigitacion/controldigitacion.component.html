@@ -23,8 +23,9 @@
         <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
           <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
         </span>
-        <span class="filtro-chip sector" *ngIf="selectedSector">
-          <i class="pi pi-map"></i> {{ selectedSector?.descripcion }}
+        <span class="filtro-chip sector" *ngIf="selectedSector && selectedSector.length > 0">
+          <i class="pi pi-map"></i> 
+          {{ selectedSector.length === 1 ? selectedSector[0].descripcion : selectedSector.length + ' sectores' }}
         </span>
         <span class="filtro-chip estado" *ngIf="selectedEstados?.length > 0">
           <i class="pi pi-tag"></i> {{ selectedEstados.length }} estado{{ selectedEstados.length > 1 ? 's' : '' }}
@@ -83,18 +84,15 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector"
-            (onChange)="seleccionarSector($event.value.codsector)" optionLabel="descripcion" [filter]="true"
-            filterBy="descripcion" [showClear]="true" [style]="{ width: '180px' }" placeholder="Sector"
-            [appendTo]="'body'">
+          <p-multiSelect [options]="totalSectores2" [(ngModel)]="selectedSector"
+            (onChange)="seleccionarSectores($event.value)" optionLabel="descripcion" [filter]="true"
+            filterBy="descripcion" [showClear]="true" [style]="{ width: '220px' }" placeholder="Sectores"
+            [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} sectores">
             <ng-template let-sector pTemplate="item">
               <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
             </ng-template>
-            <ng-template pTemplate="selectedItem" let-sector>
-              <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
-            </ng-template>
-          </p-dropdown>
-          <label>Sector</label>
+          </p-multiSelect>
+          <label>Sector(es)</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
@@ -207,17 +205,22 @@
     <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
       <div class="search-header">
         <span><i class="pi pi-search"></i> Buscar Cliente</span>
-        <i class="pi pi-times cerrar" (click)="mostrarSearchPanel = false"></i>
+        <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+      </div>
+      <div class="search-actions" *ngIf="isBusquedaClienteActiva">
+        <span class="limpiar-link" (click)="reiniciarBusqueda()">
+          <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+        </span>
       </div>
       <div class="search-body p-inputgroup mt-2">
         <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
           (keyup.enter)="buscarPorCodCliente()">
         <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()"
-          class="p-button-primary"></button>
+          class="p-button-primary" title="Buscar"></button>
       </div>
     </div>
     <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel"
-      (click)="mostrarSearchPanel = true; searchCodCliente = ''">
+      (click)="abrirBusqueda()">
       <i class="pi pi-search"></i>
     </button>
 
