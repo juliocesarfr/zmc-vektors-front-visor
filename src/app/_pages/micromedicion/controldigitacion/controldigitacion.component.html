@@ -257,7 +257,7 @@
             </div>
             <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
               title="Ver en Google Street View"
-              (click)="abrirStreetView(datosClientePopup?.longitud ?? datosClientePopup?._predio?.longitud ?? datosClientePopup?._predio?.lonpredio ?? lecturaSeleccionada?.lonpredio, datosClientePopup?.latitud ?? datosClientePopup?._predio?.latitud ?? datosClientePopup?._predio?.latpredio ?? lecturaSeleccionada?.latpredio)"
+              (click)="abrirStreetView(datosClientePopup?.lon ?? datosClientePopup?.lat ?? datosClientePopup?._predio?.lonpredio ?? lecturaSeleccionada?.lonpredio, datosClientePopup?.latitud ?? datosClientePopup?._predio?.latitud ?? datosClientePopup?._predio?.latpredio ?? lecturaSeleccionada?.latpredio)"
               style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
               <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
                 alt="Street View">
