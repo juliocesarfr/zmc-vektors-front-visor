@@ -90,6 +90,8 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
   lotesLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<any>;
   satelitalLayer!: TileLayer<any>;
+  secuenciaLecturaLayer!: TileLayer<TileWMS>;
+  sectoresComercialesLayer!: TileLayer<TileWMS>;
   tipoPopup: 'lectura' | 'agua' | 'alcantarillado' = 'lectura';
 
   _codsede: string | null;
@@ -508,6 +510,32 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
       }),
     });
 
+    //capa de secuencia de lectura (WMS)
+    this.secuenciaLecturaLayer = new TileLayer({
+  visible: false,
+  source: new TileWMS({
+    url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+    params: {
+      LAYERS: "eps_yurimaguas:secuencia_ruta_lectura",
+      TILED: false,
+    },
+    serverType: "geoserver",
+    transition: 0,
+  }),
+});
+  //capa de sectorcomercial (WMS)
+    this.sectoresComercialesLayer = new TileLayer({
+  visible: false,
+  source: new TileWMS({
+    url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
+    params: {
+      LAYERS: "eps_yurimaguas:yurimaguas_sig_sectores_comerciales",
+      TILED: false,
+    },
+    serverType: "geoserver",
+    transition: 0,
+  }),
+});
     this.lecturasLayer = new VectorLayer({
       source: new VectorSource(),
       visible: true,
@@ -528,7 +556,7 @@ export class ControldigitacionComponent implements OnInit, AfterViewInit, OnDest
 
     this.map = new OlMap({
       target: "map",
-      layers: [base, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer],
+      layers: [base, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer,this.secuenciaLecturaLayer,],
       view: new View({
         projection: PROYECCION_MAPA,
         center: [-76.1223, -5.9018], // Yurimaguas
