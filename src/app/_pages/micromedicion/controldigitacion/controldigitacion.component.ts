@@ -141,7 +141,7 @@ export class ControldigitacionComponent
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
-  selectedSector: Sector | null = null; // '%' = todos
+  selectedSector: Sector[] | null = null; // '%' = todos
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
@@ -173,6 +173,9 @@ export class ControldigitacionComponent
   mostrarSearchPanel = false;
   searchCodCliente = "";
   featureSeleccionado: Feature | null = null;
+  resultadoBusquedaOriginalJson: RegistroLectura[] | null | undefined =
+    undefined;
+  isBusquedaClienteActiva = false;
 
   baseLayers = [
     {
@@ -307,7 +310,8 @@ export class ControldigitacionComponent
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => {
         this.totalSectores2 = [SECTOR_TODOS, ...data];
-        this.selectedSector = this.sectorPorDefecto();
+        const def = this.sectorPorDefecto();
+        this.selectedSector = def ? [def] : [];
         this.consumoini = 0;
         this.consumofin = 0;
       });
@@ -325,11 +329,15 @@ export class ControldigitacionComponent
   }
 
   /** Construye el filtro a partir del estado actual de la pantalla. */
-  private construirFiltro(codcliente?: string): FiltroLecturas {
+  private construirFiltro(): FiltroLecturas {
     return {
       codsuc: this.selectedSucursal.codsuc,
       codsede: this._codsede ?? "%",
-      codsector: this.selectedSector?.codsector || "%",
+      codsector: this.selectedSector?.length
+        ? this.selectedSector.some((s) => s.codsector === "%")
+          ? "%"
+          : this.selectedSector.map((s) => s.codsector).join(",")
+        : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
       mes: this.selectedMes,
@@ -337,7 +345,6 @@ export class ControldigitacionComponent
       consumoini: this.consumoini,
       consumofin: this.consumofin,
       tipopromedio: this.selectedTipoPromedio?.codigo ?? "",
-      ...(codcliente && { codcliente }),
     };
   }
 
@@ -408,7 +415,8 @@ export class ControldigitacionComponent
   }
 
   limpiar(): void {
-    this.selectedSector = this.sectorPorDefecto();
+    const def = this.sectorPorDefecto();
+    this.selectedSector = def ? [def] : [];
     this.selectedEstados = [];
     this.consumoini = 0;
     this.consumofin = 0;
@@ -558,43 +566,46 @@ export class ControldigitacionComponent
     this.lecturasLayer = new VectorLayer({
       source: new VectorSource(),
       visible: true,
-      style: (f) =>
-        this.estilos.punto({
+      style: (f) => {
+        return this.estilos.punto({
           forma: "circulo",
           color: colorPorEstadoLectura(f.get("estadolectura")),
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
-          etiqueta: f.get("codcliente"),
+          etiqueta: f.get("codcliente") || f.get("nroSuministro"),
           ...RADIOS_LECTURA,
-        }),
+        });
+      },
     });
 
     this.cajaAguaLayer = new VectorLayer({
       source: new VectorSource(),
       visible: false,
-      style: (f) =>
-        this.estilos.punto({
+      style: (f) => {
+        return this.estilos.punto({
           forma: "rombo",
           color: COLOR_FICHA_AGUA,
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
-          etiqueta: f.get("codcliente"),
+          etiqueta: f.get("codcliente") || f.get("nroSuministro"),
           ...RADIOS_FICHA,
-        }),
+        });
+      },
     });
 
     this.fichaAlcLayer = new VectorLayer({
       source: new VectorSource(),
       visible: false,
-      style: (f) =>
-        this.estilos.punto({
+      style: (f) => {
+        return this.estilos.punto({
           forma: "rombo",
           color: COLOR_FICHA_ALC,
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
-          etiqueta: f.get("codcliente"),
+          etiqueta: f.get("codcliente") || f.get("nroSuministro"),
           ...RADIOS_FICHA,
-        }),
+        });
+      },
     });
 
     // La resolución llega como 2º parámetro de la style function en cada render:
@@ -602,23 +613,25 @@ export class ControldigitacionComponent
     this.acomAguaLayer = new VectorLayer({
       source: new VectorSource(),
       visible: false,
-      style: (f, resolution) =>
-        this.estilos.lineaAcometida(
+      style: (f, resolution) => {
+        return this.estilos.lineaAcometida(
           COLOR_FICHA_AGUA,
           f === this.featureSeleccionado,
           resolution,
-        ),
+        );
+      },
     });
 
     this.acomDesagueLayer = new VectorLayer({
       source: new VectorSource(),
       visible: false,
-      style: (f, resolution) =>
-        this.estilos.lineaAcometida(
+      style: (f, resolution) => {
+        return this.estilos.lineaAcometida(
           COLOR_FICHA_ALC,
           f === this.featureSeleccionado,
           resolution,
-        ),
+        );
+      },
     });
 
     this.capasVector = [
@@ -718,13 +731,20 @@ export class ControldigitacionComponent
     this.registroCapas[layer.id]?.setVisible(layer.active);
   }
 
-  /** Cambia la capa WMS de lotes según el sector ('001' -> '01'). */
-  seleccionarSector(codigo: string): void {
-    if (!codigo || codigo === "%") return;
+  /** Cambia la capa WMS de lotes según los sectores. */
+  seleccionarSectores(sectores: Sector[]): void {
+    if (!sectores || sectores.length === 0) return;
+    const isTodos = sectores.some((s) => s.codsector === "%");
     const source = this.lotesLayer.getSource() as TileWMS;
-    source.updateParams({
-      LAYERS: GEOSERVER_CAPAS.lotesPorSector(codigo.slice(-2)),
-    });
+
+    if (isTodos) {
+      source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotes });
+    } else {
+      const layers = sectores
+        .map((s) => GEOSERVER_CAPAS.lotesPorSector(s.codsector.slice(-2)))
+        .join(",");
+      source.updateParams({ LAYERS: layers });
+    }
     source.refresh();
   }
 
@@ -756,6 +776,16 @@ export class ControldigitacionComponent
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
     this.refrescarCapasVector();
+  }
+
+  activarCapasPorDefectoBusqueda(): void {
+    const capasActivar = ["caja_agua", "ficha_alc", "acometida", "acc_alc"];
+    this.commercialLayers.forEach((c) => {
+      if (capasActivar.includes(c.id) && !c.active) {
+        c.active = true;
+        this.registroCapas[c.id]?.setVisible(true);
+      }
+    });
   }
 
   getDescripcionEstadoLectura(codigo: string): string {
@@ -831,9 +861,15 @@ export class ControldigitacionComponent
 
   /** Busca un codcliente en los features ya cargados en el mapa. */
   buscarPorCodCliente(): void {
-    if (!this.searchCodCliente) return;
+    const query = String(this.searchCodCliente || "").trim();
+    if (!query) {
+      this.reiniciarBusqueda();
+      return;
+    }
 
-    const query = String(this.searchCodCliente).trim();
+    this.refrescarCapasVector();
+
+    // Primero, si ya tenemos datos cargados, buscamos ahí
     const capas: { layer: VectorLayer<VectorSource>; tipo: TipoPopup }[] = [
       { layer: this.lecturasLayer, tipo: "lectura" },
       { layer: this.cajaAguaLayer, tipo: "agua" },
@@ -842,33 +878,182 @@ export class ControldigitacionComponent
       { layer: this.acomDesagueLayer, tipo: "alcantarillado" },
     ];
 
+    let foundFeatureLocally = false;
     for (const { layer, tipo } of capas) {
       const feature = layer
         ?.getSource()
         ?.getFeatures()
-        .find((f) => String(f.get("codcliente")) === query);
+        .find((f) => {
+          const fc = String(
+            f.get("codcliente") || f.get("nroSuministro") || "",
+          ).trim();
+          return fc === query;
+        });
 
       if (feature) {
+        foundFeatureLocally = true;
         this.seleccionarFeature(feature, tipo);
+        this.activarCapasPorDefectoBusqueda();
 
-        const geom = feature.getGeometry();
-        if (geom) {
-          this.map.getView().animate({
-            center: getCenter(geom.getExtent()),
-            zoom: 21,
-            duration: 800,
-          });
+        // Si lo encontró localmente y queremos aislarlo, necesitamos filtrar la lista
+        if (!this.isBusquedaClienteActiva) {
+          this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+          this.isBusquedaClienteActiva = true;
         }
-        this.mostrarSearchPanel = false;
+
+        // Aislamos el usuario encontrado
+        const userFeature = this.resultadoBusquedaOriginalJson?.find(
+          (r: any) =>
+            String(r.codcliente || r.nroSuministro || "").trim() === query,
+        );
+        if (userFeature) {
+          this.resultadoBusquedaJson = [userFeature];
+          this.actualizarCapasComerciales(false);
+
+          setTimeout(() => {
+            const refound = this.lecturasLayer
+              ?.getSource()
+              ?.getFeatures()
+              .find(
+                (f) =>
+                  String(
+                    f.get("codcliente") || f.get("nroSuministro") || "",
+                  ).trim() === query,
+              );
+            if (refound) {
+              this.seleccionarFeature(refound, "lectura");
+              const geom = refound.getGeometry();
+              if (geom) {
+                this.map.getView().animate({
+                  center: getCenter(geom.getExtent()),
+                  zoom: 21,
+                  duration: 800,
+                });
+              }
+            }
+          }, 100);
+        }
         return;
       }
     }
 
-    this.avisar(
-      "warn",
-      "Aviso",
-      "No se encontró un usuario con ese código en el mapa actual.",
-    );
+    // Si no se encontró localmente, buscar en el backend sin importar el sector
+    if (!this.filtrosBasicosValidos()) return;
+
+    this.cargando = true;
+    this.micromedicionService
+      .buscarLecturasPorSuministro({
+        codsuc: this.selectedSucursal.codsuc,
+        anio: this.selectedAnio,
+        mes: this.selectedMes,
+        nroSuministro: Number(query),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.cargando = false;
+          const registros = data.data
+            ? Array.isArray(data.data)
+              ? data.data
+              : [data.data]
+            : [];
+
+          if (registros.length === 0) {
+            this.avisar(
+              "warn",
+              "Aviso",
+              "No se encontró un usuario con ese código en ningún sector para este ciclo.",
+            );
+            return;
+          }
+
+          if (!this.isBusquedaClienteActiva) {
+            this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+            this.isBusquedaClienteActiva = true;
+          }
+
+          // Reemplazamos la lista con SOLO el usuario buscado
+          this.resultadoBusquedaJson = registros;
+
+          this.searchCodCliente = "";
+          this.actualizarCapasComerciales(false);
+
+          setTimeout(() => {
+            const fEncontrado = this.lecturasLayer
+              ?.getSource()
+              ?.getFeatures()
+              .find((f) => {
+                const fc = String(
+                  f.get("codcliente") || f.get("nroSuministro") || "",
+                ).trim();
+                return fc === query;
+              });
+            if (fEncontrado) {
+              this.seleccionarFeature(fEncontrado, "lectura");
+              this.activarCapasPorDefectoBusqueda();
+              const geom = fEncontrado.getGeometry();
+              if (geom) {
+                this.map.getView().animate({
+                  center: getCenter(geom.getExtent()),
+                  zoom: 21,
+                  duration: 800,
+                });
+              }
+            } else {
+              this.lecturaSeleccionada = registros[0];
+              this.cargarDatosPopup(registros[0]);
+              this.activarCapasPorDefectoBusqueda();
+
+              const coord = extraerCoordenada(
+                registros[0],
+                ORIGENES_COORDENADA["usuario"],
+              );
+              if (coord) {
+                this.map
+                  .getView()
+                  .animate({ center: coord, zoom: 17, duration: 600 });
+              }
+            }
+          }, 100);
+        },
+        error: () => {
+          this.cargando = false;
+          this.avisar(
+            "error",
+            "Error",
+            "Ocurrió un error al buscar el cliente en el servidor.",
+          );
+        },
+      });
+  }
+
+  abrirBusqueda(): void {
+    this.mostrarSearchPanel = true;
+    this.searchCodCliente = "";
+    this.refrescarCapasVector();
+  }
+
+  reiniciarBusqueda(): void {
+    this.searchCodCliente = "";
+    this.cerrarPopup();
+    if (this.isBusquedaClienteActiva) {
+      this.isBusquedaClienteActiva = false;
+      if (this.resultadoBusquedaOriginalJson !== undefined) {
+        this.resultadoBusquedaJson = this.resultadoBusquedaOriginalJson;
+        this.resultadoBusquedaOriginalJson = undefined;
+      }
+      this.actualizarCapasComerciales(true);
+    } else if (
+      this.resultadoBusquedaJson &&
+      this.resultadoBusquedaJson.length > 0
+    ) {
+      this.ajustarVista(true);
+    }
+  }
+
+  cerrarBusqueda(): void {
+    this.mostrarSearchPanel = false;
+    this.reiniciarBusqueda();
   }
 
   /** Evento global: buscar un codcliente consultando al backend. */
@@ -878,37 +1063,88 @@ export class ControldigitacionComponent
     if (!codcliente) return;
     if (!this.filtrosBasicosValidos()) return;
 
-    this.ejecutarBusqueda(this.construirFiltro(codcliente), (registros) => {
-      const query = codcliente.trim().toLowerCase();
+    this.cargando = true;
+    this.micromedicionService
+      .buscarLecturasPorSuministro({
+        codsuc: this.selectedSucursal.codsuc,
+        anio: this.selectedAnio,
+        mes: this.selectedMes,
+        nroSuministro: Number(codcliente),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (data) => {
+          this.cargando = false;
+          this.filtrosVisible = false;
+          const query = codcliente.trim().toLowerCase();
+          const registros = data.data
+            ? Array.isArray(data.data)
+              ? data.data
+              : [data.data]
+            : [];
 
-      // Filtrado en front por si el backend ignora el parámetro codcliente.
-      const filtrados = registros.filter((r) =>
-        String(r.codcliente || "")
-          .toLowerCase()
-          .includes(query),
-      );
+          if (registros.length === 0) {
+            this.avisar(
+              "info",
+              "Aviso",
+              "No se encontró ningún registro para el Código de Cliente",
+            );
+            return;
+          }
 
-      this.resultadoBusquedaJson = filtrados;
-      this.actualizarCapasComerciales(false);
+          if (!this.isBusquedaClienteActiva) {
+            this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+            this.isBusquedaClienteActiva = true;
+          }
 
-      if (filtrados.length === 0) {
-        this.avisar(
-          "info",
-          "Aviso",
-          "No se encontró ningún registro para el Código de Cliente",
-        );
-        return;
-      }
+          this.resultadoBusquedaJson = registros;
+          this.searchCodCliente = "";
+          this.actualizarCapasComerciales(false);
 
-      const primero = filtrados[0];
-      this.lecturaSeleccionada = primero;
-      this.cargarDatosPopup(primero);
+          setTimeout(() => {
+            const feature = this.lecturasLayer
+              .getSource()
+              ?.getFeatures()
+              .find((f) => {
+                const fc = String(
+                  f.get("codcliente") || f.get("nroSuministro") || "",
+                )
+                  .trim()
+                  .toLowerCase();
+                return fc === query;
+              });
 
-      const coord = extraerCoordenada(primero, ORIGENES_COORDENADA["usuario"]);
-      if (coord) {
-        this.map.getView().animate({ center: coord, zoom: 17, duration: 600 });
-      }
-    });
+            if (feature) {
+              this.seleccionarFeature(feature, "lectura");
+              this.activarCapasPorDefectoBusqueda();
+            } else {
+              this.lecturaSeleccionada = registros[0];
+              this.cargarDatosPopup(registros[0]);
+              this.activarCapasPorDefectoBusqueda();
+            }
+
+            const coord = extraerCoordenada(
+              registros[0],
+              ORIGENES_COORDENADA["usuario"],
+            );
+            if (coord) {
+              this.map
+                .getView()
+                .animate({ center: coord, zoom: 17, duration: 600 });
+            }
+          }, 100);
+        },
+        error: () => {
+          this.cargando = false;
+          this.limpiarCapas();
+          this.resultadoBusquedaJson = null;
+          this.avisar(
+            "error",
+            "Aviso de usuario",
+            "Ocurrió un error al cargar las lecturas",
+          );
+        },
+      });
   }
 
   // ============================================================
