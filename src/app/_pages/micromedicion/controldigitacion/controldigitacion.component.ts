@@ -173,7 +173,8 @@ export class ControldigitacionComponent
   mostrarSearchPanel = false;
   searchCodCliente = "";
   featureSeleccionado: Feature | null = null;
-  resultadoBusquedaOriginalJson: RegistroLectura[] | null | undefined = undefined;
+  resultadoBusquedaOriginalJson: RegistroLectura[] | null | undefined =
+    undefined;
   isBusquedaClienteActiva = false;
 
   baseLayers = [
@@ -332,8 +333,10 @@ export class ControldigitacionComponent
     return {
       codsuc: this.selectedSucursal.codsuc,
       codsede: this._codsede ?? "%",
-      codsector: this.selectedSector?.length 
-        ? (this.selectedSector.some(s => s.codsector === "%") ? "%" : this.selectedSector.map(s => s.codsector).join(","))
+      codsector: this.selectedSector?.length
+        ? this.selectedSector.some((s) => s.codsector === "%")
+          ? "%"
+          : this.selectedSector.map((s) => s.codsector).join(",")
         : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
@@ -731,13 +734,15 @@ export class ControldigitacionComponent
   /** Cambia la capa WMS de lotes según los sectores. */
   seleccionarSectores(sectores: Sector[]): void {
     if (!sectores || sectores.length === 0) return;
-    const isTodos = sectores.some(s => s.codsector === "%");
+    const isTodos = sectores.some((s) => s.codsector === "%");
     const source = this.lotesLayer.getSource() as TileWMS;
-    
+
     if (isTodos) {
       source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotes });
     } else {
-      const layers = sectores.map(s => GEOSERVER_CAPAS.lotesPorSector(s.codsector.slice(-2))).join(",");
+      const layers = sectores
+        .map((s) => GEOSERVER_CAPAS.lotesPorSector(s.codsector.slice(-2)))
+        .join(",");
       source.updateParams({ LAYERS: layers });
     }
     source.refresh();
@@ -775,7 +780,7 @@ export class ControldigitacionComponent
 
   activarCapasPorDefectoBusqueda(): void {
     const capasActivar = ["caja_agua", "ficha_alc", "acometida", "acc_alc"];
-    this.commercialLayers.forEach(c => {
+    this.commercialLayers.forEach((c) => {
       if (capasActivar.includes(c.id) && !c.active) {
         c.active = true;
         this.registroCapas[c.id]?.setVisible(true);
@@ -863,7 +868,7 @@ export class ControldigitacionComponent
     }
 
     this.refrescarCapasVector();
-    
+
     // Primero, si ya tenemos datos cargados, buscamos ahí
     const capas: { layer: VectorLayer<VectorSource>; tipo: TipoPopup }[] = [
       { layer: this.lecturasLayer, tipo: "lectura" },
@@ -879,8 +884,10 @@ export class ControldigitacionComponent
         ?.getSource()
         ?.getFeatures()
         .find((f) => {
-           const fc = String(f.get("codcliente") || f.get("nroSuministro") || "").trim();
-           return fc === query;
+          const fc = String(
+            f.get("codcliente") || f.get("nroSuministro") || "",
+          ).trim();
+          return fc === query;
         });
 
       if (feature) {
@@ -890,25 +897,40 @@ export class ControldigitacionComponent
 
         // Si lo encontró localmente y queremos aislarlo, necesitamos filtrar la lista
         if (!this.isBusquedaClienteActiva) {
-           this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-           this.isBusquedaClienteActiva = true;
+          this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+          this.isBusquedaClienteActiva = true;
         }
-        
+
         // Aislamos el usuario encontrado
-        const userFeature = this.resultadoBusquedaOriginalJson?.find((r: any) => String(r.codcliente || r.nroSuministro || "").trim() === query);
+        const userFeature = this.resultadoBusquedaOriginalJson?.find(
+          (r: any) =>
+            String(r.codcliente || r.nroSuministro || "").trim() === query,
+        );
         if (userFeature) {
           this.resultadoBusquedaJson = [userFeature];
           this.actualizarCapasComerciales(false);
-          
+
           setTimeout(() => {
-             const refound = this.lecturasLayer?.getSource()?.getFeatures().find(f => String(f.get("codcliente") || f.get("nroSuministro") || "").trim() === query);
-             if (refound) {
-                this.seleccionarFeature(refound, "lectura");
-                const geom = refound.getGeometry();
-                if (geom) {
-                  this.map.getView().animate({ center: getCenter(geom.getExtent()), zoom: 21, duration: 800 });
-                }
-             }
+            const refound = this.lecturasLayer
+              ?.getSource()
+              ?.getFeatures()
+              .find(
+                (f) =>
+                  String(
+                    f.get("codcliente") || f.get("nroSuministro") || "",
+                  ).trim() === query,
+              );
+            if (refound) {
+              this.seleccionarFeature(refound, "lectura");
+              const geom = refound.getGeometry();
+              if (geom) {
+                this.map.getView().animate({
+                  center: getCenter(geom.getExtent()),
+                  zoom: 21,
+                  duration: 800,
+                });
+              }
+            }
           }, 100);
         }
         return;
@@ -924,14 +946,18 @@ export class ControldigitacionComponent
         codsuc: this.selectedSucursal.codsuc,
         anio: this.selectedAnio,
         mes: this.selectedMes,
-        nroSuministro: query
+        nroSuministro: Number(query),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.cargando = false;
-          const registros = data.data ? (Array.isArray(data.data) ? data.data : [data.data]) : [];
-          
+          const registros = data.data
+            ? Array.isArray(data.data)
+              ? data.data
+              : [data.data]
+            : [];
+
           if (registros.length === 0) {
             this.avisar(
               "warn",
@@ -942,44 +968,62 @@ export class ControldigitacionComponent
           }
 
           if (!this.isBusquedaClienteActiva) {
-             this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-             this.isBusquedaClienteActiva = true;
+            this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+            this.isBusquedaClienteActiva = true;
           }
-          
+
           // Reemplazamos la lista con SOLO el usuario buscado
           this.resultadoBusquedaJson = registros;
-          
+
           this.searchCodCliente = "";
           this.actualizarCapasComerciales(false);
 
           setTimeout(() => {
-            const fEncontrado = this.lecturasLayer?.getSource()?.getFeatures().find((f) => {
-               const fc = String(f.get("codcliente") || f.get("nroSuministro") || "").trim();
-               return fc === query;
-            });
+            const fEncontrado = this.lecturasLayer
+              ?.getSource()
+              ?.getFeatures()
+              .find((f) => {
+                const fc = String(
+                  f.get("codcliente") || f.get("nroSuministro") || "",
+                ).trim();
+                return fc === query;
+              });
             if (fEncontrado) {
               this.seleccionarFeature(fEncontrado, "lectura");
               this.activarCapasPorDefectoBusqueda();
               const geom = fEncontrado.getGeometry();
               if (geom) {
-                this.map.getView().animate({ center: getCenter(geom.getExtent()), zoom: 21, duration: 800 });
+                this.map.getView().animate({
+                  center: getCenter(geom.getExtent()),
+                  zoom: 21,
+                  duration: 800,
+                });
               }
             } else {
               this.lecturaSeleccionada = registros[0];
               this.cargarDatosPopup(registros[0]);
               this.activarCapasPorDefectoBusqueda();
-              
-              const coord = extraerCoordenada(registros[0], ORIGENES_COORDENADA["usuario"]);
+
+              const coord = extraerCoordenada(
+                registros[0],
+                ORIGENES_COORDENADA["usuario"],
+              );
               if (coord) {
-                this.map.getView().animate({ center: coord, zoom: 17, duration: 600 });
+                this.map
+                  .getView()
+                  .animate({ center: coord, zoom: 17, duration: 600 });
               }
             }
           }, 100);
         },
         error: () => {
           this.cargando = false;
-          this.avisar("error", "Error", "Ocurrió un error al buscar el cliente en el servidor.");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Ocurrió un error al buscar el cliente en el servidor.",
+          );
+        },
       });
   }
 
@@ -993,13 +1037,16 @@ export class ControldigitacionComponent
     this.searchCodCliente = "";
     this.cerrarPopup();
     if (this.isBusquedaClienteActiva) {
-       this.isBusquedaClienteActiva = false;
-       if (this.resultadoBusquedaOriginalJson !== undefined) {
-         this.resultadoBusquedaJson = this.resultadoBusquedaOriginalJson;
-         this.resultadoBusquedaOriginalJson = undefined;
-       }
-       this.actualizarCapasComerciales(true);
-    } else if (this.resultadoBusquedaJson && this.resultadoBusquedaJson.length > 0) {
+      this.isBusquedaClienteActiva = false;
+      if (this.resultadoBusquedaOriginalJson !== undefined) {
+        this.resultadoBusquedaJson = this.resultadoBusquedaOriginalJson;
+        this.resultadoBusquedaOriginalJson = undefined;
+      }
+      this.actualizarCapasComerciales(true);
+    } else if (
+      this.resultadoBusquedaJson &&
+      this.resultadoBusquedaJson.length > 0
+    ) {
       this.ajustarVista(true);
     }
   }
@@ -1022,7 +1069,7 @@ export class ControldigitacionComponent
         codsuc: this.selectedSucursal.codsuc,
         anio: this.selectedAnio,
         mes: this.selectedMes,
-        nroSuministro: codcliente
+        nroSuministro: Number(codcliente),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -1030,7 +1077,11 @@ export class ControldigitacionComponent
           this.cargando = false;
           this.filtrosVisible = false;
           const query = codcliente.trim().toLowerCase();
-          const registros = data.data ? (Array.isArray(data.data) ? data.data : [data.data]) : [];
+          const registros = data.data
+            ? Array.isArray(data.data)
+              ? data.data
+              : [data.data]
+            : [];
 
           if (registros.length === 0) {
             this.avisar(
@@ -1042,21 +1093,25 @@ export class ControldigitacionComponent
           }
 
           if (!this.isBusquedaClienteActiva) {
-             this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-             this.isBusquedaClienteActiva = true;
+            this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+            this.isBusquedaClienteActiva = true;
           }
-          
+
           this.resultadoBusquedaJson = registros;
           this.searchCodCliente = "";
           this.actualizarCapasComerciales(false);
-          
+
           setTimeout(() => {
             const feature = this.lecturasLayer
               .getSource()
               ?.getFeatures()
               .find((f) => {
-                 const fc = String(f.get("codcliente") || f.get("nroSuministro") || "").trim().toLowerCase();
-                 return fc === query;
+                const fc = String(
+                  f.get("codcliente") || f.get("nroSuministro") || "",
+                )
+                  .trim()
+                  .toLowerCase();
+                return fc === query;
               });
 
             if (feature) {
@@ -1068,9 +1123,14 @@ export class ControldigitacionComponent
               this.activarCapasPorDefectoBusqueda();
             }
 
-            const coord = extraerCoordenada(registros[0], ORIGENES_COORDENADA["usuario"]);
+            const coord = extraerCoordenada(
+              registros[0],
+              ORIGENES_COORDENADA["usuario"],
+            );
             if (coord) {
-              this.map.getView().animate({ center: coord, zoom: 17, duration: 600 });
+              this.map
+                .getView()
+                .animate({ center: coord, zoom: 17, duration: 600 });
             }
           }, 100);
         },

@@ -1,0 +1,749 @@
+import {
+  Component,
+  AfterViewInit,
+  OnInit,
+  OnDestroy,
+  CUSTOM_ELEMENTS_SCHEMA,
+  DestroyRef,
+  inject,
+} from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { CommonModule } from "@angular/common";
+import { forkJoin, of } from "rxjs";
+import { catchError, switchMap, tap } from "rxjs/operators";
+import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
+import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
+
+import OlMap from "ol/Map";
+import View from "ol/View";
+import TileLayer from "ol/layer/Tile";
+import VectorLayer from "ol/layer/Vector";
+import LayerGroup from "ol/layer/Group";
+import BaseLayer from "ol/layer/Base";
+import OSM from "ol/source/OSM";
+import XYZ from "ol/source/XYZ";
+import VectorSource from "ol/source/Vector";
+import TileWMS from "ol/source/TileWMS";
+import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
+import LineString from "ol/geom/LineString";
+import { getCenter } from "ol/extent";
+
+import { MessageService } from "primeng/api";
+import { FormsModule } from "@angular/forms";
+import { DropdownModule } from "primeng/dropdown";
+import { ButtonModule } from "primeng/button";
+import { ToastModule } from "primeng/toast";
+import { TagModule } from "primeng/tag";
+import { TableModule } from "primeng/table";
+import { InputTextModule } from "primeng/inputtext";
+
+import { AperturaMicromedicionService } from "@host/_servicios/micromedicion/apertura-micromedicion.service";
+import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
+import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.service";
+import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.service";
+import { Filtroresumenxinspector } from "@host/_models/vektors/Filtroresumenxinspector";
+import { Filtrodetalletomalectura_xinspector } from "@host/_models/vektors/Filtrodetalletomalectura_xinspector";
+
+import {
+  GEOSERVER_URL,
+  GEOSERVER_CAPAS,
+  PROYECCION_MAPA,
+  VISTA_INICIAL,
+  ORIGENES_COORDENADA,
+  ConfigOrigenCoordenada,
+  LISTA_MESES,
+  Sector,
+  SECTOR_TODOS,
+} from "../../../config/Controldigitacion.config";
+import {
+  extraerCoordenada,
+  distanciaHaversineMetros,
+} from "../.././../util/Geo.utils";
+import {
+  MapEstilosFactory,
+  RADIOS_LECTURA,
+  RADIOS_FICHA,
+} from "../../../util/Mapaestilos.factory";
+
+// ============================================================
+// Config propia de este módulo
+// ============================================================
+
+/** Coordenada donde el inspector registró la toma (viene como string del backend). */
+const ORIGEN_TOMA_INSPECTOR: ConfigOrigenCoordenada = {
+  lonField: "longitud",
+  latField: "latitud",
+  proyeccion: "EPSG:4326",
+};
+
+/**
+ * Umbral en metros entre el predio y el punto de toma a partir del cual la
+ * lectura se considera "tomada lejos" (posible lectura sin visitar el predio).
+ * TODO: confirmar el valor con el área comercial.
+ */
+const DISTANCIA_SOSPECHOSA_M = 30;
+
+const COLOR_TOMADA = "#22c55e";        // usuario con lectura enviada (web=1, recibido=1)
+const COLOR_SIN_TOMA = "#ef4444";      // usuario con lectura pendiente
+const COLOR_PUNTO_TOMA = "#2563eb";    // punto GPS donde el inspector registró la toma
+const COLOR_LINEA_OK = "#64748b";      // línea usuario→toma dentro del umbral
+const COLOR_LINEA_LEJOS = "#dc2626";   // línea usuario→toma fuera del umbral
+
+interface Inspector {
+  codinspector: string;
+  names: string;
+  [key: string]: unknown;
+}
+
+/** Fila del resumen, según usp_vektors_resumentomalectura_xinspectores. */
+interface ResumenInspector {
+  codinspector: string;
+  inspector: string;
+  asignados: number;
+  enviados: number;
+  pendientes: number;
+  avance: number;
+}
+
+interface RegistroDetalle {
+  codcliente?: string;
+  codsuc?: string;
+  estadolectura?: string;
+  latitud?: string;
+  longitud?: string;
+  web?: number | string;
+  recibido?: number | string;
+  [key: string]: unknown;
+}
+
+/**
+ * Misma regla del SP de resumen: una lectura está TOMADA (enviada) cuando
+ * web = 1 y recibido = 1. La presencia de coordenada de toma NO define el
+ * estado; solo sirve para ubicar el punto GPS y medir la distancia al predio.
+ */
+function esLecturaTomada(registro: RegistroDetalle): boolean {
+  return Number(registro.web) === 1 && Number(registro.recibido) === 1;
+}
+
+@Component({
+  selector: "app-seguimiento-de-lectura-xinspector",
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    DropdownModule,
+    ButtonModule,
+    ToastModule,
+    TagModule,
+    TableModule,
+    InputTextModule,
+  ],
+  templateUrl: "./seguimiento-de-lectura-xinspector.component.html",
+  styleUrl: "./seguimiento-de-lectura-xinspector.component.scss",
+  providers: [MessageService, DialogService],
+  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+})
+export class SeguimientoDeLecturaXinspectorComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly estilos = new MapEstilosFactory();
+
+  // ---- Mapa y capas ----
+  map!: OlMap;
+  usuariosLayer!: VectorLayer<VectorSource>;
+  tomasLayer!: VectorLayer<VectorSource>;
+  lineasLayer!: VectorLayer<VectorSource>;
+  lotesLayer!: TileLayer<TileWMS>;
+  sectoresComercialesLayer!: TileLayer<TileWMS>;
+  callesLayer!: TileLayer<TileWMS>;
+  osmLayer!: TileLayer<OSM>;
+  satelitalLayer!: TileLayer<XYZ>;
+  private capasVector: VectorLayer<VectorSource>[] = [];
+
+  /** id de capa (HTML) → capa de OpenLayers. Mismo patrón que Control Digitación. */
+  private registroCapas: Record<string, BaseLayer> = {};
+
+  // ---- Sesión ----
+  private readonly _codsede = sessionStorage.getItem("codsede");
+
+  // ---- Filtros ----
+  dataCiclos: any[] = [];
+  fechaCiclos: any;
+  listaSucursalesxusr: any[] = [];
+  totalSectores2: Sector[] = [];
+  inspectoresxSector: Inspector[] = [];
+
+  selectedCiclo: any = null;
+  selectedSucursal: any = null;
+  selectedSector: Sector | null = null;
+  selectedInspector: Inspector | null = null;
+  selectedAnio = "";
+  selectedMes = "";
+
+  readonly listaMeses = LISTA_MESES;
+  readonly listaYear: { anio: string }[] = Array.from({ length: 6 }, (_, i) => ({
+    anio: String(new Date().getFullYear() - i),
+  }));
+
+  // ---- Resultados ----
+  resumenInspectores: ResumenInspector[] = [];
+
+  // ---- Estadísticas del detalle pintado ----
+  totalRegistros = 0;
+  totalTomadas = 0;
+  totalSinToma = 0;
+  totalLejos = 0;
+
+  // ---- UI ----
+  filtrosVisible = true;
+  sidebarOpen = true;
+  cargando = false;
+  mostrarLeyenda = true;
+  mostrarResumen = true;
+  mostrarSearchPanel = false;
+  searchCodCliente = "";
+  registroSeleccionado: RegistroDetalle | null = null;
+  featureSeleccionado: Feature | null = null;
+  baseActive: string | null = "osm";
+  ref: DynamicDialogRef | undefined;
+
+  baseLayers = [
+    {
+      id: "osm",
+      label: "OSM",
+      iconUrl: "assets/images/img-georeferencia/capa-icon.gif",
+    },
+    {
+      id: "satelital",
+      label: "Satelital",
+      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
+    },
+  ];
+
+  commercialLayers = [
+    { id: "usuarios", label: "Usuarios", active: true },
+    { id: "tomas", label: "Puntos de Toma", active: true },
+    { id: "lineas", label: "Líneas Usuario → Toma", active: true },
+    { id: "lotes", label: "Lotes", active: true },
+    { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "calles", label: "Calles", active: false },
+  ];
+
+  constructor(
+    private aperturaservices: AperturaMicromedicionService,
+    private seguridadService: SucursalesService,
+    private sectoresService: SectoresCicloService,
+    private micromedicionService: MicromedicionService,
+    private messageService: MessageService,
+    private dialogService: DialogService,
+  ) {}
+
+  // ============================================================
+  // CICLO DE VIDA
+  // ============================================================
+
+  ngOnInit(): void {
+    this.aperturaservices
+      .getCiclos()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((response) => {
+        if (response.status === "SUCCESS" && response.data?.length > 0) {
+          this.dataCiclos = response.data;
+          this.selectedCiclo = this.dataCiclos[0];
+          this.onCicloChange(true);
+        }
+      });
+  }
+
+  ngAfterViewInit(): void {
+    this.crearMapa();
+    this.initClick();
+    setTimeout(() => this.map.updateSize(), 300);
+  }
+
+  ngOnDestroy(): void {
+    this.map?.setTarget(undefined);
+    this.ref?.close();
+  }
+
+  // ============================================================
+  // FILTROS
+  // ============================================================
+
+  toggleFiltros(): void {
+    this.filtrosVisible = !this.filtrosVisible;
+  }
+
+  onCicloChange(autoLoad = false): void {
+    this.selectedSucursal = null;
+    this.selectedSector = null;
+    this.selectedInspector = null;
+    this.inspectoresxSector = [];
+    this.limpiarResultados();
+    if (!this.selectedCiclo) return;
+
+    this.aperturaservices
+      .getfechaCiclos(this.selectedCiclo.codciclo)
+      .pipe(
+        tap((response) => {
+          this.fechaCiclos = response.data;
+          this.selectedAnio = this.fechaCiclos.year;
+          this.selectedMes = this.fechaCiclos.month;
+        }),
+        switchMap(() =>
+          this.seguridadService.drop_sucursales_x_ciclo(this.selectedCiclo.codciclo),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((data) => {
+        this.listaSucursalesxusr = data;
+        if (autoLoad && data?.length > 0) {
+          this.selectedSucursal = data[0];
+          this.onSucursalChange();
+        }
+      });
+  }
+
+  /** Sectores e inspectores dependen ambos de codsuc: se piden en paralelo. */
+  onSucursalChange(): void {
+    this.selectedSector = null;
+    this.selectedInspector = null;
+    this.inspectoresxSector = [];
+    if (!this.selectedSucursal) return;
+
+    forkJoin({
+      sectores: this.sectoresService
+        .drop_sectores_x_ciclo(this.selectedSucursal.codsuc, this.selectedCiclo.codciclo)
+        .pipe(catchError(() => of([]))),
+      inspectores: this.aperturaservices
+        .getInspectores(this.selectedSucursal.codsuc)
+        .pipe(catchError(() => of({ data: [] }))),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(({ sectores, inspectores }) => {
+        this.totalSectores2 = [SECTOR_TODOS, ...sectores];
+        this.selectedSector = this.totalSectores2[0];
+        this.inspectoresxSector = inspectores?.data || [];
+      });
+  }
+
+  private filtrosBasicosValidos(): boolean {
+    if (!this.selectedCiclo || !this.selectedSucursal || !this.selectedAnio || !this.selectedMes) {
+      this.avisar("warn", "Aviso de usuario", "Debe seleccionar Ciclo, Sucursal, Año y Mes");
+      return false;
+    }
+    return true;
+  }
+
+  private filtroBase(): Filtroresumenxinspector {
+    return {
+      codciclo: this.selectedCiclo.codciclo,
+      codsuc: this.selectedSucursal.codsuc,
+      codsector: this.selectedSector?.codsector || "%",
+      anio: this.selectedAnio,
+      mes: this.selectedMes,
+    };
+  }
+
+  // ============================================================
+  // BÚSQUEDA: resumen (todos los inspectores) + detalle (uno)
+  // ============================================================
+
+  procesar(): void {
+    if (!this.filtrosBasicosValidos()) return;
+    if (!this.selectedInspector) {
+      this.avisar("warn", "Aviso de usuario", "Seleccione un inspector");
+      return;
+    }
+
+    this.cargando = true;
+    this.limpiarResultados();
+
+    const base = this.filtroBase();
+    const filtroDetalle: Filtrodetalletomalectura_xinspector = {
+      ...base,
+      codinspector: this.selectedInspector.codinspector,
+    };
+
+    forkJoin({
+      resumen: this.micromedicionService
+        .resumentomalectura_xinspectore(base)
+        .pipe(catchError(() => of({ data: [] }))),
+      detalle: this.micromedicionService
+        .detalletomalectura_xinspector(filtroDetalle)
+        .pipe(catchError(() => of({ data: [] }))),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ resumen, detalle }) => {
+          this.cargando = false;
+          this.filtrosVisible = false;
+
+          const dataResumen = resumen?.data;
+          this.resumenInspectores = Array.isArray(dataResumen)
+            ? dataResumen
+            : dataResumen
+              ? [dataResumen]
+              : [];
+
+          const dataDetalle = detalle?.data;
+          const registros: RegistroDetalle[] = Array.isArray(dataDetalle)
+            ? dataDetalle
+            : dataDetalle
+              ? [dataDetalle as RegistroDetalle]
+              : [];
+
+          this.pintarDetalle(registros);
+        },
+        error: () => {
+          this.cargando = false;
+          this.avisar("error", "Aviso de usuario", "Ocurrió un error al cargar el seguimiento");
+        },
+      });
+  }
+
+  /**
+   * Clic en una fila del resumen: selecciona ese inspector y recarga su detalle.
+   * Es el flujo natural de un supervisor recorriendo inspector por inspector.
+   */
+  seleccionarInspectorDesdeResumen(fila: ResumenInspector): void {
+    const inspector = this.inspectoresxSector.find(
+      (i) => i.codinspector === fila.codinspector,
+    );
+    if (!inspector) {
+      this.avisar("warn", "Aviso", "El inspector no está disponible en la lista actual");
+      return;
+    }
+    this.selectedInspector = inspector;
+    this.procesar();
+  }
+
+  private pintarDetalle(registros: RegistroDetalle[]): void {
+    const srcUsuarios = this.usuariosLayer.getSource()!;
+    const srcTomas = this.tomasLayer.getSource()!;
+    const srcLineas = this.lineasLayer.getSource()!;
+
+    for (const registro of registros) {
+      this.agregarRegistroAlMapa(registro, srcUsuarios, srcTomas, srcLineas);
+    }
+
+    if (this.totalRegistros === 0) {
+      this.avisar("info", "Aviso", "No se encontraron lecturas para el inspector seleccionado");
+      return;
+    }
+
+    const extent = srcUsuarios.getFeatures().length > 0
+      ? srcUsuarios.getExtent()
+      : srcTomas.getFeatures().length > 0
+        ? srcTomas.getExtent()
+        : null;
+
+    if (extent) {
+      this.map.getView().fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+    }
+    this.avisar("success", "Proceso completado", "Seguimiento cargado en el mapa");
+  }
+
+  /**
+   * Por cada registro:
+   * - Punto del USUARIO: verde si la lectura fue enviada (web=1 y recibido=1),
+   *   rojo si está pendiente. Misma regla que el SP de resumen.
+   * - Punto de TOMA del inspector, si registró coordenada GPS.
+   * - Línea usuario→toma con la distancia; roja si supera el umbral.
+   */
+  private agregarRegistroAlMapa(
+    registro: RegistroDetalle,
+    srcUsuarios: VectorSource,
+    srcTomas: VectorSource,
+    srcLineas: VectorSource,
+  ): void {
+    const coordUsuario = extraerCoordenada(registro, ORIGENES_COORDENADA.usuario);
+    const coordToma = extraerCoordenada(registro, ORIGEN_TOMA_INSPECTOR);
+
+    const tomada = esLecturaTomada(registro);
+    const distancia =
+      coordUsuario && coordToma
+        ? distanciaHaversineMetros(coordUsuario[0], coordUsuario[1], coordToma[0], coordToma[1])
+        : null;
+    const lejos = distancia !== null && distancia > DISTANCIA_SOSPECHOSA_M;
+
+    // Propiedades derivadas con prefijo _ para no chocar con campos del backend.
+    const props = {
+      ...registro,
+      _codinspector: this.selectedInspector?.codinspector,
+      _tomada: tomada,
+      _distanciaM: distancia,
+      _lejos: lejos,
+    };
+
+    this.totalRegistros++;
+    if (tomada) this.totalTomadas++;
+    else this.totalSinToma++;
+    if (lejos) this.totalLejos++;
+
+    if (coordUsuario) {
+      srcUsuarios.addFeature(new Feature({ ...props, _esToma: false, geometry: new Point(coordUsuario) }));
+    }
+    if (coordToma) {
+      srcTomas.addFeature(new Feature({ ...props, _esToma: true, geometry: new Point(coordToma) }));
+    }
+    if (coordUsuario && coordToma) {
+      srcLineas.addFeature(new Feature({ ...props, geometry: new LineString([coordUsuario, coordToma]) }));
+    }
+  }
+
+  limpiarResultados(): void {
+    this.estilos.limpiar();
+    this.capasVector.forEach((capa) => capa?.getSource()?.clear());
+    this.resumenInspectores = [];
+    this.totalRegistros = 0;
+    this.totalTomadas = 0;
+    this.totalSinToma = 0;
+    this.totalLejos = 0;
+    this.registroSeleccionado = null;
+    this.featureSeleccionado = null;
+  }
+
+  // ============================================================
+  // MAPA
+  // ============================================================
+
+  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
+    return new TileLayer({
+      visible,
+      source: new TileWMS({
+        url: GEOSERVER_URL,
+        params: { LAYERS: layer, TILED: false },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
+  }
+
+  private crearMapa(): void {
+    this.osmLayer = new TileLayer({ source: new OSM(), visible: this.baseActive === "osm" });
+    this.satelitalLayer = new TileLayer({
+      source: new XYZ({ url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}" }),
+      visible: this.baseActive === "satelital",
+    });
+
+    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.sectoresComercialesLayer = this.crearWms(GEOSERVER_CAPAS.sectoresComerciales, false);
+    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+
+    const zoomActual = () => this.map?.getView().getZoom() ?? 14;
+
+    // Punto del usuario/predio: círculo, color según tomada/pendiente.
+    this.usuariosLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: (f) =>
+        this.estilos.punto({
+          forma: "circulo",
+          color: f.get("_tomada") ? COLOR_TOMADA : COLOR_SIN_TOMA,
+          zoom: zoomActual(),
+          seleccionado: f === this.featureSeleccionado,
+          etiqueta: f.get("codcliente"),
+          ...RADIOS_LECTURA,
+        }),
+    });
+
+    // Punto GPS de toma del inspector: rombo azul.
+    this.tomasLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: (f) =>
+        this.estilos.punto({
+          forma: "rombo",
+          color: COLOR_PUNTO_TOMA,
+          zoom: zoomActual(),
+          seleccionado: f === this.featureSeleccionado,
+          etiqueta: undefined, // el codcliente ya lo etiqueta el punto de usuario
+          ...RADIOS_FICHA,
+        }),
+    });
+
+    // Línea usuario→toma: gris dentro del umbral, roja si el inspector tomó lejos.
+    this.lineasLayer = new VectorLayer({
+      source: new VectorSource(),
+      style: (f, resolution) =>
+        this.estilos.lineaAcometida(
+          f.get("_lejos") ? COLOR_LINEA_LEJOS : COLOR_LINEA_OK,
+          f === this.featureSeleccionado,
+          resolution,
+        ),
+    });
+
+    this.capasVector = [this.usuariosLayer, this.tomasLayer, this.lineasLayer];
+
+    this.registroCapas = {
+      usuarios: this.usuariosLayer,
+      tomas: this.tomasLayer,
+      lineas: this.lineasLayer,
+      lotes: this.lotesLayer,
+      sectores: this.sectoresComercialesLayer,
+      calles: this.callesLayer,
+    };
+
+    this.map = new OlMap({
+      target: "map",
+      layers: [
+        new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
+        this.sectoresComercialesLayer,
+        this.callesLayer,
+        this.lotesLayer,
+        this.lineasLayer,
+        this.tomasLayer,
+        this.usuariosLayer,
+      ],
+      view: new View({
+        projection: PROYECCION_MAPA,
+        center: VISTA_INICIAL.centro,
+        zoom: VISTA_INICIAL.zoom,
+      }),
+    });
+  }
+
+  private initClick(): void {
+    this.map.on("singleclick", (evt) => {
+      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
+        hitTolerance: 5,
+      }) as Feature | undefined;
+
+      if (feature) {
+        this.seleccionarFeature(feature);
+      } else {
+        this.cerrarPopup();
+      }
+    });
+  }
+
+  /** Punto único de selección: click en el mapa y buscador reutilizan esto. */
+  private seleccionarFeature(feature: Feature): void {
+    this.featureSeleccionado = feature;
+    this.registroSeleccionado = feature.getProperties() as RegistroDetalle;
+    this.capasVector.forEach((capa) => capa.changed());
+  }
+
+  cerrarPopup(): void {
+    this.registroSeleccionado = null;
+    this.featureSeleccionado = null;
+    this.capasVector.forEach((capa) => capa.changed());
+  }
+
+  // ============================================================
+  // SIDEBAR DE CAPAS
+  // ============================================================
+
+  toggleSidebar(): void {
+    this.sidebarOpen = !this.sidebarOpen;
+  }
+
+  setBaseLayer(id: string): void {
+    this.baseActive = this.baseActive === id ? null : id;
+    this.osmLayer?.setVisible(this.baseActive === "osm");
+    this.satelitalLayer?.setVisible(this.baseActive === "satelital");
+  }
+
+  toggleCommercialLayer(layer: { id: string; active: boolean }): void {
+    layer.active = !layer.active;
+    this.registroCapas[layer.id]?.setVisible(layer.active);
+  }
+
+  /** Cambia la capa WMS de lotes según el sector seleccionado ('001' -> '01'). */
+  seleccionarSector(sector: Sector | null): void {
+    const source = this.lotesLayer?.getSource() as TileWMS;
+    if (!source) return;
+
+    const codigo = sector?.codsector;
+    if (!codigo || codigo === "%") {
+      source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotes });
+    } else {
+      source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotesPorSector(codigo.slice(-2)) });
+    }
+    source.refresh();
+  }
+
+  // ============================================================
+  // BUSCADOR POR CÓDIGO DE CLIENTE (dentro de lo cargado en el mapa)
+  // ============================================================
+
+  abrirBusqueda(): void {
+    this.mostrarSearchPanel = true;
+    this.searchCodCliente = "";
+  }
+
+  buscarPorCodCliente(): void {
+    const query = String(this.searchCodCliente || "").trim();
+    if (!query) return;
+
+    // Se busca solo en la capa de usuarios: es la que siempre tiene codcliente
+    // y su punto es el ancla lógica del registro (la toma cuelga de él).
+    const feature = this.usuariosLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => String(f.get("codcliente") || "").trim() === query);
+
+    if (!feature) {
+      this.avisar("warn", "Aviso", "No se encontró el usuario en el detalle cargado. Verifique el inspector y sector seleccionados.");
+      return;
+    }
+
+    this.seleccionarFeature(feature);
+    const geom = feature.getGeometry();
+    if (geom) {
+      this.map.getView().animate({
+        center: getCenter(geom.getExtent()),
+        zoom: 20,
+        duration: 800,
+      });
+    }
+    this.mostrarSearchPanel = false;
+  }
+
+  // ============================================================
+  // CONSULTA GENERAL DE USUARIO
+  // ============================================================
+
+  verMasInformacion(codcliente: string | undefined): void {
+    if (!codcliente) return;
+
+    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
+      header: "Consulta General de Usuario",
+      width: "90%",
+      height: "95%",
+      baseZIndex: 10000,
+      maximizable: true,
+      data: {
+        codcliente,
+        codsuc: this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
+        operacion: "Vektors",
+      },
+    });
+  }
+
+  // ============================================================
+  // HELPERS DE VISTA
+  // ============================================================
+
+  nombreInspector(codinspector: string | undefined): string {
+    if (!codinspector) return "-";
+    const insp = this.inspectoresxSector.find((i) => i.codinspector === codinspector);
+    return insp ? `(${insp.codinspector}) ${insp.names}` : codinspector;
+  }
+
+  formatoDistancia(metros: number | null | undefined): string {
+    if (metros == null) return "-";
+    return metros >= 1000 ? `${(metros / 1000).toFixed(2)} km` : `${metros.toFixed(0)} m`;
+  }
+
+  centrarEnSeleccion(): void {
+    const geom = this.featureSeleccionado?.getGeometry();
+    if (!geom) return;
+    this.map.getView().animate({ center: getCenter(geom.getExtent()), zoom: 20, duration: 600 });
+  }
+
+  private avisar(severity: "success" | "info" | "warn" | "error", summary: string, detail: string): void {
+    this.messageService.add({ severity, summary, detail });
+  }
+}
