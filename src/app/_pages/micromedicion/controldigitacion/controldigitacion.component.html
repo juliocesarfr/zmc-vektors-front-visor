@@ -23,8 +23,9 @@
         <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
           <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
         </span>
-        <span class="filtro-chip sector" *ngIf="selectedSector">
-          <i class="pi pi-map"></i> {{ selectedSector?.descripcion }}
+        <span class="filtro-chip sector" *ngIf="selectedSector && selectedSector.length > 0">
+          <i class="pi pi-map"></i> 
+          {{ selectedSector.length === 1 ? selectedSector[0].descripcion : selectedSector.length + ' sectores' }}
         </span>
         <span class="filtro-chip estado" *ngIf="selectedEstados?.length > 0">
           <i class="pi pi-tag"></i> {{ selectedEstados.length }} estado{{ selectedEstados.length > 1 ? 's' : '' }}
@@ -34,7 +35,8 @@
         </span>
         <span class="filtro-chip consumo" *ngIf="consumoini != null || consumofin != null">
           <i class="pi pi-gauge"></i>
-          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin }}</ng-container>
+          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin
+            }}</ng-container>
           <ng-container *ngIf="consumoini != null && consumofin == null">≥{{ consumoini }}</ng-container>
           <ng-container *ngIf="consumoini == null && consumofin != null">≤{{ consumofin }}</ng-container>
         </span>
@@ -82,18 +84,15 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector"
-            (onChange)="seleccionarSector($event.value.codsector)" optionLabel="descripcion" [filter]="true"
-            filterBy="descripcion" [showClear]="true" [style]="{ width: '180px' }" placeholder="Sector"
-            [appendTo]="'body'">
+          <p-multiSelect [options]="totalSectores2" [(ngModel)]="selectedSector"
+            (onChange)="seleccionarSectores($event.value)" optionLabel="descripcion" [filter]="true"
+            filterBy="descripcion" [showClear]="true" [style]="{ width: '220px' }" placeholder="Sectores"
+            [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} sectores">
             <ng-template let-sector pTemplate="item">
               <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
             </ng-template>
-            <ng-template pTemplate="selectedItem" let-sector>
-              <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
-            </ng-template>
-          </p-dropdown>
-          <label>Sector</label>
+          </p-multiSelect>
+          <label>Sector(es)</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
@@ -149,10 +148,10 @@
           <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
         </div>
         <div class="base-layers">
-          <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
-            <span class="icon">{{ l.icon }}</span>
-            <span>{{ l.label }}</span>
-          </button>
+     <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
+        <span class="icon">{{ l.icon }}</span>
+        <span>{{ l.label }}</span>
+      </button>
         </div>
         <div class="divider"></div>
         <div class="sidebar-title">
@@ -206,14 +205,22 @@
     <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
       <div class="search-header">
         <span><i class="pi pi-search"></i> Buscar Cliente</span>
-        <i class="pi pi-times cerrar" (click)="mostrarSearchPanel = false"></i>
+        <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
       </div>
-      <div class="search-body">
-        <input type="text" placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente" (keyup.enter)="buscarPorCodCliente()">
-        <button (click)="buscarPorCodCliente()">Buscar</button>
+      <div class="search-actions" *ngIf="isBusquedaClienteActiva">
+        <span class="limpiar-link" (click)="reiniciarBusqueda()">
+          <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+        </span>
+      </div>
+      <div class="search-body p-inputgroup mt-2">
+        <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
+          (keyup.enter)="buscarPorCodCliente()">
+        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()"
+          class="p-button-primary" title="Buscar"></button>
       </div>
     </div>
-    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="mostrarSearchPanel = true; searchCodCliente = ''">
+    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel"
+      (click)="abrirBusqueda()">
       <i class="pi pi-search"></i>
     </button>
 
@@ -246,8 +253,20 @@
 
       <div class="up-body">
         <div class="up-section">
-          <div class="up-section-title loc"><img src="assets/images/img-georeferencia/ubication-icon.gif"
-              class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO</div>
+          <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN
+              Y PREDIO
+            </div>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View"
+              (click)="abrirStreetView(datosClientePopup?.lon ?? datosClientePopup?.lat ?? datosClientePopup?._predio?.lonpredio ?? lecturaSeleccionada?.lonpredio, datosClientePopup?.latitud ?? datosClientePopup?._predio?.latitud ?? datosClientePopup?._predio?.latpredio ?? lecturaSeleccionada?.latpredio)"
+              style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
+                alt="Street View">
+              <span style="font-weight: 900;">Ver en Maps</span>
+            </button>
+          </div>
           <div class="up-grid grid-3">
             <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ datosClientePopup?.codsector
                 || lecturaSeleccionada.codsector || '-' }}</span></div>
@@ -321,12 +340,19 @@
           </div>
         </div>
 
+        <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
+          <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
+            class="p-button-sm w-full btn-ver-mas"
+            (click)="verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)"></button>
+        </div>
+
         <div class="up-section up-section-imgs">
           <div class="up-section-title imgs">
             <img src="assets/images/img-georeferencia/evidencia-icon.gif" class="gif-icon" alt="Evidencias"> EVIDENCIAS
             <span class="up-img-badge" *ngIf="imagenesPopup.length > 0">{{ imagenesPopup.length }}</span>
           </div>
-          <div class="up-img-loading" *ngIf="cargandoImagenes"><i class="pi pi-spin pi-spinner"></i> Cargando...</div>
+          <div class="up-img-loading" *ngIf="cargandoImagenes"><i class="pi pi-spin pi-spinner"></i> Cargando
+            imágenes...</div>
           <div class="up-img-scroll" *ngIf="!cargandoImagenes">
             <ng-container *ngIf="imagenesPopup.length > 0; else sinImg">
               <div class="up-thumb" *ngFor="let img of imagenesPopup; let idx = index"
@@ -353,7 +379,8 @@
           <div class="up-avatar"><img src="assets/images/img-georeferencia/ficha-agua-icon.gif" alt="Ficha Agua"></div>
           <div class="up-header-info">
             <span class="up-label">CAJA FICHA AGUA</span>
-            <strong class="up-name">Ficha: {{ datosClientePopup?.codcatastral || lecturaSeleccionada?.fichacatastral || '-' }}</strong>
+            <strong class="up-name">Ficha: {{ datosClientePopup?.codcatastral || lecturaSeleccionada?.fichacatastral ||
+              '-' }}</strong>
           </div>
         </div>
         <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
@@ -363,39 +390,47 @@
         <div class="up-section">
           <div class="up-grid grid-2">
             <div class="up-cell full">
-               <span class="uc-label">CÓDIGO MEDIDOR</span>
-               <span class="uc-val">{{ datosClientePopup?._medidor?.nromed || datosClientePopup?.nromed || lecturaSeleccionada?.nromed || '-' }}</span>
+              <span class="uc-label">CÓDIGO MEDIDOR</span>
+              <span class="uc-val">{{ datosClientePopup?._medidor?.nromed || datosClientePopup?.nromed ||
+                lecturaSeleccionada?.nromed || '-' }}</span>
             </div>
             <div class="up-cell full">
-               <span class="uc-label">ESTADO CONEXIÓN</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionAgua?.desestconexion || datosClientePopup?.descripcionestservicio || '-' }}</span>
-            </div>
-            
-            <div class="up-cell">
-               <span class="uc-label">MATERIAL CAJA</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionAgua?.destipocaja || datosClientePopup?._conexionAgua?.tipocaja || '-' }}</span>
-            </div>
-            <div class="up-cell">
-               <span class="uc-label">DIAMETRO CONEXIÓN</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionAgua?.desdiametro || datosClientePopup?.desdiametro || '-' }}</span>
+              <span class="uc-label">ESTADO CONEXIÓN</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionAgua?.desestconexion ||
+                datosClientePopup?.descripcionestservicio || '-' }}</span>
             </div>
 
             <div class="up-cell">
-               <span class="uc-label">ESTADO MEDIDOR</span>
-               <span class="uc-val">{{ datosClientePopup?._medidor?.desestadomed || datosClientePopup?.desestadomed || lecturaSeleccionada?.estadomedidor || '-' }}</span>
+              <span class="uc-label">MATERIAL CAJA</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionAgua?.destipocaja ||
+                datosClientePopup?._conexionAgua?.tipocaja || '-' }}</span>
             </div>
             <div class="up-cell">
-               <span class="uc-label">DIAMETRO MEDIDOR</span>
-               <span class="uc-val">{{ datosClientePopup?._medidor?.desdiametro || datosClientePopup?.desdiametro || '-' }}</span>
+              <span class="uc-label">DIAMETRO CONEXIÓN</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionAgua?.desdiametro || datosClientePopup?.desdiametro ||
+                '-' }}</span>
             </div>
 
             <div class="up-cell">
-               <span class="uc-label">NÚMERO MEDIDOR</span>
-               <span class="uc-val">{{ datosClientePopup?._medidor?.nromed || datosClientePopup?.nromed || lecturaSeleccionada?.nromed || '-' }}</span>
+              <span class="uc-label">ESTADO MEDIDOR</span>
+              <span class="uc-val">{{ datosClientePopup?._medidor?.desestadomed || datosClientePopup?.desestadomed ||
+                lecturaSeleccionada?.estadomedidor || '-' }}</span>
             </div>
             <div class="up-cell">
-               <span class="uc-label">MARCA MEDIDOR</span>
-               <span class="uc-val">{{ datosClientePopup?._medidor?.desmarcamed || datosClientePopup?._medidor?.marcamed || '-' }}</span>
+              <span class="uc-label">DIAMETRO MEDIDOR</span>
+              <span class="uc-val">{{ datosClientePopup?._medidor?.desdiametro || datosClientePopup?.desdiametro || '-'
+                }}</span>
+            </div>
+
+            <div class="up-cell">
+              <span class="uc-label">NÚMERO MEDIDOR</span>
+              <span class="uc-val">{{ datosClientePopup?._medidor?.nromed || datosClientePopup?.nromed ||
+                lecturaSeleccionada?.nromed || '-' }}</span>
+            </div>
+            <div class="up-cell">
+              <span class="uc-label">MARCA MEDIDOR</span>
+              <span class="uc-val">{{ datosClientePopup?._medidor?.desmarcamed || datosClientePopup?._medidor?.marcamed
+                || '-' }}</span>
             </div>
           </div>
         </div>
@@ -406,10 +441,12 @@
     <div class="user-popup" *ngIf="lecturaSeleccionada && tipoPopup === 'alcantarillado'">
       <div class="up-header">
         <div class="up-header-left">
-          <div class="up-avatar"><img src="assets/images/img-georeferencia/ficha-desague-icon.gif" alt="Ficha Alcantarillado"></div>
+          <div class="up-avatar"><img src="assets/images/img-georeferencia/ficha-desague-icon.gif"
+              alt="Ficha Alcantarillado"></div>
           <div class="up-header-info">
             <span class="up-label">FICHA ALCANTARILLADO</span>
-            <strong class="up-name">Ficha: {{ datosClientePopup?.codcatastral || lecturaSeleccionada?.fichacatastral || '-' }}</strong>
+            <strong class="up-name">Ficha: {{ datosClientePopup?.codcatastral || lecturaSeleccionada?.fichacatastral ||
+              '-' }}</strong>
           </div>
         </div>
         <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
@@ -419,44 +456,53 @@
         <div class="up-section">
           <div class="up-grid grid-2">
             <div class="up-cell full">
-               <span class="uc-label">CONDICIÓN</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipocon || datosClientePopup?._conexionDesague?.tipocon || datosClientePopup?.destiposervicio || '-' }}</span>
+              <span class="uc-label">CONDICIÓN</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipocon ||
+                datosClientePopup?._conexionDesague?.tipocon || datosClientePopup?.destiposervicio || '-' }}</span>
             </div>
             <div class="up-cell full">
-               <span class="uc-label">UBICACIÓN CAJA DESAGUE</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desloccaja || datosClientePopup?._conexionDesague?.loccaja || '-' }}</span>
-            </div>
-            
-            <div class="up-cell">
-               <span class="uc-label">ESTADO CONEXIÓN DESAGUE</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desestconexion || datosClientePopup?._conexionDesague?.estconexion || '-' }}</span>
-            </div>
-            <div class="up-cell">
-               <span class="uc-label">MARCO TAPA DESAGUE</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipotapa || datosClientePopup?._conexionDesague?.tipotapa || '-' }}</span>
+              <span class="uc-label">UBICACIÓN CAJA DESAGUE</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desloccaja ||
+                datosClientePopup?._conexionDesague?.loccaja || '-' }}</span>
             </div>
 
             <div class="up-cell">
-               <span class="uc-label">ESTADO TAPA CAJA</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desesttapa || datosClientePopup?._conexionDesague?.esttapa || '-' }}</span>
+              <span class="uc-label">ESTADO CONEXIÓN DESAGUE</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desestconexion ||
+                datosClientePopup?._conexionDesague?.estconexion || '-' }}</span>
             </div>
             <div class="up-cell">
-               <span class="uc-label">MATERIAL TAPA CAJA</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipotapa || datosClientePopup?._conexionDesague?.tipotapa || '-' }}</span>
+              <span class="uc-label">MARCO TAPA DESAGUE</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipotapa ||
+                datosClientePopup?._conexionDesague?.tipotapa || '-' }}</span>
             </div>
 
             <div class="up-cell">
-               <span class="uc-label">ESTADO CAJA DESAGUE</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desestadocaja || datosClientePopup?._conexionDesague?.estadocaja || '-' }}</span>
+              <span class="uc-label">ESTADO TAPA CAJA</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desesttapa ||
+                datosClientePopup?._conexionDesague?.esttapa || '-' }}</span>
             </div>
             <div class="up-cell">
-               <span class="uc-label">MATERIAL CAJA DESAGUE</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipomaterial || datosClientePopup?._conexionDesague?.tipomaterial || '-' }}</span>
+              <span class="uc-label">MATERIAL TAPA CAJA</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipotapa ||
+                datosClientePopup?._conexionDesague?.tipotapa || '-' }}</span>
+            </div>
+
+            <div class="up-cell">
+              <span class="uc-label">ESTADO CAJA DESAGUE</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desestadocaja ||
+                datosClientePopup?._conexionDesague?.estadocaja || '-' }}</span>
+            </div>
+            <div class="up-cell">
+              <span class="uc-label">MATERIAL CAJA DESAGUE</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.destipomaterial ||
+                datosClientePopup?._conexionDesague?.tipomaterial || '-' }}</span>
             </div>
 
             <div class="up-cell full">
-               <span class="uc-label">DIÁMETRO CONEXIÓN DESAGUE</span>
-               <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desdiametro || datosClientePopup?.desdiametro || '-' }}</span>
+              <span class="uc-label">DIÁMETRO CONEXIÓN DESAGUE</span>
+              <span class="uc-val">{{ datosClientePopup?._conexionDesague?.desdiametro || datosClientePopup?.desdiametro
+                || '-' }}</span>
             </div>
           </div>
         </div>
@@ -466,27 +512,34 @@
 </div>
 
 <div class="img-lightbox" *ngIf="imagenAbierta" (click)="cerrarImagenCompleta()" (wheel)="onWheelZoom($event)">
+  <!-- Botón de cerrar superior (opcional, si lo quieres mantener) -->
   <button class="lightbox-close" (click)="cerrarImagenCompleta()" title="Cerrar"><i class="pi pi-times"></i></button>
+
   <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)"
     title="Anterior"><i class="pi pi-chevron-left"></i></button>
+
   <div class="lightbox-content" (click)="$event.stopPropagation()">
-    <img [src]="imagenAbierta"
-      [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
-      [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'" (mousedown)="onDragStart($event)"
-      (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()" (mouseleave)="onDragEnd()"
-      (error)="$any($event.target).src='assets/images/no-image.png'" alt="Imagen completa" />
+    <div class="img-container">
+      <img [src]="imagenAbierta"
+        [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
+        [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'"
+        (mousedown)="onDragStart($event)" (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()"
+        (mouseleave)="onDragEnd()" (error)="$any($event.target).src='assets/images/no-image.png'"
+        alt="Imagen completa" />
+    </div>
     <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
       imagenesPopup.length }}</div>
+    <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
+      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda">
+        <i class="pi pi-refresh pi-espejo"></i>
+      </button>
+      <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
+      <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
+      <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
+      <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
+    </div>
   </div>
+
   <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)"
     title="Siguiente"><i class="pi pi-chevron-right"></i></button>
-  <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
-    <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda">
-      <i class="pi pi-refresh pi-espejo"></i>
-    </button>
-    <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
-    <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
-    <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
-    <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
-  </div>
 </div>

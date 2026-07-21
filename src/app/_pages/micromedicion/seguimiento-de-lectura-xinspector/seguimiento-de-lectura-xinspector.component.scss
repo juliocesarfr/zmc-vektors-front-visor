@@ -1,0 +1,636 @@
+// Estructura visual alineada con controldigitacion para consistencia entre módulos.
+// Si el proyecto crece, considerar mover los estilos comunes (toolbar, chips,
+// leyenda, cards de resumen) a un partial compartido: _mapa-comercial.scss
+
+.sl-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+// ---------- Toolbar ----------
+.sl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+
+  .sl-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    img {
+      height: 28px;
+    }
+    h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 800;
+      span {
+        font-weight: 400;
+        color: #64748b;
+      }
+    }
+  }
+}
+
+.sl-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sl-filtros-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+
+  .filtro-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    font-size: 0.75rem;
+    color: #334155;
+  }
+}
+
+.sl-toggle-filtros {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+
+  &.active {
+    background: #0f172a;
+    color: #fff;
+    border-color: #0f172a;
+  }
+}
+
+// ---------- Filtros ----------
+.sl-filtros-panel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.25s ease;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+
+  &.visible {
+    max-height: 220px;
+    overflow: visible;
+  }
+}
+
+.sl-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25rem 0.75rem;
+  padding: 1.25rem 1rem 1rem;
+}
+
+.filtros-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+
+// ---------- Mapa ----------
+.sl-map-container {
+  position: relative;
+  flex: 1;
+  min-height: 400px;
+
+  .map {
+    position: absolute;
+    inset: 0;
+  }
+}
+
+.map-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+  color: #334155;
+
+  i {
+    font-size: 2rem;
+  }
+}
+
+// ---------- Sidebar de capas ----------
+.gis-sidebar-container {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 12;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.gis-sidebar-panel {
+  width: 235px;
+  padding: 0.7rem 0.75rem;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+
+  .sidebar-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #334155;
+    margin-bottom: 0.5rem;
+  }
+
+  .gif-icon {
+    height: 18px;
+  }
+
+  .divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 0.6rem 0;
+  }
+}
+
+.base-layers {
+  display: flex;
+  gap: 0.4rem;
+
+  button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.4rem 0.3rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #334155;
+
+    .icon {
+      height: 22px;
+    }
+
+    &.active {
+      border-color: #0f172a;
+      background: #f1f5f9;
+      box-shadow: inset 0 0 0 1px #0f172a;
+    }
+  }
+}
+
+.commercial-layers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+
+  .c-layer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.3rem 0.35rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.76rem;
+    color: #64748b;
+
+    &:hover {
+      background: #f8fafc;
+    }
+
+    .active-text {
+      color: #0f172a;
+      font-weight: 600;
+    }
+  }
+}
+
+.custom-toggle {
+  width: 32px;
+  height: 17px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+
+  .toggle-circle {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: #fff;
+    transition: left 0.15s ease;
+  }
+
+  &.on {
+    background: #22c55e;
+    .toggle-circle {
+      left: 17px;
+    }
+  }
+}
+
+.sidebar-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.45rem 0.5rem;
+  border: none;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #334155;
+
+  .stb-text {
+    white-space: nowrap;
+  }
+}
+
+// ---------- Cards de resumen ----------
+.sl-resumen {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  display: flex;
+  gap: 0.4rem;
+
+  .card-resumen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 72px;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    border-top: 3px solid #64748b;
+
+    .numero {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+    .titulo {
+      font-size: 0.65rem;
+      color: #64748b;
+      text-transform: uppercase;
+    }
+
+    &.ok {
+      border-top-color: #22c55e;
+    }
+    &.error {
+      border-top-color: #ef4444;
+    }
+    &.warn {
+      border-top-color: #f59e0b;
+    }
+  }
+}
+
+// ---------- Leyenda ----------
+.sl-leyenda {
+  position: absolute;
+  bottom: 14px;
+  left: 10px;
+  z-index: 10;
+  min-width: 220px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 0.78rem;
+
+  .leyenda-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+
+    .cerrar {
+      cursor: pointer;
+      color: #94a3b8;
+    }
+  }
+
+  > div:not(.leyenda-header):not(.leyenda-inspectores) {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.2rem 0;
+  }
+}
+
+.punto {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px #94a3b8;
+  display: inline-block;
+
+  &.verde {
+    background: #22c55e;
+  }
+  &.rojo {
+    background: #ef4444;
+  }
+}
+
+.rombo {
+  width: 11px;
+  height: 11px;
+  transform: rotate(45deg);
+  background: #334155;
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 0 1px #94a3b8;
+  display: inline-block;
+
+  &.azul {
+    background: #2563eb;
+  }
+}
+
+.linea {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  display: inline-block;
+
+  &.gris {
+    background: #64748b;
+  }
+  &.roja {
+    background: #dc2626;
+  }
+}
+
+.leyenda-inspectores {
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed #e2e8f0;
+
+  .li-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.2rem 0;
+  }
+}
+
+.sl-leyenda-toggle,
+.sl-resumen-toggle {
+  position: absolute;
+  z-index: 10;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.sl-leyenda-toggle {
+  bottom: 14px;
+  left: 10px;
+}
+.sl-resumen-toggle {
+  bottom: 14px;
+  right: 10px;
+}
+
+// ---------- Tabla de resumen ----------
+.sl-tabla-resumen {
+  position: absolute;
+  bottom: 14px;
+  right: 10px;
+  z-index: 10;
+  max-width: 560px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+
+  .tr-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+
+    .cerrar {
+      cursor: pointer;
+      color: #94a3b8;
+    }
+  }
+
+  th.num,
+  td.num {
+    text-align: right;
+  }
+  td.ok {
+    color: #16a34a;
+    font-weight: 700;
+  }
+  td.pend {
+    color: #dc2626;
+    font-weight: 700;
+  }
+
+  .fila-inspector {
+    cursor: pointer;
+
+    &:hover {
+      background: #f1f5f9 !important;
+    }
+    &.activa {
+      background: #eff6ff !important;
+      box-shadow: inset 3px 0 0 #2563eb;
+    }
+  }
+
+  .avance-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.4rem;
+    min-width: 110px;
+
+    span {
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+  }
+
+  .avance-bar {
+    flex: 1;
+    height: 7px;
+    max-width: 70px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+
+    .avance-fill {
+      height: 100%;
+      background: #f59e0b;
+      transition: width 0.3s ease;
+
+      &.completo {
+        background: #22c55e;
+      }
+    }
+  }
+}
+
+// ---------- Buscador por código de cliente ----------
+.sl-search-panel {
+  position: absolute;
+  bottom: 64px;
+  right: 10px;
+  z-index: 11;
+  width: 260px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+
+  .search-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+
+    .cerrar {
+      cursor: pointer;
+      color: #94a3b8;
+    }
+  }
+}
+
+.sl-search-toggle {
+  position: absolute;
+  bottom: 64px;
+  right: 10px;
+  z-index: 10;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+// ---------- Popup ----------
+.sl-popup {
+  position: absolute;
+  top: 10px;
+  right: 260px; // deja espacio al sidebar de capas (235px + margen)
+  z-index: 15;
+  width: 300px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+
+  .sp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0.75rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.8rem;
+
+    strong {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .sp-close {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #94a3b8;
+    }
+  }
+
+  .sp-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .sp-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.35rem 0.5rem;
+    border-radius: 8px;
+    background: #f8fafc;
+
+    &.alerta {
+      background: #fef2f2;
+    }
+
+    .sp-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      color: #64748b;
+      font-weight: 700;
+    }
+    .sp-val {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+
+      .pi-exclamation-triangle {
+        color: #dc2626;
+      }
+    }
+  }
+}

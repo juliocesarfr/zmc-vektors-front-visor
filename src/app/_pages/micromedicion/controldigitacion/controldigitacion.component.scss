@@ -214,8 +214,6 @@
 
     .toggle-icon-wrap {
       position: relative;
-      display: flex;
-      align-items: center;
 
       i {
         font-size: 12px;
@@ -324,7 +322,10 @@
 
   .map-loading-overlay {
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(255, 255, 255, 0.7);
     z-index: 1000;
     display: flex;
@@ -332,12 +333,13 @@
     justify-content: center;
     align-items: center;
     color: #333;
-    
+
     i {
       font-size: 3rem;
       margin-bottom: 12px;
       color: #f59e0b;
     }
+
     span {
       font-weight: 600;
       font-size: 1.1rem;
@@ -395,7 +397,7 @@
 
 .cd-leyenda {
   position: absolute;
-  bottom: 24px;
+  bottom: 70px;
   left: 12px;
   z-index: 5;
   background: rgba(255, 255, 255, 0.95);
@@ -406,6 +408,11 @@
   font-size: 12.5px;
   color: #334155;
   line-height: 1.9;
+
+  @media (max-width: 768px) {
+    z-index: 1001;
+    bottom: 80px;
+  }
 
   .leyenda-header {
     display: flex;
@@ -455,9 +462,10 @@
   }
 }
 
-.cd-leyenda-toggle, .cd-search-toggle {
+.cd-leyenda-toggle,
+.cd-search-toggle {
   position: absolute;
-  bottom: 24px;
+  bottom: 70px;
   z-index: 5;
   width: 38px;
   height: 38px;
@@ -468,6 +476,11 @@
   color: #fff;
   cursor: pointer;
   transition: all 0.2s;
+
+  @media (max-width: 768px) {
+    z-index: 1001;
+    bottom: 80px;
+  }
 
   &:hover {
     background: #0284c7;
@@ -484,15 +497,20 @@
 
 .cd-search-panel {
   position: absolute;
-  bottom: 24px;
+  bottom: 70px;
   right: 12px;
   z-index: 5;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(4px);
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-  padding: 10px 14px;
-  width: 260px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 12px 14px;
+  width: 280px;
+
+  @media (max-width: 768px) {
+    z-index: 1001;
+    bottom: 80px;
+  }
 
   .search-header {
     display: flex;
@@ -514,37 +532,34 @@
     }
   }
 
+  .search-actions {
+    text-align: right;
+    margin-bottom: 2px;
+    margin-top: -2px;
+    
+    .limpiar-link {
+      color: #ef4444;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+      
+      &:hover {
+        color: #dc2626;
+        text-decoration: underline;
+      }
+      
+      i {
+        font-size: 10px;
+      }
+    }
+  }
+
   .search-body {
     display: flex;
-    gap: 8px;
-    
-    input {
-      flex: 1;
-      padding: 6px 10px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      font-size: 12px;
-      outline: none;
-      
-      &:focus {
-        border-color: #0ea5e9;
-      }
-    }
-
-    button {
-      background: #0ea5e9;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 0 12px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-
-      &:hover {
-        background: #0284c7;
-      }
-    }
   }
 }
 
@@ -624,6 +639,11 @@
   display: flex;
   align-items: flex-start;
   font-family: 'Segoe UI', Arial, sans-serif;
+
+  @media (max-width: 768px) {
+    z-index: 1001;
+    margin-left: 0;
+  }
 
   .gis-sidebar-panel {
     width: 240px;
@@ -797,10 +817,10 @@
   position: absolute;
   top: 58px;
   right: 10px;
-  width: min(360px, 92vw);
+  width: min(360px, calc(100vw - 20px));
   min-width: 260px;
   height: auto;
-  max-height: calc(100% - 20px) !important;
+  max-height: calc(100% - 75px) !important;
   z-index: 1000;
   background: #ffffff;
   border-radius: 8px;
@@ -810,6 +830,14 @@
   flex-direction: column;
   overflow: hidden;
   font-family: 'Segoe UI', Arial, sans-serif;
+  transition: all 0.3s ease;
+
+  @media (max-width: 768px) {
+    top: auto;
+    bottom: 10px;
+    width: calc(100vw - 20px);
+    max-height: calc(100% - 130px) !important;
+  }
 
   .up-header {
     background: #0284c7;
@@ -832,62 +860,62 @@
       height: 32px;
       border-radius: 50%;
       background: #003cc2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
 
-    img {
+      img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+    }
+
+    .up-header-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      gap: 1px;
+
+      .up-label {
+        font-size: 8.5px;
+        font-weight: 800;
+        color: #b3d1ff;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+      }
+
+      .up-name {
+        font-size: 13px;
+        font-weight: 800;
+        color: #ffffff;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+
+    .up-close {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      border-radius: 50%;
+      color: #ffffff;
       width: 24px;
       height: 24px;
-      object-fit: contain;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 10px;
+      transition: background 0.15s, transform 0.15s;
+
+      &:hover {
+        background: #ff0044;
+        transform: scale(1.1);
+      }
     }
   }
-
-  .up-header-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    gap: 1px;
-
-    .up-label {
-      font-size: 8.5px;
-      font-weight: 800;
-      color: #b3d1ff;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-    }
-
-    .up-name {
-      font-size: 13px;
-      font-weight: 800;
-      color: #ffffff;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
-
-  .up-close {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 50%;
-    color: #ffffff;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    flex-shrink: 0;
-    font-size: 10px;
-    transition: background 0.15s, transform 0.15s;
-
-    &:hover {
-      background: #ff0044;
-      transform: scale(1.1);
-    }
-  }
-}
 
 
   .up-suministro {
@@ -1375,7 +1403,7 @@
 
   .lightbox-close {
     position: absolute;
-    top: 24px;
+    top: 100px;
     right: 24px;
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1398,25 +1426,38 @@
     }
   }
 
-  img {
+  .img-container {
     max-width: 90vw;
     max-height: 85vh;
-    object-fit: contain;
     border-radius: 8px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    cursor: default;
-    transition: transform 0.1s ease-out;
-    will-change: transform;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      cursor: default;
+      transition: transform 0.1s ease-out;
+      will-change: transform;
+    }
   }
 
   .lightbox-zoom-bar {
     position: absolute;
-    bottom: 40px;
+    top: 50%;
+    right: -60px;
+    transform: translateY(-50%);
+    bottom: auto;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(12px);
-    padding: 6px 8px;
+    padding: 4px 4px;
     border-radius: 40px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 4px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
@@ -1427,13 +1468,13 @@
       background: transparent;
       border: none;
       color: #475569;
-      width: 36px;
-      height: 36px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 16px;
+      font-size: 12px;
       cursor: pointer;
       transition: all 0.2s ease;
 
@@ -1448,11 +1489,11 @@
 
       &.reset {
         color: #64748b;
-        margin-left: 6px;
-        padding-left: 6px;
-        border-left: 1px solid #cbd5e1;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #cbd5e1;
         border-radius: 0;
-        width: 38px;
+        height: auto;
 
         &:hover {
           background: transparent;
@@ -1467,10 +1508,10 @@
 
     .lz-pct {
       font-family: 'Segoe UI', Arial, sans-serif;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
       color: #0f172a;
-      min-width: 56px;
+      min-width: 45px;
       text-align: center;
       user-select: none;
       letter-spacing: 0.5px;
@@ -1478,7 +1519,6 @@
   }
 }
 
-/* Agrega esto debajo de tus estilos de .up-grid */
 .up-grid.grid-4 {
   grid-template-columns: repeat(4, 1fr);
 }
@@ -1534,14 +1574,24 @@
   }
 
   .cd-filtros-panel {
-    top: 48px;
-
     &.visible {
-      max-height: 260px;
+      max-height: 500px;
     }
 
     .cd-filtros {
-      gap: 8px;
+      gap: 20px 10px;
+
+      .p-float-label {
+        flex: 1 1 calc(50% - 10px);
+        min-width: 130px;
+        width: 100%;
+
+        ::ng-deep .p-dropdown,
+        ::ng-deep .p-multiselect,
+        ::ng-deep .p-inputnumber {
+          width: 100% !important;
+        }
+      }
     }
   }
 
@@ -1599,10 +1649,8 @@
   }
 
   .cd-filtros-panel {
-    top: 44px;
-
     &.visible {
-      max-height: 320px;
+      max-height: 500px;
     }
 
     .cd-filtros-inner {
@@ -1610,12 +1658,8 @@
     }
 
     .cd-filtros {
-      gap: 6px;
+      gap: 20px 10px;
     }
-  }
-
-  .gis-sidebar-container {
-    display: none; // En móvil muy pequeño, ocultar sidebar de capas
   }
 
   .cd-resumen {
@@ -1640,7 +1684,8 @@
   }
 
   .cd-leyenda {
-    display: none;
+    bottom: 80px;
+    z-index: 1001;
   }
 
   .user-popup {
@@ -1667,7 +1712,11 @@
     }
 
     .lightbox-zoom-bar {
-      bottom: 16px;
+      top: auto;
+      bottom: 24px;
+      right: 50%;
+      transform: translateX(50%);
+      flex-direction: row;
       padding: 4px 6px;
 
       .lz-btn {
@@ -1679,6 +1728,7 @@
       .lz-pct {
         font-size: 11px;
         min-width: 42px;
+        text-align: center;
       }
     }
   }
@@ -1708,4 +1758,3 @@
 :host ::ng-deep .ol-zoom {
   top: 58px !important;
 }
-
