@@ -1,0 +1,347 @@
+<p-toast [appendTo]="'body'"></p-toast>
+
+<div class="cd-wrapper">
+
+  <!-- ===================== TOOLBAR ===================== -->
+  <div class="cd-toolbar">
+    <div class="cd-title">
+      <img src="assets/images/img-medicion/writing.png" alt="cortes" />
+      <h3>{{ titulo }} <span>| Mapa</span></h3>
+    </div>
+
+    <div class="cd-toolbar-actions">
+      <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
+        <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
+          <i class="pi pi-building"></i> {{ selectedSucursal?.descripcion }}
+        </span>
+        <span class="filtro-chip anio" *ngIf="nroPrecorte">
+          <i class="pi pi-hashtag"></i> Precorte {{ nroPrecorte }}
+        </span>
+      </div>
+
+      <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
+        <span class="toggle-icon-wrap">
+          <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+          <span class="pulse-dot" *ngIf="!nroPrecorte && !filtrosVisible"></span>
+        </span>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== PANEL FILTROS ===================== -->
+  <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
+    <div class="cd-filtros-inner">
+      <div class="filtros-label"><i class="pi pi-filter"></i> FILTROS DE BÚSQUEDA</div>
+      <div class="cd-filtros">
+        <span class="p-float-label">
+          <p-dropdown [options]="dataSucursales" [(ngModel)]="selectedSucursal"
+            optionLabel="descripcion" [style]="{ width: '190px' }" placeholder="Sucursal"
+            [appendTo]="'body'"></p-dropdown>
+          <label>Sucursal</label>
+        </span>
+
+        <span class="p-float-label">
+          <p-inputNumber [(ngModel)]="nroPrecorte" [useGrouping]="false" [style]="{ width: '140px' }"
+            inputStyleClass="w-full" [showButtons]="false" placeholder="N° Precorte"></p-inputNumber>
+          <label>N° Precorte</label>
+        </span>
+
+        <div class="filtros-btns">
+          <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
+            [loading]="cargando"></p-button>
+          <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar" [outlined]="true"></p-button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MAPA ===================== -->
+  <div class="cd-map-container">
+    <div *ngIf="cargando" class="map-loading-overlay">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Cargando precorte...</span>
+    </div>
+
+    <div #mapContainer id="map" class="map"></div>
+
+    <!-- Sidebar de capas -->
+    <div class="gis-sidebar-container">
+      <div class="gis-sidebar-panel" *ngIf="sidebarOpen">
+        <div class="sidebar-title">
+          <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
+        </div>
+        <div class="base-layers">
+          <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
+            <span>{{ l.label }}</span>
+          </button>
+        </div>
+        <div class="divider"></div>
+        <div class="sidebar-title">
+          <img src="assets/images/img-georeferencia/satellital-icon.gif" class="gif-icon" alt="Capas"> CAPAS COMERCIALES
+        </div>
+        <div class="commercial-layers">
+          <div class="c-layer" *ngFor="let l of commercialLayers" (click)="toggleCommercialLayer(l)">
+            <span [class.active-text]="l.active">{{ l.label }}</span>
+            <div class="custom-toggle" [class.on]="l.active">
+              <div class="toggle-circle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="sidebar-toggle-btn" [class.closed]="!sidebarOpen" (click)="toggleSidebar()"
+        [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
+        <span *ngIf="!sidebarOpen" class="stb-text">VER CAPAS</span>
+        <i class="pi" [class.pi-chevron-left]="sidebarOpen" [class.pi-chevron-right]="!sidebarOpen"></i>
+      </button>
+    </div>
+
+    <!-- Tarjetas de resumen -->
+    <div class="cd-resumen" *ngIf="total > 0">
+      <div class="card-resumen">
+        <span class="numero">{{ total }}</span>
+        <span class="titulo">Total</span>
+      </div>
+      <div class="card-resumen exec" [class.filtro-on]="filtroEstado === 'ejecutado'"
+        (click)="filtrarPorEstado('ejecutado')" style="cursor:pointer">
+        <span class="numero">{{ ejecutados }}</span>
+        <span class="titulo">{{ etiquetaEjecutado }}</span>
+      </div>
+      <div class="card-resumen pend" [class.filtro-on]="filtroEstado === 'pendiente'"
+        (click)="filtrarPorEstado('pendiente')" style="cursor:pointer">
+        <span class="numero">{{ pendientes }}</span>
+        <span class="titulo">Pend.</span>
+      </div>
+      <div class="card-resumen pagado" [class.filtro-on]="filtroEstado === 'pagado'"
+        (click)="filtrarPorEstado('pagado')" style="cursor:pointer">
+        <span class="numero">{{ pagados }}</span>
+        <span class="titulo">Pagó</span>
+      </div>
+      <div class="card-resumen rend">
+        <span class="numero">{{ rendimiento }}%</span>
+        <span class="titulo">Rendim.</span>
+      </div>
+      <div class="card-resumen warn" *ngIf="totalSinCoordenadas > 0">
+        <span class="numero">{{ totalSinCoordenadas }}</span>
+        <span class="titulo">Sin Coord.</span>
+      </div>
+    </div>
+
+    <!-- Panel de inspectores -->
+    <div class="cd-inspectores" *ngIf="inspectores.length > 0 && panelInspectores">
+      <div class="insp-header">
+        <span><i class="pi pi-users"></i> Inspectores</span>
+        <div class="insp-header-actions">
+          <span class="insp-limpiar" *ngIf="filtroInspector" (click)="limpiarFiltroInspector()">
+            <i class="pi pi-filter-slash"></i> Limpiar
+          </span>
+          <i class="pi pi-times cerrar" (click)="panelInspectores = false"></i>
+        </div>
+      </div>
+      <div class="insp-body">
+        <div class="insp-row" *ngFor="let ins of inspectores"
+          [class.active]="filtroInspector === ins.codinspector"
+          (click)="filtrarPorInspector(ins)">
+          <div class="insp-name">
+            <strong>{{ ins.codinspector }}</strong> {{ ins.inspector }}
+          </div>
+          <div class="insp-stats">
+            <span class="chip total">{{ ins.total }}</span>
+            <span class="chip exec">{{ ins.ejecutados }}</span>
+            <span class="chip pend">{{ ins.pendientes }}</span>
+            <span class="chip rend">{{ ins.rendimiento }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button class="cd-insp-toggle" *ngIf="inspectores.length > 0 && !panelInspectores"
+      (click)="panelInspectores = true" title="Ver inspectores">
+      <i class="pi pi-users"></i>
+    </button>
+
+    <!-- Leyenda -->
+    <div class="cd-leyenda" *ngIf="mostrarLeyenda">
+      <div class="leyenda-header">
+        <span><i class="pi pi-map-marker"></i> Leyenda</span>
+        <i class="pi pi-times cerrar" (click)="mostrarLeyenda = false"></i>
+      </div>
+      <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'ejecutado'"
+        (click)="filtrarPorEstado('ejecutado')"><span class="punto ejecutado"></span> {{ etiquetaEjecutado }}</div>
+      <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'pendiente'"
+        (click)="filtrarPorEstado('pendiente')"><span class="punto pendiente"></span> Pendiente</div>
+      <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'pagado'"
+        (click)="filtrarPorEstado('pagado')"><span class="punto pagado"></span> Pagó</div>
+    </div>
+    <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda" (click)="mostrarLeyenda = true">
+      <i class="pi pi-map-marker"></i>
+    </button>
+
+    <!-- Buscador -->
+    <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
+      <div class="search-header">
+        <span><i class="pi pi-search"></i> Buscar Cliente</span>
+        <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+      </div>
+      <div class="search-body p-inputgroup mt-2">
+        <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
+          (keyup.enter)="buscarPorCodCliente()">
+        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()"
+          class="p-button-primary" title="Buscar"></button>
+      </div>
+    </div>
+    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
+      <i class="pi pi-search"></i>
+    </button>
+
+    <!-- ===================== POPUP DE CORTE ===================== -->
+    <div class="user-popup" *ngIf="corteSeleccionado">
+      <div class="up-header">
+        <div class="up-header-left">
+          <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
+          <div class="up-header-info">
+            <span class="up-label">TITULAR DEL PREDIO</span>
+            <strong class="up-name">{{ corteSeleccionado.propietario || 'SIN REGISTRO' }}</strong>
+          </div>
+        </div>
+        <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="up-suministro">
+        <div class="up-sum-item primary">
+          <i class="pi pi-bolt"></i>
+          <span class="up-sum-label">SUMINISTRO</span>
+          <span class="up-sum-value">{{ corteSeleccionado.codcliente || '-' }}</span>
+        </div>
+        <div class="up-sum-sep"></div>
+        <div class="up-sum-item">
+          <span class="up-sum-label">ESTADO</span>
+          <p-tag
+            [style]="{ 'background-color': colorEstado(corteSeleccionado) }"
+            [value]="etiquetaEstado(corteSeleccionado)" [rounded]="true"></p-tag>
+        </div>
+      </div>
+
+      <div class="up-body">
+        <!-- Ubicación -->
+        <div class="up-section">
+          <div class="up-section-title loc">
+            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación">
+            UBICACIÓN
+          </div>
+          <div class="up-grid grid-3">
+            <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ corteSeleccionado.codsector || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ corteSeleccionado.codmza || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Lote</span><span class="uc-val">{{ corteSeleccionado.nrolote || '-' }}</span></div>
+            <div class="up-cell full"><span class="uc-label">Dirección</span>
+              <span class="uc-val">{{ (corteSeleccionado.descripcioncorta || '') + ' ' + (corteSeleccionado.descripcioncalle || '') + ' ' + (corteSeleccionado.nrocalle || '') }}</span>
+            </div>
+            <div class="up-cell span-2"><span class="uc-label">Urbanización</span><span class="uc-val">{{ corteSeleccionado.descripcionurba || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Teléfono</span><span class="uc-val">{{ corteSeleccionado.telefono || '-' }}</span></div>
+          </div>
+        </div>
+
+        <!-- Ejecución del corte -->
+        <div class="up-section">
+          <div class="up-section-title medidor">
+            <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Corte">
+            EJECUCIÓN
+          </div>
+          <div class="up-grid grid-2">
+            <div class="up-cell full"><span class="uc-label">Inspector</span>
+              <span class="uc-val inspector-name">{{ corteSeleccionado.codinspector }} - {{ corteSeleccionado.inspector || '-' }}</span>
+            </div>
+            <div class="up-cell"><span class="uc-label">Est. Actual</span><span class="uc-val badge-est">{{ corteSeleccionado.estadoservicio2 || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Medidor</span><span class="uc-val">{{ corteSeleccionado.nromed || 'SIN MEDIDOR' }}</span></div>
+            <div class="up-cell"><span class="uc-label">F. {{ etiquetaEjecutado | titlecase }}</span><span class="uc-val">{{ fechaEjecucion(corteSeleccionado) ? (fechaEjecucion(corteSeleccionado) | date:'dd/MM/yyyy HH:mm') : '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Día Pago</span><span class="uc-val">{{ corteSeleccionado.diapago ? (corteSeleccionado.diapago | date:'dd/MM/yyyy') : '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Corte Agua</span><span class="uc-val">{{ corteSeleccionado.c_destipocoragu || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Corte Desagüe</span><span class="uc-val">{{ corteSeleccionado.c_destipocordes || '-' }}</span></div>
+          </div>
+        </div>
+
+        <!-- Deuda -->
+        <div class="up-section">
+          <div class="up-section-title imgs">
+            <i class="pi pi-wallet" style="color:#480384"></i> DEUDA
+          </div>
+          <div class="up-grid grid-2">
+            <div class="up-cell"><span class="uc-label">Imp. Deuda</span><span class="uc-val">S/ {{ (corteSeleccionado.impdeuda || 0).toFixed(2) }}</span></div>
+            <div class="up-cell"><span class="uc-label"># Meses</span><span class="uc-val">{{ corteSeleccionado.nromesesdeuda || 0 }}</span></div>
+            <div class="up-cell"><span class="uc-label">Deuda Mes</span><span class="uc-val">S/ {{ (corteSeleccionado.impmesdeuda || 0).toFixed(2) }}</span></div>
+            <div class="up-cell"><span class="uc-label">Deuda Pagada</span><span class="uc-val">S/ {{ (corteSeleccionado.impdeudapagada || 0).toFixed(2) }}</span></div>
+            <div class="up-cell"><span class="uc-label">Deuda Reclamo</span><span class="uc-val">S/ {{ (corteSeleccionado.impdeudareclamo || 0).toFixed(2) }}</span></div>
+            <div class="up-cell"><span class="uc-label">Meses Reclamo</span><span class="uc-val">{{ corteSeleccionado.nromesesdeudareclamo || 0 }}</span></div>
+          </div>
+        </div>
+
+        <!-- Evidencias (fotos) -->
+        <div class="up-section up-section-imgs">
+          <div class="up-section-title imgs">
+            <img src="assets/images/img-georeferencia/evidencia-icon.gif" class="gif-icon" alt="Evidencias"> EVIDENCIAS
+            <span class="up-img-badge" *ngIf="imagenesPopup.length > 0">{{ imagenesPopup.length }}</span>
+          </div>
+          <div class="up-img-loading" *ngIf="cargandoImagenes"><i class="pi pi-spin pi-spinner"></i> Cargando imágenes...</div>
+          <div class="up-img-scroll" *ngIf="!cargandoImagenes">
+            <ng-container *ngIf="imagenesPopup.length > 0; else sinImg">
+              <div class="up-thumb" *ngFor="let img of imagenesPopup; let idx = index" (click)="abrirImagenCompleta(idx)">
+                <img [src]="img.src" (error)="$any($event.target).src='assets/images/no-image.png'" alt="Evidencia" />
+                <div class="up-thumb-info">
+                  <span class="tn-nombre" [title]="img._nombre">{{ img._nombre }}</span>
+                  <span class="tn-fecha" *ngIf="img._fecha">{{ img._fecha }}</span>
+                  <span class="tn-tipo" *ngIf="img.tiporecepcionimages">{{ img.tiporecepcionimages }}</span>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #sinImg>
+              <div class="up-noimg">
+                <i class="pi pi-image"></i>
+                <span>Sin imágenes para este predio.</span>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+
+        <div class="up-section" style="padding-top:5px;padding-bottom:5px;border:none;background:transparent;">
+          <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
+            class="p-button-sm w-full btn-ver-mas"
+            (click)="verMasInformacion(corteSeleccionado.codcliente)"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== LIGHTBOX DE IMÁGENES ===================== -->
+<div class="img-lightbox" *ngIf="imagenAbierta" (click)="cerrarImagenCompleta()" (wheel)="onWheelZoom($event)">
+  <button class="lightbox-close" (click)="cerrarImagenCompleta()" title="Cerrar"><i class="pi pi-times"></i></button>
+
+  <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)"
+    title="Anterior"><i class="pi pi-chevron-left"></i></button>
+
+  <div class="lightbox-content" (click)="$event.stopPropagation()">
+    <div class="img-container">
+      <img [src]="imagenAbierta"
+        [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
+        [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'"
+        (mousedown)="onDragStart($event)" (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()"
+        (mouseleave)="onDragEnd()" (error)="$any($event.target).src='assets/images/no-image.png'"
+        alt="Imagen completa" />
+    </div>
+    <div class="lightbox-caption" *ngIf="imagenActual">
+      <span class="lc-nombre" *ngIf="imagenActual.tiporecepcionimages">{{ imagenActual.tiporecepcionimages }}</span>
+      <span class="lc-fecha" *ngIf="imagenActual.fechareg">{{ imagenActual.fechareg | date:'yyyy-MM-dd HH:mm' }}</span>
+    </div>
+    <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{ imagenesPopup.length }}</div>
+    <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
+      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda"><i class="pi pi-refresh pi-espejo"></i></button>
+      <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
+      <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
+      <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
+      <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
+    </div>
+  </div>
+
+  <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)"
+    title="Siguiente"><i class="pi pi-chevron-right"></i></button>
+</div>

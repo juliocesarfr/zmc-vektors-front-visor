@@ -96,6 +96,9 @@ export const TIPOS_RECEPCION_IMG = [
   "040", "039", "038", "037", "004", "003",
 ].map((tipo) => ({ tipo }));
 
+export const TIPOS_RECEPCION_IMGCORE = [
+  "054", "055"
+].map((tipo) => ({ tipo }));
 
 export type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
