@@ -1,11 +1,22 @@
-// Estructura visual alineada con controldigitacion para consistencia entre módulos.
-// Si el proyecto crece, considerar mover los estilos comunes (toolbar, chips,
-// leyenda, cards de resumen) a un partial compartido: _mapa-comercial.scss
+:host {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: var(--app-header-height, 90px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  overflow: hidden;
+}
 
 .sl-wrapper {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
 // ---------- Toolbar ----------
@@ -325,7 +336,7 @@
 // ---------- Leyenda ----------
 .sl-leyenda {
   position: absolute;
-  bottom: 14px;
+  bottom: 80px;
   left: 10px;
   z-index: 10;
   min-width: 220px;

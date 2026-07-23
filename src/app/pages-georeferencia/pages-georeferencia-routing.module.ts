@@ -41,10 +41,17 @@ const routes: Routes = [
       ),
   },
   {
-    path: "micromedicion/recorrido_del_inspector",
+    path: "cobranza/seguimiento_cortes_conprograma",
     loadComponent: () =>
-      import("../_pages/micromedicion/recorrido-del-inspector/recorrido-del-inspector.component").then(
-        (m) => m.RecorridoDelInspectorComponent,
+      import("../_pages/cobranza/seguimiento-cortescon-programa/seguimiento-cortescon-programa.component").then(
+        (m) => m.SeguimientoCortesconProgramaComponent,
+      ),
+  },
+  {
+    path: "cobranza/seguimiento_reapertura_conprograma",
+    loadComponent: () =>
+      import("../_pages/cobranza/seguimiento-reaperturacon-programa/seguimiento-reaperturacon-programa.component").then(
+        (m) => m.SeguimientoReaperturaconProgramaComponent,
       ),
   },
   { path: "", redirectTo: "/main", pathMatch: "full" },

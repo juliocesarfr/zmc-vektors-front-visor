@@ -6,6 +6,8 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   HostListener,
   DestroyRef,
+  ViewChild,
+  ElementRef,
   inject,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
@@ -77,6 +79,7 @@ import {
   RADIOS_LECTURA,
   RADIOS_FICHA,
 } from "../../../util/Mapaestilos.factory";
+import { observarTamanoMapa } from "../.././../util/Mapinit.util";
 
 @Component({
   selector: "app-controldigitacion",
@@ -107,6 +110,11 @@ export class ControldigitacionComponent
 {
   private readonly destroyRef = inject(DestroyRef);
   private readonly estilos = new MapEstilosFactory();
+  private detenerObservadorMapa?: () => void;
+
+  /** Referencia directa al <div #mapContainer> real montado por Angular. */
+  @ViewChild("mapContainer", { static: false })
+  private mapContainer!: ElementRef<HTMLDivElement>;
 
   // ---- Mapa y capas ----
   map!: OlMap;
@@ -251,11 +259,24 @@ export class ControldigitacionComponent
   ngAfterViewInit(): void {
     this.crearMapa();
     this.initClick();
-    // el layout de la toolbar puede cambiar el alto del contenedor tras el primer render
-    setTimeout(() => this.map.updateSize(), 300);
+
+    requestAnimationFrame(() => {
+      const el =
+        this.mapContainer?.nativeElement ?? document.getElementById("map");
+      if (!el) {
+        console.error(
+          "[ControlDigitacion] No se encontró el contenedor del mapa (#map ni #mapContainer).",
+        );
+        return;
+      }
+      this.map.setTarget(el);
+      this.map.updateSize();
+      this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
+    });
   }
 
   ngOnDestroy(): void {
+    this.detenerObservadorMapa?.();
     this.map?.setTarget(undefined);
     this.ref?.close();
   }
@@ -654,7 +675,10 @@ export class ControldigitacionComponent
     };
 
     this.map = new OlMap({
-      target: "map",
+      // NO se pasa target aquí: en un microfrontend, resolver el id "map" por
+      // string durante la construcción engancha un div equivocado o inexistente
+      // (por eso salía en blanco al navegar y bien al recargar). Se engancha
+      // en ngAfterViewInit con setTarget sobre la referencia real del @ViewChild.
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
@@ -910,28 +934,26 @@ export class ControldigitacionComponent
           this.resultadoBusquedaJson = [userFeature];
           this.actualizarCapasComerciales(false);
 
-          setTimeout(() => {
-            const refound = this.lecturasLayer
-              ?.getSource()
-              ?.getFeatures()
-              .find(
-                (f) =>
-                  String(
-                    f.get("codcliente") || f.get("nroSuministro") || "",
-                  ).trim() === query,
-              );
-            if (refound) {
-              this.seleccionarFeature(refound, "lectura");
-              const geom = refound.getGeometry();
-              if (geom) {
-                this.map.getView().animate({
-                  center: getCenter(geom.getExtent()),
-                  zoom: 21,
-                  duration: 800,
-                });
-              }
+          const refound = this.lecturasLayer
+            ?.getSource()
+            ?.getFeatures()
+            .find(
+              (f) =>
+                String(
+                  f.get("codcliente") || f.get("nroSuministro") || "",
+                ).trim() === query,
+            );
+          if (refound) {
+            this.seleccionarFeature(refound, "lectura");
+            const geom = refound.getGeometry();
+            if (geom) {
+              this.map.getView().animate({
+                center: getCenter(geom.getExtent()),
+                zoom: 21,
+                duration: 800,
+              });
             }
-          }, 100);
+          }
         }
         return;
       }
@@ -978,43 +1000,41 @@ export class ControldigitacionComponent
           this.searchCodCliente = "";
           this.actualizarCapasComerciales(false);
 
-          setTimeout(() => {
-            const fEncontrado = this.lecturasLayer
-              ?.getSource()
-              ?.getFeatures()
-              .find((f) => {
-                const fc = String(
-                  f.get("codcliente") || f.get("nroSuministro") || "",
-                ).trim();
-                return fc === query;
+          const fEncontrado = this.lecturasLayer
+            ?.getSource()
+            ?.getFeatures()
+            .find((f) => {
+              const fc = String(
+                f.get("codcliente") || f.get("nroSuministro") || "",
+              ).trim();
+              return fc === query;
+            });
+          if (fEncontrado) {
+            this.seleccionarFeature(fEncontrado, "lectura");
+            this.activarCapasPorDefectoBusqueda();
+            const geom = fEncontrado.getGeometry();
+            if (geom) {
+              this.map.getView().animate({
+                center: getCenter(geom.getExtent()),
+                zoom: 21,
+                duration: 800,
               });
-            if (fEncontrado) {
-              this.seleccionarFeature(fEncontrado, "lectura");
-              this.activarCapasPorDefectoBusqueda();
-              const geom = fEncontrado.getGeometry();
-              if (geom) {
-                this.map.getView().animate({
-                  center: getCenter(geom.getExtent()),
-                  zoom: 21,
-                  duration: 800,
-                });
-              }
-            } else {
-              this.lecturaSeleccionada = registros[0];
-              this.cargarDatosPopup(registros[0]);
-              this.activarCapasPorDefectoBusqueda();
-
-              const coord = extraerCoordenada(
-                registros[0],
-                ORIGENES_COORDENADA["usuario"],
-              );
-              if (coord) {
-                this.map
-                  .getView()
-                  .animate({ center: coord, zoom: 17, duration: 600 });
-              }
             }
-          }, 100);
+          } else {
+            this.lecturaSeleccionada = registros[0];
+            this.cargarDatosPopup(registros[0]);
+            this.activarCapasPorDefectoBusqueda();
+
+            const coord = extraerCoordenada(
+              registros[0],
+              ORIGENES_COORDENADA["usuario"],
+            );
+            if (coord) {
+              this.map
+                .getView()
+                .animate({ center: coord, zoom: 17, duration: 600 });
+            }
+          }
         },
         error: () => {
           this.cargando = false;
@@ -1101,38 +1121,36 @@ export class ControldigitacionComponent
           this.searchCodCliente = "";
           this.actualizarCapasComerciales(false);
 
-          setTimeout(() => {
-            const feature = this.lecturasLayer
-              .getSource()
-              ?.getFeatures()
-              .find((f) => {
-                const fc = String(
-                  f.get("codcliente") || f.get("nroSuministro") || "",
-                )
-                  .trim()
-                  .toLowerCase();
-                return fc === query;
-              });
+          const feature = this.lecturasLayer
+            .getSource()
+            ?.getFeatures()
+            .find((f) => {
+              const fc = String(
+                f.get("codcliente") || f.get("nroSuministro") || "",
+              )
+                .trim()
+                .toLowerCase();
+              return fc === query;
+            });
 
-            if (feature) {
-              this.seleccionarFeature(feature, "lectura");
-              this.activarCapasPorDefectoBusqueda();
-            } else {
-              this.lecturaSeleccionada = registros[0];
-              this.cargarDatosPopup(registros[0]);
-              this.activarCapasPorDefectoBusqueda();
-            }
+          if (feature) {
+            this.seleccionarFeature(feature, "lectura");
+            this.activarCapasPorDefectoBusqueda();
+          } else {
+            this.lecturaSeleccionada = registros[0];
+            this.cargarDatosPopup(registros[0]);
+            this.activarCapasPorDefectoBusqueda();
+          }
 
-            const coord = extraerCoordenada(
-              registros[0],
-              ORIGENES_COORDENADA["usuario"],
-            );
-            if (coord) {
-              this.map
-                .getView()
-                .animate({ center: coord, zoom: 17, duration: 600 });
-            }
-          }, 100);
+          const coord = extraerCoordenada(
+            registros[0],
+            ORIGENES_COORDENADA["usuario"],
+          );
+          if (coord) {
+            this.map
+              .getView()
+              .animate({ center: coord, zoom: 17, duration: 600 });
+          }
         },
         error: () => {
           this.cargando = false;
