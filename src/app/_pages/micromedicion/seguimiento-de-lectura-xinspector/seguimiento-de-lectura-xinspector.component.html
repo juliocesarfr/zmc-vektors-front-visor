@@ -11,19 +11,19 @@
 
     <div class="sl-toolbar-actions">
       <div class="sl-filtros-summary" *ngIf="!filtrosVisible">
-        <span class="filtro-chip" *ngIf="selectedCiclo">
+        <span class="filtro-chip ciclo" *ngIf="selectedCiclo">
           <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedMes && fechaCiclos">
+        <span class="filtro-chip mes" *ngIf="selectedMes && fechaCiclos">
           <i class="pi pi-calendar"></i> {{ selectedMes }}/{{ selectedAnio }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedSucursal">
+        <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
           <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedSector">
+        <span class="filtro-chip sector" *ngIf="selectedSector">
           <i class="pi pi-map"></i> {{ selectedSector?.descripcion }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedInspector">
+        <span class="filtro-chip estado" *ngIf="selectedInspector">
           <i class="pi pi-user"></i> {{ selectedInspector?.names }}
         </span>
       </div>
@@ -66,7 +66,7 @@
 
       <span class="p-float-label" *ngIf="selectedSucursal">
         <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion"
-          (onChange)="seleccionarSector($event.value)" [filter]="true" filterBy="descripcion"
+           [filter]="true" filterBy="descripcion"
           [style]="{ width: '180px' }" placeholder="Sector" [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
             <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>

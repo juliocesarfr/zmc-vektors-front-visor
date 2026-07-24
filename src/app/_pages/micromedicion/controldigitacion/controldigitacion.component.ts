@@ -872,6 +872,8 @@ export class ControldigitacionComponent
                     src: e.img64?.startsWith("data:")
                       ? e.img64
                       : "data:image/jpeg;base64," + e.img64,
+
+                    fechareg: e?.fechareg,
                   }))
               : [];
         },
@@ -1170,6 +1172,11 @@ export class ControldigitacionComponent
   // (candidato a extraerse como <app-lightbox-imagenes> reutilizable)
   // ============================================================
 
+  get imagenActual(): any | null {
+    return this.imagenAbiertaIndex >= 0
+      ? this.imagenesPopup[this.imagenAbiertaIndex]
+      : null;
+  }
   abrirImagenCompleta(index: number): void {
     if (index < 0 || index >= this.imagenesPopup.length) return;
     this.imagenAbiertaIndex = index;
