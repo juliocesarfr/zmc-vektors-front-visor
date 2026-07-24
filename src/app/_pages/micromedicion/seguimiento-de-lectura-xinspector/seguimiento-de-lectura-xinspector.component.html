@@ -29,8 +29,12 @@
       </div>
 
       <button class="sl-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
-        <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
-        <span>{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <span class="toggle-icon-wrap">
+          <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+          <span class="pulse-dot" *ngIf="!selectedSucursal && !filtrosVisible"></span>
+        </span>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down sl-chevron" [class.rotated]="filtrosVisible"></i>
       </button>
     </div>
   </div>
@@ -245,11 +249,10 @@
 
     <!-- Popup de registro seleccionado -->
     <div class="sl-popup" *ngIf="registroSeleccionado">
-      <div class="sp-header">
+      <div class="sp-header" [class.ok]="registroSeleccionado['_tomada']" [class.error]="!registroSeleccionado['_tomada']">
         <strong>
           <i class="pi" [class.pi-check-circle]="registroSeleccionado['_tomada']"
-            [class.pi-times-circle]="!registroSeleccionado['_tomada']"
-            [style.color]="registroSeleccionado['_tomada'] ? '#22c55e' : '#ef4444'"></i>
+            [class.pi-times-circle]="!registroSeleccionado['_tomada']"></i>
           {{ registroSeleccionado['_tomada'] ? 'LECTURA ENVIADA' : 'LECTURA PENDIENTE' }}
         </strong>
         <button class="sp-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
