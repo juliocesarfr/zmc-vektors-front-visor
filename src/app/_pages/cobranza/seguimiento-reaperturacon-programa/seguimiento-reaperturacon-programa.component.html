@@ -15,7 +15,7 @@
           <i class="pi pi-building"></i> {{ selectedSucursal?.descripcion }}
         </span>
         <span class="filtro-chip anio" *ngIf="nroPrecorte">
-          <i class="pi pi-hashtag"></i> Precorte {{ nroPrecorte }}
+          <i class="pi pi-hashtag"></i> N° programa  {{ nroPrecorte }}
         </span>
       </div>
 
@@ -44,8 +44,8 @@
 
         <span class="p-float-label">
           <p-inputNumber [(ngModel)]="nroPrecorte" [useGrouping]="false" [style]="{ width: '140px' }"
-            inputStyleClass="w-full" [showButtons]="false" placeholder="N° Precorte"></p-inputNumber>
-          <label>N° Precorte</label>
+            inputStyleClass="w-full" [showButtons]="false" placeholder="N° Programa"></p-inputNumber>
+          <label>N° Programa</label>
         </span>
 
         <div class="filtros-btns">
@@ -224,10 +224,18 @@
 
       <div class="up-body">
         <!-- Ubicación -->
-        <div class="up-section">
-          <div class="up-section-title loc">
-            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación">
-            UBICACIÓN
+      <div class="up-section">
+          <div class="up-section-title loc" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="display:inline-flex; align-items:center; gap:5px;">
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación">
+              UBICACIÓN
+            </span>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View" (click)="abrirStreetView(corteSeleccionado)"
+              style="padding:0.15rem 0.5rem; display:flex; align-items:center; gap:0.4rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height:1.5rem;" alt="Street View">
+              <span style="font-weight:800; font-size:10px;">Ver en Maps</span>
+            </button>
           </div>
           <div class="up-grid grid-3">
             <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ corteSeleccionado.codsector || '-' }}</span></div>

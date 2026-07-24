@@ -27,8 +27,6 @@ import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature from "ol/Feature";
-import Point from "ol/geom/Point";
-import LineString from "ol/geom/LineString";
 import { getCenter } from "ol/extent";
 
 import { MessageService } from "primeng/api";
@@ -54,6 +52,7 @@ import {
   VISTA_INICIAL,
   ORIGENES_COORDENADA,
   ConfigOrigenCoordenada,
+  COLORES_SEGUIMIENTO_LECTURA,
   LISTA_MESES,
   Sector,
   SECTOR_TODOS,
@@ -61,6 +60,8 @@ import {
 import {
   extraerCoordenada,
   distanciaHaversineMetros,
+  crearFeaturePunto,
+  crearFeatureLinea,
 } from "../.././../util/Geo.utils";
 import {
   MapEstilosFactory,
@@ -87,11 +88,13 @@ const ORIGEN_TOMA_INSPECTOR: ConfigOrigenCoordenada = {
  */
 const DISTANCIA_SOSPECHOSA_M = 30;
 
-const COLOR_TOMADA = "#22c55e"; // usuario con lectura enviada (web=1, recibido=1)
-const COLOR_SIN_TOMA = "#ef4444"; // usuario con lectura pendiente
-const COLOR_PUNTO_TOMA = "#2563eb"; // punto GPS donde el inspector registró la toma
-const COLOR_LINEA_OK = "#64748b"; // línea usuario→toma dentro del umbral
-const COLOR_LINEA_LEJOS = "#dc2626"; // línea usuario→toma fuera del umbral
+/**
+ * Más allá de esta distancia, la coordenada de toma es casi seguro un GPS por
+ * defecto/erróneo (no una toma real lejana). No se dibuja la toma ni la línea
+ * para no ensuciar el mapa con trazos que lo cruzan; el registro se cuenta
+ * como sospechoso. TODO: confirmar el valor con campo.
+ */
+const DISTANCIA_MAX_TOMA_VALIDA_M = 1000;
 
 interface Inspector {
   codinspector: string;
@@ -153,6 +156,9 @@ export class SeguimientoDeLecturaXinspectorComponent
   private readonly destroyRef = inject(DestroyRef);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
+
+  /** Paleta centralizada (config). Expuesta al template para leyenda/tarjetas. */
+  readonly COLORES = COLORES_SEGUIMIENTO_LECTURA;
 
   /** Referencia directa al <div #mapContainer> real montado por Angular. */
   @ViewChild("mapContainer", { static: true })
@@ -468,7 +474,7 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     // Una misma coordenada de toma repetida en muchos registros casi siempre es
     // un valor por defecto (el GPS no capturó y quedó un punto fijo), no tomas
-    // reales lejanas. Se cuenta la frecuencia para descartarlas del "lejos".
+    // reales lejanas. Se cuenta la frecuencia para descartarlas.
     const frecuencia = new Map<string, number>();
     for (const r of registros) {
       const c = extraerCoordenada(r, ORIGEN_TOMA_INSPECTOR);
@@ -518,8 +524,10 @@ export class SeguimientoDeLecturaXinspectorComponent
    * Por cada registro:
    * - Punto del USUARIO: verde si la lectura fue enviada (web=1 y recibido=1),
    *   rojo si está pendiente. Misma regla que el SP de resumen.
-   * - Punto de TOMA del inspector, si registró coordenada GPS.
+   * - Punto de TOMA del inspector, si registró coordenada GPS válida.
    * - Línea usuario→toma con la distancia; roja si supera el umbral.
+   * Los puntos de toma dudosos (coordenada repetida o demasiado lejana) NO se
+   * dibujan: solo se cuentan, para no llenar el mapa de trazos falsos.
    */
   private agregarRegistroAlMapa(
     registro: RegistroDetalle,
@@ -545,20 +553,21 @@ export class SeguimientoDeLecturaXinspectorComponent
           )
         : null;
 
-    // ¿La coordenada de toma se repite en 3+ registros? -> GPS por defecto, no confiable.
+    // Coordenada de toma dudosa: se repite en 3+ registros (GPS por defecto) o
+    // está a más de DISTANCIA_MAX_TOMA_VALIDA_M (basura que cruza el mapa).
     const claveToma = coordToma
       ? `${coordToma[0].toFixed(5)},${coordToma[1].toFixed(5)}`
       : null;
-    const sospechosa = claveToma
-      ? (frecuencia.get(claveToma) ?? 0) >= 3
-      : false;
+    const repetida = claveToma ? (frecuencia.get(claveToma) ?? 0) >= 3 : false;
+    const demasiadoLejos =
+      distancia !== null && distancia > DISTANCIA_MAX_TOMA_VALIDA_M;
+    const sospechosa = repetida || demasiadoLejos;
 
-    // Solo es "lejos" de verdad si NO es una coordenada dudosa.
+    // "Lejos" real: pasa el umbral operativo pero NO es una coordenada dudosa.
     const lejos =
       !sospechosa && distancia !== null && distancia > DISTANCIA_SOSPECHOSA_M;
 
     const props = {
-      ...registro,
       _codinspector: this.selectedInspector?.codinspector,
       _tomada: tomada,
       _distanciaM: distancia,
@@ -566,37 +575,40 @@ export class SeguimientoDeLecturaXinspectorComponent
       _sospechosa: sospechosa,
     };
 
+    // Estadísticas
     this.totalRegistros++;
     if (tomada) this.totalTomadas++;
     else this.totalSinToma++;
     if (sospechosa) this.totalSospechosas++;
     else if (lejos) this.totalLejos++;
 
-    if (coordUsuario) {
-      srcUsuarios.addFeature(
-        new Feature({
-          ...props,
-          _esToma: false,
-          geometry: new Point(coordUsuario),
-        }),
-      );
+    // Punto del usuario: SIEMPRE (reutiliza crearFeaturePunto).
+    const fUsuario = crearFeaturePunto(registro, ORIGENES_COORDENADA.usuario);
+    if (fUsuario) {
+      fUsuario.setProperties({ ...props, _esToma: false });
+      srcUsuarios.addFeature(fUsuario);
     }
-    if (coordToma) {
-      srcTomas.addFeature(
-        new Feature({
-          ...props,
-          _esToma: true,
-          geometry: new Point(coordToma),
-        }),
+
+    // Punto de toma y línea: solo si la coordenada de toma NO es dudosa.
+    if (!sospechosa) {
+      const fToma = crearFeaturePunto(registro, ORIGEN_TOMA_INSPECTOR);
+      if (fToma) {
+        fToma.setProperties({ ...props, _esToma: true });
+        srcTomas.addFeature(fToma);
+      }
+
+      // Tope alto: aquí SÍ queremos las líneas largas (para marcarlas rojas);
+      // el descarte de basura ya lo hizo el guard de "sospechosa" de arriba.
+      const fLinea = crearFeatureLinea(
+        registro,
+        ORIGENES_COORDENADA.usuario,
+        ORIGEN_TOMA_INSPECTOR,
+        Number.MAX_SAFE_INTEGER,
       );
-    }
-    if (coordUsuario && coordToma) {
-      srcLineas.addFeature(
-        new Feature({
-          ...props,
-          geometry: new LineString([coordUsuario, coordToma]),
-        }),
-      );
+      if (fLinea) {
+        fLinea.setProperties(props);
+        srcLineas.addFeature(fLinea);
+      }
     }
   }
 
@@ -607,6 +619,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.totalRegistros = 0;
     this.totalTomadas = 0;
     this.totalSinToma = 0;
+    this.totalSospechosas = 0;
     this.totalLejos = 0;
     this.registroSeleccionado = null;
     this.featureSeleccionado = null;
@@ -649,13 +662,13 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    // Punto del usuario/predio: círculo, color según tomada/pendiente.
+    // Punto del usuario/predio: círculo, color según tomada/pendiente (paleta config).
     this.usuariosLayer = new VectorLayer({
       source: new VectorSource(),
       style: (f) =>
         this.estilos.punto({
           forma: "circulo",
-          color: f.get("_tomada") ? COLOR_TOMADA : COLOR_SIN_TOMA,
+          color: f.get("_tomada") ? this.COLORES.tomada : this.COLORES.sinToma,
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
           etiqueta: f.get("codcliente"),
@@ -663,13 +676,13 @@ export class SeguimientoDeLecturaXinspectorComponent
         }),
     });
 
-    // Punto GPS de toma del inspector: rombo azul.
+    // Punto GPS de toma del inspector: rombo azul (paleta config).
     this.tomasLayer = new VectorLayer({
       source: new VectorSource(),
       style: (f) =>
         this.estilos.punto({
           forma: "rombo",
-          color: COLOR_PUNTO_TOMA,
+          color: this.COLORES.puntoToma,
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
           etiqueta: undefined, // el codcliente ya lo etiqueta el punto de usuario
@@ -682,7 +695,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       source: new VectorSource(),
       style: (f, resolution) =>
         this.estilos.lineaAcometida(
-          f.get("_lejos") ? COLOR_LINEA_LEJOS : COLOR_LINEA_OK,
+          f.get("_lejos") ? this.COLORES.lineaLejos : this.COLORES.lineaOk,
           f === this.featureSeleccionado,
           resolution,
         ),
@@ -701,9 +714,8 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     this.map = new OlMap({
       // NO se pasa target aquí: en un microfrontend, resolver el id "map" por
-      // string durante la construcción engancha un div equivocado o inexistente
-      // (por eso salía en blanco al navegar y bien al recargar). Se engancha
-      // más abajo con setTarget sobre la referencia real del @ViewChild.
+      // string durante la construcción engancha un div equivocado o inexistente.
+      // Se engancha más abajo con setTarget sobre la referencia real del @ViewChild.
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
@@ -765,22 +777,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   toggleCommercialLayer(layer: { id: string; active: boolean }): void {
     layer.active = !layer.active;
     this.registroCapas[layer.id]?.setVisible(layer.active);
-  }
-
-  /** Cambia la capa WMS de lotes según el sector seleccionado ('001' -> '01'). */
-  seleccionarSector(sector: Sector | null): void {
-    const source = this.lotesLayer?.getSource() as TileWMS;
-    if (!source) return;
-
-    const codigo = sector?.codsector;
-    if (!codigo || codigo === "%") {
-      source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotes });
-    } else {
-      source.updateParams({
-        LAYERS: GEOSERVER_CAPAS.lotesPorSector(codigo.slice(-2)),
-      });
-    }
-    source.refresh();
   }
 
   // ============================================================

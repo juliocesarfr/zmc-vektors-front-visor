@@ -12,10 +12,10 @@
     <div class="cd-toolbar-actions">
       <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
         <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
-          <i class="pi pi-building"></i> {{ selectedSucursal?.descripcion }}
+          <i class="pi pi-building"></i> {{  selectedSucursal?.descripcion }}
         </span>
         <span class="filtro-chip anio" *ngIf="nroPrecorte">
-          <i class="pi pi-hashtag"></i> Precorte {{ nroPrecorte }}
+          <i class="pi pi-hashtag"></i> N° Programa {{ nroPrecorte }}
         </span>
       </div>
 
@@ -44,8 +44,8 @@
 
         <span class="p-float-label">
           <p-inputNumber [(ngModel)]="nroPrecorte" [useGrouping]="false" [style]="{ width: '140px' }"
-            inputStyleClass="w-full" [showButtons]="false" placeholder="N° Precorte"></p-inputNumber>
-          <label>N° Precorte</label>
+            inputStyleClass="w-full" [showButtons]="false" placeholder="N° Programa"></p-inputNumber>
+          <label>N° Programa</label>
         </span>
 
         <div class="filtros-btns">
@@ -104,16 +104,19 @@
         <span class="titulo">Total</span>
       </div>
       <div class="card-resumen exec" [class.filtro-on]="filtroEstado === 'ejecutado'"
+        [style.border-top-color]="COLORES['ejecutado']"
         (click)="filtrarPorEstado('ejecutado')" style="cursor:pointer">
         <span class="numero">{{ ejecutados }}</span>
         <span class="titulo">{{ etiquetaEjecutado }}</span>
       </div>
       <div class="card-resumen pend" [class.filtro-on]="filtroEstado === 'pendiente'"
+        [style.border-top-color]="COLORES['pendiente']"
         (click)="filtrarPorEstado('pendiente')" style="cursor:pointer">
         <span class="numero">{{ pendientes }}</span>
         <span class="titulo">Pend.</span>
       </div>
       <div class="card-resumen pagado" [class.filtro-on]="filtroEstado === 'pagado'"
+        [style.border-top-color]="COLORES['pagado']"
         (click)="filtrarPorEstado('pagado')" style="cursor:pointer">
         <span class="numero">{{ pagados }}</span>
         <span class="titulo">Pagó</span>
@@ -167,11 +170,11 @@
         <i class="pi pi-times cerrar" (click)="mostrarLeyenda = false"></i>
       </div>
       <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'ejecutado'"
-        (click)="filtrarPorEstado('ejecutado')"><span class="punto rojo"></span> {{ etiquetaEjecutado }}</div>
+        (click)="filtrarPorEstado('ejecutado')"><span class="punto" [style.background]="COLORES['ejecutado']"></span> {{ etiquetaEjecutado }}</div>
       <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'pendiente'"
-        (click)="filtrarPorEstado('pendiente')"><span class="punto verde"></span> Pendiente</div>
+        (click)="filtrarPorEstado('pendiente')"><span class="punto" [style.background]="COLORES['pendiente']"></span> Pendiente</div>
       <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'pagado'"
-        (click)="filtrarPorEstado('pagado')"><span class="punto azul"></span> Pagó</div>
+        (click)="filtrarPorEstado('pagado')"><span class="punto" [style.background]="COLORES['pagado']"></span> Pagó</div>
     </div>
     <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda" (click)="mostrarLeyenda = true">
       <i class="pi pi-map-marker"></i>
@@ -225,9 +228,17 @@
       <div class="up-body">
         <!-- Ubicación -->
         <div class="up-section">
-          <div class="up-section-title loc">
-            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación">
-            UBICACIÓN
+          <div class="up-section-title loc" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="display:inline-flex; align-items:center; gap:5px;">
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación">
+              UBICACIÓN
+            </span>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View" (click)="abrirStreetView(corteSeleccionado)"
+              style="padding:0.15rem 0.5rem; display:flex; align-items:center; gap:0.4rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height:1.5rem;" alt="Street View">
+              <span style="font-weight:800; font-size:10px;">Ver en Maps</span>
+            </button>
           </div>
           <div class="up-grid grid-3">
             <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ corteSeleccionado.codsector || '-' }}</span></div>

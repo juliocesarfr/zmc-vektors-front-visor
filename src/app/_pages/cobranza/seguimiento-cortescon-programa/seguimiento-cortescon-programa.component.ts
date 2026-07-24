@@ -547,9 +547,7 @@ export class SeguimientoCortesconProgramaComponent
     const y = flat[1];
     if (x == null || y == null) return null;
     const src =
-      Math.abs(x) > 180 || Math.abs(y) > 90
-        ? PROYECCION_UTM_18S
-        : PROYECCION_MAPA;
+      Math.abs(x) > 180 || Math.abs(y) > 90 ? PROYECCION_UTM_18S : PROYECCION_MAPA;
     if (src !== PROYECCION_MAPA) geom.transform(src, PROYECCION_MAPA);
     return geom;
   }
@@ -922,6 +920,43 @@ export class SeguimientoCortesconProgramaComponent
   cerrarBusqueda(): void {
     this.mostrarSearchPanel = false;
     this.searchCodCliente = "";
+  }
+
+  /** Abre Google Street View en la coordenada del predio (lon/lat, o la del
+   *  predio como respaldo). Mismo criterio que la ventana de lecturas. */
+  abrirStreetView(r: RegistroCorte | null): void {
+    if (!r) return;
+    const candidatos: [any, any][] = [
+      [r.lon, r.lat],
+      [r.lonpredio, r.latpredio],
+    ];
+    let coord: [number, number] | null = null;
+    for (const [x, y] of candidatos) {
+      if (x != null && y != null && !(Number(x) === 0 && Number(y) === 0)) {
+        coord = [Number(x), Number(y)];
+        break;
+      }
+    }
+    if (!coord) {
+      this.avisar(
+        "warn",
+        "Aviso",
+        "Este predio no tiene coordenadas para Street View",
+      );
+      return;
+    }
+    let [lng, lat] = coord;
+    // Si viniera en UTM (fuera del rango lon/lat), lo pasamos a WGS84.
+    if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
+      [lng, lat] = transform([lng, lat], PROYECCION_UTM_18S, "EPSG:4326") as [
+        number,
+        number,
+      ];
+    }
+    window.open(
+      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
+      "_blank",
+    );
   }
 
   verMasInformacion(codcliente: string | number | undefined): void {
