@@ -23,9 +23,9 @@
         <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
           <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
         </span>
-        <span class="filtro-chip sector" *ngIf="selectedSector && selectedSector.length > 0">
+        <span class="filtro-chip sector" *ngIf="selectedSector">
           <i class="pi pi-map"></i> 
-          {{ selectedSector.length === 1 ? selectedSector[0].descripcion : selectedSector.length + ' sectores' }}
+          {{ selectedSector.descripcion }}
         </span>
         <span class="filtro-chip estado" *ngIf="selectedEstados?.length > 0">
           <i class="pi pi-tag"></i> {{ selectedEstados.length }} estado{{ selectedEstados.length > 1 ? 's' : '' }}
@@ -84,15 +84,18 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-multiSelect [options]="totalSectores2" [(ngModel)]="selectedSector"
+          <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector"
             (onChange)="seleccionarSectores($event.value)" optionLabel="descripcion" [filter]="true"
             filterBy="descripcion" [showClear]="true" [style]="{ width: '220px' }" placeholder="Sectores"
-            [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} sectores">
+            [appendTo]="'body'">
             <ng-template let-sector pTemplate="item">
               <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
             </ng-template>
-          </p-multiSelect>
-          <label>Sector(es)</label>
+            <ng-template pTemplate="selectedItem" let-sector>
+              <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
+            </ng-template>
+          </p-dropdown>
+          <label>Sector</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">

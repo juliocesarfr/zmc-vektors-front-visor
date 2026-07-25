@@ -52,6 +52,7 @@ import { getCenter } from "ol/extent";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { CobranzaService } from "@host/_servicios/vektors/cobranza.service";
 import { ControlImgService } from "@host/_servicios/procesar-img/control-img.service";
+import { ConsultaUsuarioService } from "@host/_servicios/consulta/consulta-usuario.service";
 import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
 
@@ -71,7 +72,8 @@ import {
 import {
   crearFeaturePunto,
   crearFeatureLinea,
-} from "../.././../util/Geo.utils";
+  extraerCoordenada,
+} from "../../../util/Geo.utils";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
@@ -165,9 +167,9 @@ interface ResumenInspector {
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class SeguimientoCortesconProgramaComponent
-  implements OnInit, AfterViewInit, OnDestroy
-{
+  implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  private cobranzaService = inject(CobranzaService);
   private detenerObservadorMapa?: () => void;
 
   /** Fábrica de estilos compartida con la ventana de lecturas (cachea puntos). */
@@ -227,7 +229,7 @@ export class SeguimientoCortesconProgramaComponent
   inspectores: ResumenInspector[] = [];
 
   // ---- UI ----
-  filtrosVisible = false;
+  filtrosVisible = true;
   sidebarOpen = true;
   panelInspectores = false;
   mostrarLeyenda = true;
@@ -277,12 +279,12 @@ export class SeguimientoCortesconProgramaComponent
 
   constructor(
     private consultaService: ConsulGenericService,
-    private cobranzaService: CobranzaService,
     private controlImgService: ControlImgService,
+    private consultaUsuarioService: ConsultaUsuarioService,
     private messageService: MessageService,
     private dialogService: DialogService,
     @Optional() private dialogConfig?: DynamicDialogConfig,
-  ) {}
+  ) { }
 
   // ============================================================
   // CICLO DE VIDA
@@ -570,7 +572,7 @@ export class SeguimientoCortesconProgramaComponent
           pts.push([nums[i], nums[i + 1]]);
         return pts;
       }
-    } catch {}
+    } catch { }
     return null;
   }
 
@@ -618,9 +620,9 @@ export class SeguimientoCortesconProgramaComponent
     const arr = [...mapa.values()];
     arr.forEach(
       (it) =>
-        (it.rendimiento = it.total
-          ? Number(((it.ejecutados / it.total) * 100).toFixed(1))
-          : 0),
+      (it.rendimiento = it.total
+        ? Number(((it.ejecutados / it.total) * 100).toFixed(1))
+        : 0),
     );
     arr.sort((a, b) => b.total - a.total);
     this.inspectores = arr;
@@ -789,7 +791,6 @@ export class SeguimientoCortesconProgramaComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      // Solo los puntos son clickeables (los polígonos/líneas quedan de fondo).
       const f = this.map.forEachFeatureAtPixel(
         evt.pixel,
         (ft, layer) => (layer === this.cortesLayer ? ft : undefined),
@@ -826,6 +827,46 @@ export class SeguimientoCortesconProgramaComponent
   private seleccionarFeature(feature: Feature): void {
     this.featureSeleccionado = feature;
     this.corteSeleccionado = feature.getProperties() as RegistroCorte;
+    this.corteSeleccionado.observacion_history = undefined; // Reset
+    
+    const codsuc = (this.corteSeleccionado.codsuc as string) || this.selectedSucursal?.codsuc || "";
+    const codcliente = this.corteSeleccionado.codcliente;
+    if (codsuc && codcliente) {
+      this.consultaUsuarioService.obtenerCorteReaperturaXcliente(codsuc, codcliente)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe(res => {
+          if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+            const parseDate = (d: string) => {
+              if (!d) return 0;
+              if (d.includes('/')) {
+                const [datePart] = d.split(' ');
+                const [day, month, year] = datePart.split('/');
+                const y = year.length === 2 ? 2000 + parseInt(year) : parseInt(year);
+                return new Date(y, parseInt(month) - 1, parseInt(day)).getTime();
+              }
+              const parsed = new Date(d).getTime();
+              return isNaN(parsed) ? 0 : parsed;
+            };
+
+            const fechaRefStr = (this.corteSeleccionado as any)?.[this.campoFechaEjecucion] || this.corteSeleccionado?.fcorte || this.corteSeleccionado?.freapertura;
+            const fechaRef = parseDate(fechaRefStr as string);
+
+            const cortes = res.data;
+            const targetRow = cortes.find((c: any) => {
+              if (fechaRef > 0) {
+                const obsDate = parseDate(c.fecha || c.fechareg || c.fecha_registro);
+                if (obsDate > 0 && obsDate < fechaRef) return false;
+              }
+              return true;
+            });
+            
+            if (this.corteSeleccionado && targetRow) {
+              this.corteSeleccionado.observacion_history = targetRow.observacion?.trim() || '-';
+            }
+          }
+        });
+    }
+
     this.cortesLayer.changed();
     this.lotesUsuarioLayer.changed();
     this.cargarImagenes(this.corteSeleccionado);
@@ -870,16 +911,16 @@ export class SeguimientoCortesconProgramaComponent
         this.imagenesPopup =
           imagenes?.mensaje === "EXITO" && imagenes?.data?.length > 0
             ? imagenes.data
-                .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
-                .map((e: any) => ({
-                  ...e,
-                  src: e.img64?.startsWith("data:")
-                    ? e.img64
-                    : "data:image/jpeg;base64," + e.img64,
-                  tiporecepcionimages: e.tiporecepcionimages
-                    .split(",")
-                    .map((t: string) => t.replace("-IMG", "").trim()),
-                }))
+              .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
+              .map((e: any) => ({
+                ...e,
+                src: e.img64?.startsWith("data:")
+                  ? e.img64
+                  : "data:image/jpeg;base64," + e.img64,
+                tiporecepcionimages: e.tiporecepcionimages
+                  .split(",")
+                  .map((t: string) => t.replace("-IMG", "").trim()),
+              }))
             : [];
       });
   }
@@ -888,28 +929,42 @@ export class SeguimientoCortesconProgramaComponent
     const q = String(this.searchCodCliente || "").trim();
     if (!q) return;
 
-    const src = this.cortesLayer.getSource()!;
-    const f = src
-      .getFeatures()
-      .find((ft) => String(ft.get("codcliente") ?? "").trim() === q);
-
-    if (f) {
-      this.seleccionarFeature(f);
-      const g = f.getGeometry();
-      if (g) {
-        this.map.getView().animate({
-          center: getCenter(g.getExtent()),
-          zoom: 20,
-          duration: 700,
-        });
-      }
-    } else {
-      this.avisar(
-        "warn",
-        "Aviso",
-        "No se encontró ese código en el precorte cargado (o no tiene coordenada)",
-      );
+    if (!this.nroPrecorte) {
+      this.avisar("warn", "Aviso", "No hay un programa seleccionado");
+      return;
     }
+
+    this.cobranzaService.buscarPreCortePorCliente({
+      codsuc: this.selectedSucursal?.codsuc || "002",
+      codcliente: Number(q),
+      nroPrecorte: this.nroPrecorte ? Number(this.nroPrecorte) : 0
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (res) => {
+        if (res?.success && res.data) {
+          const src = this.cortesLayer.getSource()!;
+          const f = src.getFeatures().find((ft) => String(ft.get("codcliente") ?? "").trim() === q);
+          
+          if (f) {
+            this.seleccionarFeature(f);
+            const g = f.getGeometry();
+            if (g) {
+              this.map.getView().animate({ center: getCenter(g.getExtent()), zoom: 20, duration: 700 });
+            }
+          } else {
+            const coord = extraerCoordenada(res.data, ORIGENES_COORDENADA["usuario"]);
+            if (coord) {
+              this.map.getView().animate({ center: coord, zoom: 20, duration: 700 });
+              this.avisar("success", "Aviso", "Ubicación encontrada en el servidor");
+            } else {
+              this.avisar("warn", "Aviso", "El suministro está en el programa pero no tiene coordenadas");
+            }
+          }
+        } else {
+          this.avisar("error", "Aviso", res?.mensaje || "No se encontró el código en este programa");
+        }
+      },
+      error: () => this.avisar("error", "Error", "Ocurrió un error en la búsqueda")
+    });
   }
 
   abrirBusqueda(): void {
@@ -922,8 +977,6 @@ export class SeguimientoCortesconProgramaComponent
     this.searchCodCliente = "";
   }
 
-  /** Abre Google Street View en la coordenada del predio (lon/lat, o la del
-   *  predio como respaldo). Mismo criterio que la ventana de lecturas. */
   abrirStreetView(r: RegistroCorte | null): void {
     if (!r) return;
     const candidatos: [any, any][] = [
@@ -946,7 +999,7 @@ export class SeguimientoCortesconProgramaComponent
       return;
     }
     let [lng, lat] = coord;
-    // Si viniera en UTM (fuera del rango lon/lat), lo pasamos a WGS84.
+
     if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
       [lng, lat] = transform([lng, lat], PROYECCION_UTM_18S, "EPSG:4326") as [
         number,
@@ -978,6 +1031,36 @@ export class SeguimientoCortesconProgramaComponent
   // ============================================================
   // LIGHTBOX
   // ============================================================
+
+  get observacionMasReciente(): string {
+    if (!this.corteSeleccionado) return '-';
+    // Use the fetched history observation first, fallback to the previous logic
+    if (this.corteSeleccionado.observacion_history) {
+      return this.corteSeleccionado.observacion_history;
+    }
+    
+    let obs = this.corteSeleccionado.observaciones || this.corteSeleccionado.observacion;
+    if (!obs) return '-';
+    
+    try {
+      if (typeof obs === 'string') {
+        const parsed = JSON.parse(obs);
+        if (Array.isArray(parsed)) {
+          obs = parsed;
+        }
+      }
+      if (Array.isArray(obs) && obs.length > 0) {
+        const sorted = [...obs].sort((a, b) => {
+          const dA = new Date(a.fechareg || a.fecha || a.fecha_registro || 0).getTime();
+          const dB = new Date(b.fechareg || b.fecha || b.fecha_registro || 0).getTime();
+          return dB - dA;
+        });
+        return sorted[0].observacion || sorted[0].observaciones || sorted[0].descripcion || '-';
+      }
+    } catch(e) { }
+    
+    return typeof obs === 'string' ? obs : '-';
+  }
 
   get imagenActual(): any | null {
     return this.imagenAbiertaIndex >= 0
@@ -1011,7 +1094,7 @@ export class SeguimientoCortesconProgramaComponent
     if (this.imagenesPopup.length === 0) return;
     this.abrirImagenCompleta(
       (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) %
-        this.imagenesPopup.length,
+      this.imagenesPopup.length,
     );
   }
 

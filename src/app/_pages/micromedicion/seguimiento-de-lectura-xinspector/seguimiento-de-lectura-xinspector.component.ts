@@ -214,7 +214,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   totalSospechosas = 0;
   totalLejos = 0;
 
-  // ---- UI ----
   filtrosVisible = true;
   sidebarOpen = true;
   cargando = false;
@@ -758,6 +757,17 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.registroSeleccionado = null;
     this.featureSeleccionado = null;
     this.capasVector.forEach((capa) => capa.changed());
+  }
+
+  abrirStreetView(lon: any, lat: any) {
+    if (lat && lon) {
+      window.open(
+        `https://www.google.com/maps?layer=c&cbll=${lat},${lon}`,
+        "_blank"
+      );
+    } else {
+      this.avisar("warn", "Aviso", "Coordenadas no disponibles para este predio");
+    }
   }
 
   // ============================================================

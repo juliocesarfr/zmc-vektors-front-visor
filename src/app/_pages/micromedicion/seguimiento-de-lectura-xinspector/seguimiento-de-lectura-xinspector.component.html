@@ -260,7 +260,16 @@
       <div class="sp-body">
         <div class="sp-row">
           <span class="sp-label">Suministro</span>
-          <span class="sp-val">{{ registroSeleccionado['codcliente'] || '-' }}</span>
+          <span class="sp-val" style="justify-content: space-between; width: 100%;">
+            <span>{{ registroSeleccionado['codcliente'] || '-' }}</span>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View"
+              (click)="abrirStreetView($any(registroSeleccionado['lonpredio'] ?? registroSeleccionado['longitud'] ?? registroSeleccionado['lon']), $any(registroSeleccionado['latpredio'] ?? registroSeleccionado['latitud'] ?? registroSeleccionado['lat']))"
+              style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.2rem 0.6rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2rem;" alt="Street View">
+              <span style="font-weight: 900; font-size: 0.85rem;">Ver en Maps</span>
+            </button>
+          </span>
         </div>
         <div class="sp-row">
           <span class="sp-label">Inspector</span>
@@ -279,7 +288,7 @@
           </span>
         </div>
         <button pButton type="button" icon="pi pi-map-marker" label="Centrar en mapa"
-          class="p-button-sm p-button-outlined w-full" (click)="centrarEnSeleccion()"></button>
+          class="p-button-sm p-button-outlined w-full" (click)="centrarEnSeleccion()" style="margin-bottom: 0.5rem;"></button>
         <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
           class="p-button-sm w-full"
           (click)="verMasInformacion($any(registroSeleccionado['codcliente']))"></button>

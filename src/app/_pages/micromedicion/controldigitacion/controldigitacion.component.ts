@@ -149,7 +149,7 @@ export class ControldigitacionComponent
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
-  selectedSector: Sector[] | null = null; // '%' = todos
+  selectedSector: Sector | null = null; // '%' = todos
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
@@ -332,7 +332,7 @@ export class ControldigitacionComponent
       .subscribe((data) => {
         this.totalSectores2 = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
-        this.selectedSector = def ? [def] : [];
+        this.selectedSector = def;
         this.consumoini = 0;
         this.consumofin = 0;
       });
@@ -354,11 +354,7 @@ export class ControldigitacionComponent
     return {
       codsuc: this.selectedSucursal.codsuc,
       codsede: this._codsede ?? "%",
-      codsector: this.selectedSector?.length
-        ? this.selectedSector.some((s) => s.codsector === "%")
-          ? "%"
-          : this.selectedSector.map((s) => s.codsector).join(",")
-        : "%",
+      codsector: this.selectedSector ? this.selectedSector.codsector : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
       mes: this.selectedMes,
@@ -437,7 +433,7 @@ export class ControldigitacionComponent
 
   limpiar(): void {
     const def = this.sectorPorDefecto();
-    this.selectedSector = def ? [def] : [];
+    this.selectedSector = def;
     this.selectedEstados = [];
     this.consumoini = 0;
     this.consumofin = 0;
