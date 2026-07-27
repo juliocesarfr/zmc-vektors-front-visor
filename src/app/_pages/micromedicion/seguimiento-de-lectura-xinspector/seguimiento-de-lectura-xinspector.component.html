@@ -212,12 +212,12 @@
         selectionMode="single" styleClass="p-datatable-sm p-datatable-striped">
         <ng-template pTemplate="header">
           <tr>
-            <th>Cód.</th>
-            <th>Inspector</th>
-            <th class="num">Asignados</th>
-            <th class="num">Enviados</th>
-            <th class="num">Pendientes</th>
-            <th class="num">Avance</th>
+            <th pSortableColumn="codinspector">Cód. <p-sortIcon field="codinspector"></p-sortIcon></th>
+            <th pSortableColumn="inspector">Inspector <p-sortIcon field="inspector"></p-sortIcon></th>
+            <th class="num" pSortableColumn="asignados">Asignados <p-sortIcon field="asignados"></p-sortIcon></th>
+            <th class="num" pSortableColumn="enviados">Enviados <p-sortIcon field="enviados"></p-sortIcon></th>
+            <th class="num" pSortableColumn="pendientes">Pendientes <p-sortIcon field="pendientes"></p-sortIcon></th>
+            <th class="num" pSortableColumn="avance">Avance <p-sortIcon field="avance"></p-sortIcon></th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-fila>
