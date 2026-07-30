@@ -175,8 +175,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private capasVector: VectorLayer<VectorSource>[] = [];
-
-  /** id de capa (HTML) → capa de OpenLayers. Mismo patrón que Control Digitación. */
   private registroCapas: Record<string, BaseLayer> = {};
 
   // ---- Sesión ----
@@ -230,7 +228,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     {
       id: "osm",
       label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-icon.gif",
+      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
     },
     {
       id: "satelital",

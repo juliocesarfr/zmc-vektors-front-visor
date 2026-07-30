@@ -661,8 +661,8 @@
   }
 
   .gif-icon {
-    width: 20px;
-    height: 20px;
+    width: 25px;
+    height: 25px;
     object-fit: contain;
   }
 
@@ -697,6 +697,8 @@
 
       .icon {
         font-size: 10px;
+        height: 22px;
+        width: 22px;
       }
 
       &.active {

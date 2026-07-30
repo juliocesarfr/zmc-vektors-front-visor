@@ -172,7 +172,8 @@ export class SeguimientoCortesconProgramaComponent
   private cobranzaService = inject(CobranzaService);
   private detenerObservadorMapa?: () => void;
 
-  /** Fábrica de estilos compartida con la ventana de lecturas (cachea puntos). */
+  
+
   private readonly estilos = new MapEstilosFactory();
 
   @ViewChild("mapContainer", { static: false })
@@ -257,8 +258,16 @@ export class SeguimientoCortesconProgramaComponent
   imgOffsetY = 0;
 
   baseLayers = [
-    { id: "osm", label: "OSM" },
-    { id: "satelital", label: "Satelital" },
+    {
+      id: "osm",
+      label: "OSM",
+      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
+    },
+    {
+      id: "satelital",
+      label: "Satelital",
+      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
+    },
   ];
 
   commercialLayers = [

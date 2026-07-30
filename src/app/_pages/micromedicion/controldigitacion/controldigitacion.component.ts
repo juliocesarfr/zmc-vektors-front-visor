@@ -185,18 +185,18 @@ export class ControldigitacionComponent
     undefined;
   isBusquedaClienteActiva = false;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+   baseLayers = [
+      {
+        id: "osm",
+        label: "OSM",
+        iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
+      },
+      {
+        id: "satelital",
+        label: "Satelital",
+        iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
+      },
+    ];
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
