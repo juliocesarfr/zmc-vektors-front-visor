@@ -54,6 +54,13 @@ const routes: Routes = [
         (m) => m.SeguimientoReaperturaconProgramaComponent,
       ),
   },
+  {
+    path: "catastro/padron_de_clientes",
+    loadComponent: () =>
+      import("../_pages/catastro/padron-de-clientes/padron-de-clientes.component").then(
+        (m) => m.PadronDeClientesComponent,
+      ),
+  },
   { path: "", redirectTo: "/main", pathMatch: "full" },
 ];
 

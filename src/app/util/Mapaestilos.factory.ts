@@ -16,6 +16,7 @@ export interface OpcionesPunto {
   radioSeleccionado: number;
   radiosPorZoom: { z14: number; z16: number; z18: number; max: number };
   offsetYTexto: number;
+  minZoomEtiqueta?: number;
 }
 
 export const RADIOS_LECTURA = { radioSeleccionado: 9,  radiosPorZoom: { z14: 3, z16: 4, z18: 6, max: 7 }, offsetYTexto: -12 };
@@ -30,9 +31,9 @@ export class MapEstilosFactory {
 
   /** Estilo de punto (lecturas y fichas comparten toda la lógica salvo forma/color/radios). */
   punto(opts: OpcionesPunto): Style {
-    const { forma, color, zoom, seleccionado, etiqueta, radioSeleccionado, radiosPorZoom, offsetYTexto } = opts;
+    const { forma, color, zoom, seleccionado, etiqueta, radioSeleccionado, radiosPorZoom, offsetYTexto, minZoomEtiqueta } = opts;
 
-    const mostrarTexto = !!etiqueta && (seleccionado || zoom >= 17);
+    const mostrarTexto = !!etiqueta && (seleccionado || zoom >= (minZoomEtiqueta ?? 20));
 
     let radio: number;
     if (seleccionado) {
