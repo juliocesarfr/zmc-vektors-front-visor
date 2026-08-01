@@ -37,6 +37,7 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { extend, getCenter } from "ol/extent";
+import Zoom from "ol/control/Zoom";
 
 import {
   GEOSERVER_URL,
@@ -326,6 +327,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     return this.listaTarifas?.find(e => e.catetar === this.selectedTarifa)?.nomtar ?? "TODOS";
   }
 
+  getTarifaName(catetar: string): string {
+    if (!catetar) return '';
+    const tarifa = this.listaTarifas?.find(t => t.catetar === catetar);
+    return tarifa ? tarifa.nomtar : '';
+  }
+
   getDescUrbanizacion(): string {
     return this.listaUrbanizaciones?.find(e => e.codurbaso === this.selectedUrbanizacion)?.descripcionurba ?? "TODOS";
   }
@@ -527,6 +534,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
               duration: 800,
             });
           }
+          this.seleccionarFeature(refound);
         }
       }
       return;
@@ -554,6 +562,13 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
             const coord = extraerCoordenada(response.data, ORIGENES_COORDENADA["usuario"]);
             if (coord) {
               this.map.getView().animate({ center: coord, zoom: 21, duration: 600 });
+            }
+
+            const refound = this.usuariosLayer?.getSource()?.getFeatures().find(
+              (f) => String(f.get("codcliente") || f.get("nroSuministro") || "").trim() === query
+            );
+            if (refound) {
+              this.seleccionarFeature(refound);
             }
           } else {
             this.avisar("warn", "Aviso", "No se encontró un usuario con ese código.");
@@ -640,7 +655,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         center: VISTA_INICIAL.centro,
         zoom: VISTA_INICIAL.zoom,
       }),
-      controls: [],
+      controls: [new Zoom()],
     });
 
     this.initClick();

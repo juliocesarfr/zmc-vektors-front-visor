@@ -240,7 +240,7 @@
 
             <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ (clienteSeleccionado.descripcioncorta ? clienteSeleccionado.descripcioncorta + ' ' : '') + (clienteSeleccionado.descripcioncalle || '-') }}</span></div>
 
-            <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{ clienteSeleccionado.catetar || '-' }} {{ clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria ? '- ' + (clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria) : '' }}</span></div>
+            <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{ clienteSeleccionado.catetar || '-' }} {{ getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria ? '- ' + (getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria) : '' }}</span></div>
             <div class="up-cell"><span class="uc-label">Actividad</span><span class="uc-val">{{ clienteSeleccionado.actividad || '-' }}</span></div>
           </div>
         </div>
