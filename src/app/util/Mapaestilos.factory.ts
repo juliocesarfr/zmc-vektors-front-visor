@@ -29,11 +29,9 @@ export class MapEstilosFactory {
     this.cache.clear();
   }
 
-  /** Estilo de punto (lecturas y fichas comparten toda la lógica salvo forma/color/radios). */
   punto(opts: OpcionesPunto): Style {
     const { forma, color, zoom, seleccionado, etiqueta, radioSeleccionado, radiosPorZoom, offsetYTexto, minZoomEtiqueta } = opts;
-
-    const mostrarTexto = !!etiqueta && (seleccionado || zoom >= (minZoomEtiqueta ?? 20));
+    const mostrarTexto = !!etiqueta && (seleccionado || zoom >= (minZoomEtiqueta ?? 17.5));
 
     let radio: number;
     if (seleccionado) {

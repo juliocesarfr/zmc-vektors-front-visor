@@ -22,6 +22,7 @@ import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service
 import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.service";
 import { TarifasService } from "@host/_servicios/catastro/tarifas.service";
 import { UrbamaeService } from "@host/_servicios/catastro/urbamae.service";
+import { TipousuarioService } from "@host/_servicios/catastro/tipousuario.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { forkJoin, of } from "rxjs";
 import { catchError } from "rxjs/operators";
@@ -37,12 +38,16 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { extend, getCenter } from "ol/extent";
+import { transform } from "ol/proj";
 import Zoom from "ol/control/Zoom";
+import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
+import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import {
   GEOSERVER_URL,
   GEOSERVER_CAPAS,
   PROYECCION_MAPA,
+  PROYECCION_UTM_18S,
   VISTA_INICIAL,
   ORIGENES_COORDENADA
 } from "../../../config/Controldigitacion.config";
@@ -67,6 +72,7 @@ import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/
   providers: [
     DatePipe,
     MessageService,
+    DialogService,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -109,6 +115,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   listaTarifas: any[] = [];
   listaUrbanizaciones: any[] = [];
   listaActividades: any[] = [];
+  listaTipoUsuario: any[] = [];
 
   // ---- Filtros Seleccionados ----
   selectedCiclo: any = null;
@@ -119,6 +126,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   selectedTarifa: any = null;
   selectedUrbanizacion: any = null;
   selectedActividad: any = null;
+  selectedTipoUsuario: any = null;
 
   mostrarSearchPanel = false;
   searchCodCliente = "";
@@ -127,6 +135,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   clienteSeleccionado: any = null;
   featureSeleccionado: Feature | null = null;
+  ref: DynamicDialogRef | undefined;
 
   baseLayers = [
     {
@@ -155,7 +164,9 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     private sectoresCicloService: SectoresCicloService,
     private tarifasService: TarifasService,
     private urbamaeService: UrbamaeService,
+    private tipoUsuarioService: TipousuarioService,
     private messageService: MessageService,
+    private dialogService: DialogService,
   ) {}
 
   ngOnInit(): void {
@@ -163,11 +174,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       ciclos: this.consulGenericService.getconsultaService("CCO", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
       estadoServicio: this.consulGenericService.getconsultaService("TES", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
       tipoServicio: this.consulGenericService.getconsultaService("TSE", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      actividades: this.consulGenericService.getconsultaService("TAC", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([]))))
+      actividades: this.consulGenericService.getconsultaService("TAC", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
+      tipoUsuario: this.tipoUsuarioService.drop().pipe(catchError(() => of<any[]>(([]))))
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ ciclos, estadoServicio, tipoServicio, actividades }) => {
+        next: ({ ciclos, estadoServicio, tipoServicio, actividades, tipoUsuario }) => {
           // Ciclos
           this.dataCiclos = [
             { codigo: "ALL", descripcion: "TODOS", codemp: "ALL", estareg: 1 },
@@ -198,6 +210,13 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
             ...actividades
           ];
           this.selectedActividad = "ALL";
+
+          // Tipo Usuario
+          this.listaTipoUsuario = [
+            { tipousuario: "ALL", descripcion: "TODOS" },
+            ...(tipoUsuario || [])
+          ];
+          this.selectedTipoUsuario = "ALL";
         },
         error: (err) => {
           console.error("Error cargando catálogos iniciales:", err);
@@ -319,6 +338,10 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     return this.listaEstadoServicio?.find(e => e.codigo === this.selectedEstadoServicio)?.descripcion ?? "TODOS";
   }
 
+  getDescTipoUsuario(): string {
+    return this.listaTipoUsuario?.find(e => e.tipousuario === this.selectedTipoUsuario)?.descripcion ?? "TODOS";
+  }
+
   getDescTipoServicio(): string {
     return this.listaTipoServicio?.find(e => e.codigo === this.selectedTipoServicio)?.descripcion ?? "TODOS";
   }
@@ -358,7 +381,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       tiposervicio: toNull(this.selectedTipoServicio),
       catetar: toNull(this.selectedTarifa),
       urbani: toNull(this.selectedUrbanizacion),
-      tipousuario: null,
+      tipousuario: toNull(this.selectedTipoUsuario),
       actividad: toNull(this.selectedActividad),
     };
 
@@ -393,6 +416,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     this.selectedEstadoServicio = "ALL";
     this.selectedTipoServicio = "ALL";
     this.selectedActividad = "ALL";
+    this.selectedTipoUsuario = "ALL";
     this.limpiarCapas();
     this.resultadoBusquedaJson = [];
   }
@@ -467,6 +491,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
     this.map?.setTarget(undefined);
+    this.ref?.close();
   }
 
   toggleFiltros(): void {
@@ -626,7 +651,6 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
           etiqueta: f.get("codcliente") || f.get("nroSuministro"),
-          minZoomEtiqueta: 18.5,
           ...RADIOS_LECTURA,
         });
       },
@@ -692,7 +716,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
       if (feature) {
         this.seleccionarFeature(feature);
-      } else {
+      } else if (!this.clienteSeleccionado) {
         this.cerrarPopup();
       }
     });
@@ -712,6 +736,48 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   private refrescarCapasVector(): void {
     this.usuariosLayer?.changed();
+  }
+
+  abrirStreetView(coordX: unknown, coordY: unknown): void {
+    const x = Number(coordX);
+    const y = Number(coordY);
+
+    if (!x || !y || (x === 0 && y === 0)) {
+      this.avisar(
+        "warn",
+        "Aviso",
+        "No hay coordenadas válidas para abrir Street View.",
+      );
+      return;
+    }
+
+    // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
+    let [lng, lat] = [x, y];
+    if (Math.abs(x) > 180 || Math.abs(y) > 90) {
+      [lng, lat] = transform([x, y], PROYECCION_UTM_18S, "EPSG:4326");
+    }
+
+    window.open(
+      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
+      "_blank",
+    );
+  }
+
+  verMasInformacion(codcliente: string | undefined): void {
+    if (!codcliente) return;
+
+    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
+      header: "Consulta General de Usuario",
+      width: "90%",
+      height: "95%",
+      baseZIndex: 10000,
+      maximizable: true,
+      data: {
+        codcliente,
+        codsuc: this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
+        operacion: "Vektors",
+      },
+    });
   }
 
   private avisar(severity: string, summary: string, detail: string): void {

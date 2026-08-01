@@ -23,7 +23,7 @@
           <i class="pi pi-tag"></i> Est: {{ getDescEstadoServicio() }}
         </span>
         <span class="filtro-chip tipo" *ngIf="selectedTipoServicio">
-          <i class="pi pi-cog"></i> Tip: {{ getDescTipoServicio() }}
+          <i class="pi pi-cog"></i> Tipo Serv: {{ getDescTipoServicio() }}
         </span>
         <span class="filtro-chip tarifa" *ngIf="selectedTarifa">
           <i class="pi pi-wallet"></i> Cat: {{ getDescTarifa() }}
@@ -33,6 +33,9 @@
         </span>
         <span class="filtro-chip actividad" *ngIf="selectedActividad">
           <i class="pi pi-briefcase"></i> Act: {{ getDescActividad() }}
+        </span>
+        <span class="filtro-chip tipo-usuario" *ngIf="selectedTipoUsuario">
+          <i class="pi pi-users"></i> Tipo Usr: {{ getDescTipoUsuario() }}
         </span>
       </div>
       <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
@@ -115,6 +118,14 @@
             [appendTo]="'body'">
           </p-dropdown>
           <label>Tipo Actividad</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaTipoUsuario" [(ngModel)]="selectedTipoUsuario"
+            optionLabel="descripcion" optionValue="tipousuario" [style]="{ width: '220px' }" placeholder="Tipo Usuario"
+            [appendTo]="'body'">
+          </p-dropdown>
+          <label>Tipo de Usuario</label>
         </span>
 
         <div class="filtros-btns" *ngIf="selectedSucursal">
@@ -202,7 +213,7 @@
     </div>
 
     <!-- POPUP DEL CLIENTE -->
-    <div class="user-popup" *ngIf="clienteSeleccionado">
+    <div class="user-popup" *ngIf="clienteSeleccionado" (click)="$event.stopPropagation()">
       <div class="up-header">
         <div class="up-header-left">
           <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
@@ -222,23 +233,33 @@
         </div>
         <div class="up-sum-sep"></div>
         <div class="up-sum-item">
-          <i class="pi pi-id-card"></i>
-          <span class="up-sum-label">NRO. CLIENTE</span>
-          <span class="up-sum-value">{{ clienteSeleccionado.nrocalle || '-' }}</span>
+          <i class="pi pi-bolt"></i>
+          <span class="up-sum-label">NRO. MEDIDOR</span>
+          <span class="up-sum-value">{{ clienteSeleccionado.nromed || '-' }}</span>
         </div>
       </div>
 
       <div class="up-body">
         <div class="up-section">
-          <div class="up-section-title loc">
-            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO
+          <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO
+            </div>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View"
+              (click)="abrirStreetView(clienteSeleccionado?.lon ?? clienteSeleccionado?.lonpredio, clienteSeleccionado?.lat ?? clienteSeleccionado?.latpredio ?? clienteSeleccionado?.latitud)"
+              style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
+                alt="Street View">
+              <span style="font-weight: 900;">Ver en Maps</span>
+            </button>
           </div>
           <div class="up-grid grid-3">
             <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ clienteSeleccionado.codsector || '-' }}</span></div>
             <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ clienteSeleccionado.codmza || '-' }}</span></div>
             <div class="up-cell"><span class="uc-label">Lote/Sub.</span><span class="uc-val">{{ clienteSeleccionado.nrolote || '-' }}{{ clienteSeleccionado.nrosublote ? ' / ' + clienteSeleccionado.nrosublote : '' }}</span></div>
 
-            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ (clienteSeleccionado.descripcioncorta ? clienteSeleccionado.descripcioncorta + ' ' : '') + (clienteSeleccionado.descripcioncalle || '-') }}</span></div>
+            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ (clienteSeleccionado.descripcioncorta ? clienteSeleccionado.descripcioncorta + ' ' : '') + (clienteSeleccionado.descripcioncalle || '-') + (clienteSeleccionado.nrocalle ? ' N° ' + clienteSeleccionado.nrocalle : '') }}</span></div>
 
             <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{ clienteSeleccionado.catetar || '-' }} {{ getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria ? '- ' + (getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria) : '' }}</span></div>
             <div class="up-cell"><span class="uc-label">Actividad</span><span class="uc-val">{{ clienteSeleccionado.actividad || '-' }}</span></div>
@@ -267,6 +288,12 @@
             
             <div class="up-cell full"><span class="uc-label">Fecha Ingreso</span><span class="uc-val">{{ clienteSeleccionado.flagnuevousu ? (clienteSeleccionado.flagnuevousu | date:'dd/MM/yyyy') : (clienteSeleccionado.feciniactividad | date:'dd/MM/yyyy') || '-' }}</span></div>
           </div>
+        </div>
+
+        <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
+          <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
+            class="p-button-sm w-full btn-ver-mas"
+            (click)="verMasInformacion(clienteSeleccionado?.codcliente)"></button>
         </div>
       </div>
     </div>

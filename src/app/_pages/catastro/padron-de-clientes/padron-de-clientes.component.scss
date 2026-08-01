@@ -23,12 +23,14 @@
   background: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(4px);
   border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-  padding: 0 16px;
+  padding: 6px 16px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
-  height: 46px;
+  min-height: 46px;
+  height: auto;
+  flex-wrap: wrap;
   position: relative;
   z-index: 10;
 
@@ -63,7 +65,7 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
-    overflow: hidden;
+    flex-shrink: 0;
   }
 
   .filtro-hint {
@@ -84,16 +86,9 @@
   .cd-filtros-summary {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    max-width: calc(100vw - 420px);
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-
+    gap: 6px;
+    flex-wrap: wrap;
+    flex: 1;
     padding: 2px 0;
   }
 
@@ -226,6 +221,16 @@
 
       i {
         color: #c026d3;
+      }
+    }
+
+    &.tipo-usuario {
+      background: #fff1f2;
+      color: #9f1239;
+      border: 1px solid #fda4af;
+
+      i {
+        color: #e11d48;
       }
     }
 
