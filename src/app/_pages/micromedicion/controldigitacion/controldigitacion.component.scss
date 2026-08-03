@@ -1,3 +1,5 @@
+@import '../../../util/mapaestilos.scss';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -634,14 +636,6 @@
 }
 
 .gis-sidebar-container {
-  position: absolute;
-  margin-left: 20px;
-  top: 58px !important;
-  left: 10px;
-  z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  font-family: "Segoe UI", Arial, sans-serif;
 
   @media (max-width: 768px) {
     z-index: 1001;
@@ -774,7 +768,7 @@
         }
 
         &.on {
-          background: #0284c7; // Color puro, sin gradientes
+          background: #0284c7; 
           border-color: #0369a1;
 
           .toggle-circle {
@@ -1309,6 +1303,7 @@
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     transform: scale(1);
@@ -1604,11 +1599,11 @@
   }
 
   .gis-sidebar-container {
-    top: 58px !important;
+    top: 130px !important;
 
     .gis-sidebar-panel {
       width: 180px;
-      max-height: calc(100vh - 160px);
+      max-height: calc(100vh - 400px);
     }
   }
 
@@ -1703,6 +1698,7 @@
       font-size: 11px;
     }
   }
+
   /* --- Pie del lightbox con nombre y fecha de la foto abierta --- */
   .img-lightbox .lightbox-caption {
     position: absolute;
@@ -1763,9 +1759,9 @@
   display: inline-block;
 }
 
-:host ::ng-deep .ol-zoom {
-  top: 58px !important;
-}
+
+
+
 .lc-tipo {
   font-size: 14px;
   font-weight: 700;
@@ -1773,3 +1769,4 @@
   padding: 1px 8px;
   border-radius: 10px;
 }
+

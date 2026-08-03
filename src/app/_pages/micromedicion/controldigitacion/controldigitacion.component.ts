@@ -106,8 +106,7 @@ import { observarTamanoMapa } from "../.././../util/Mapinit.util";
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent
-  implements OnInit, AfterViewInit, OnDestroy
-{
+  implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
@@ -185,18 +184,18 @@ export class ControldigitacionComponent
     undefined;
   isBusquedaClienteActiva = false;
 
-   baseLayers = [
-      {
-        id: "osm",
-        label: "OSM",
-        iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-      },
-      {
-        id: "satelital",
-        label: "Satelital",
-        iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-      },
-    ];
+  baseLayers = [
+    {
+      id: "osm",
+      label: "OSM",
+      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
+    },
+    {
+      id: "satelital",
+      label: "Satelital",
+      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
+    },
+  ];
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
@@ -236,7 +235,7 @@ export class ControldigitacionComponent
     private clientesService: ClientesService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.aperturaservices
@@ -258,6 +257,9 @@ export class ControldigitacionComponent
 
   ngAfterViewInit(): void {
     this.crearMapa();
+
+    MapEstilosFactory.setupAdvancedMapTools(this.map);
+
     this.initClick();
 
     requestAnimationFrame(() => {
@@ -721,7 +723,7 @@ export class ControldigitacionComponent
           clickedLayer = layer;
           return f;
         },
-        { hitTolerance: 5 },
+        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
       ) as Feature | undefined;
 
       if (feature) {
@@ -862,15 +864,15 @@ export class ControldigitacionComponent
           this.imagenesPopup =
             imagenes?.mensaje === "EXITO" && imagenes?.data?.length > 0
               ? imagenes.data
-                  .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
-                  .map((e: any) => ({
-                    ...e,
-                    src: e.img64?.startsWith("data:")
-                      ? e.img64
-                      : "data:image/jpeg;base64," + e.img64,
+                .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
+                .map((e: any) => ({
+                  ...e,
+                  src: e.img64?.startsWith("data:")
+                    ? e.img64
+                    : "data:image/jpeg;base64," + e.img64,
 
-                    fechareg: e?.fechareg,
-                  }))
+                  fechareg: e?.fechareg,
+                }))
               : [];
         },
         error: () => (this.cargandoImagenes = false),
@@ -1199,7 +1201,7 @@ export class ControldigitacionComponent
     if (this.imagenesPopup.length === 0) return;
     this.abrirImagenCompleta(
       (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) %
-        this.imagenesPopup.length,
+      this.imagenesPopup.length,
     );
   }
 

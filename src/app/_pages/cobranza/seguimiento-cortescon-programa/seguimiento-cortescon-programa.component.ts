@@ -68,7 +68,9 @@ import {
   DISTANCIA_MAX_ACOMETIDA_M,
   COLOR_FICHA_AGUA,
   COLOR_FICHA_ALC,
+  SECTOR_TODOS,
 } from "../../../config/Controldigitacion.config";
+import { fromCircle } from 'ol/geom/Polygon';
 import {
   crearFeaturePunto,
   crearFeatureLinea,
@@ -172,7 +174,7 @@ export class SeguimientoCortesconProgramaComponent
   private cobranzaService = inject(CobranzaService);
   private detenerObservadorMapa?: () => void;
 
-  
+
 
   private readonly estilos = new MapEstilosFactory();
 
@@ -344,6 +346,30 @@ export class SeguimientoCortesconProgramaComponent
     this.detenerObservadorMapa?.();
     this.map?.setTarget(undefined);
     this.ref?.close();
+  }
+
+  private contarElementosEnRadio(circleGeom: any): void {
+    const polygon = fromCircle(circleGeom);
+    const extent = polygon.getExtent();
+    let count = 0;
+
+    if (this.cortesLayer) {
+      const source = this.cortesLayer.getSource();
+      if (source) {
+        source.forEachFeatureIntersectingExtent(extent, (feature) => {
+          const geom = feature.getGeometry();
+          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
+            count++;
+          }
+        });
+      }
+    }
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Selección de Radio',
+      detail: `Se encontraron ${count} cortes/reaperturas en el área seleccionada.`
+    });
   }
 
   // ============================================================
@@ -768,6 +794,12 @@ export class SeguimientoCortesconProgramaComponent
         zoom: VISTA_INICIAL.zoom,
       }),
     });
+
+    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+      if (geometry && geometry.getType() === 'Circle') {
+        this.contarElementosEnRadio(geometry);
+      }
+    });
   }
 
   /** Punto de corte: reutiliza MapEstilosFactory.punto (círculo, radio por
@@ -837,7 +869,7 @@ export class SeguimientoCortesconProgramaComponent
     this.featureSeleccionado = feature;
     this.corteSeleccionado = feature.getProperties() as RegistroCorte;
     this.corteSeleccionado.observacion_history = undefined; // Reset
-    
+
     const codsuc = (this.corteSeleccionado.codsuc as string) || this.selectedSucursal?.codsuc || "";
     const codcliente = this.corteSeleccionado.codcliente;
     if (codsuc && codcliente) {
@@ -868,7 +900,7 @@ export class SeguimientoCortesconProgramaComponent
               }
               return true;
             });
-            
+
             if (this.corteSeleccionado && targetRow) {
               this.corteSeleccionado.observacion_history = targetRow.observacion?.trim() || '-';
             }
@@ -952,7 +984,7 @@ export class SeguimientoCortesconProgramaComponent
         if (res?.success && res.data) {
           const src = this.cortesLayer.getSource()!;
           const f = src.getFeatures().find((ft) => String(ft.get("codcliente") ?? "").trim() === q);
-          
+
           if (f) {
             this.seleccionarFeature(f);
             const g = f.getGeometry();
@@ -1043,14 +1075,13 @@ export class SeguimientoCortesconProgramaComponent
 
   get observacionMasReciente(): string {
     if (!this.corteSeleccionado) return '-';
-    // Use the fetched history observation first, fallback to the previous logic
     if (this.corteSeleccionado.observacion_history) {
       return this.corteSeleccionado.observacion_history;
     }
-    
+
     let obs = this.corteSeleccionado.observaciones || this.corteSeleccionado.observacion;
     if (!obs) return '-';
-    
+
     try {
       if (typeof obs === 'string') {
         const parsed = JSON.parse(obs);
@@ -1066,8 +1097,8 @@ export class SeguimientoCortesconProgramaComponent
         });
         return sorted[0].observacion || sorted[0].observaciones || sorted[0].descripcion || '-';
       }
-    } catch(e) { }
-    
+    } catch (e) { }
+
     return typeof obs === 'string' ? obs : '-';
   }
 

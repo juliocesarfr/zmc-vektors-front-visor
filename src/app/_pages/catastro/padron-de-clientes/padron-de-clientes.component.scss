@@ -1,3 +1,5 @@
+@import '../../../util/mapaestilos.scss';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -772,14 +774,6 @@
 }
 
 .gis-sidebar-container {
-  position: absolute;
-  margin-left: 20px;
-  top: 58px !important;
-  left: 10px;
-  z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  font-family: "Segoe UI", Arial, sans-serif;
 
   @media (max-width: 768px) {
     z-index: 1001;
@@ -1318,7 +1312,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 6px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 
       .ulb-label {
         font-size: 8.5px;
@@ -1358,7 +1352,7 @@
           color: #0276b1;
         }
       }
-      
+
       &.prom {
         background: #e3d2f4;
         border: 1px solid #6b6487;
@@ -1369,7 +1363,7 @@
 
         .ulb-val {
           color: #4f0694;
-;
+          ;
         }
       }
 
@@ -1397,6 +1391,7 @@
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     transform: scale(1);
@@ -1499,11 +1494,11 @@
   }
 
   .gis-sidebar-container {
-    top: 58px !important;
+    top: 130px !important;
 
     .gis-sidebar-panel {
       width: 180px;
-      max-height: calc(100vh - 160px);
+      max-height: calc(100vh - 400px);
     }
   }
 
@@ -1658,9 +1653,9 @@
   display: inline-block;
 }
 
-:host ::ng-deep .ol-zoom {
-  top: 58px !important;
-}
+
+
+
 .lc-tipo {
   font-size: 14px;
   font-weight: 700;

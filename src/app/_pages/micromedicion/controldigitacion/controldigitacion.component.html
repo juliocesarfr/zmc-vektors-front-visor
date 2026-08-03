@@ -24,7 +24,7 @@
           <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
         </span>
         <span class="filtro-chip sector" *ngIf="selectedSector">
-          <i class="pi pi-map"></i> 
+          <i class="pi pi-map"></i>
           {{ selectedSector.descripcion }}
         </span>
         <span class="filtro-chip estado" *ngIf="selectedEstados?.length > 0">
@@ -218,12 +218,11 @@
       <div class="search-body p-inputgroup mt-2">
         <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
           (keyup.enter)="buscarPorCodCliente()">
-        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()"
-          class="p-button-primary" title="Buscar"></button>
+        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"
+          title="Buscar"></button>
       </div>
     </div>
-    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel"
-      (click)="abrirBusqueda()">
+    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
       <i class="pi pi-search"></i>
     </button>
 
@@ -233,7 +232,8 @@
           <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
           <div class="up-header-info">
             <span class="up-label">TITULAR DEL PREDIO</span>
-            <strong class="up-name">{{ datosClientePopup?.propietario || lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
+            <strong class="up-name">{{ datosClientePopup?.propietario || lecturaSeleccionada.propietario || 'SIN
+              REGISTRO' }}</strong>
           </div>
         </div>
         <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
@@ -286,7 +286,9 @@
             <div class="up-cell"><span class="uc-label">Piso</span><span class="uc-val">{{ datosClientePopup?.unidaddom
                 ?? '1' }}</span></div>
             <div class="up-cell span-2"><span class="uc-label">Tipo de Servicio</span>
-            <span class="uc-val">{{datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA') }}</span></div>
+              <span class="uc-val">{{datosClientePopup?.servicio || lecturaSeleccionada.servicio ||
+                (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA') }}</span>
+            </div>
 
             <div class="up-cell span-2">
               <span class="uc-label">Tarifa / Inmueble</span>
@@ -530,9 +532,11 @@
     <div class="lightbox-caption" *ngIf="imagenActual">
       <span class="lc-tipo" *ngIf="imagenActual.fechareg">{{ imagenActual.fechareg | date:'dd/MM/yyyy' }}</span>
     </div>
-    <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{ imagenesPopup.length }}</div>
+    <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
+      imagenesPopup.length }}</div>
     <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
-      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda"><i class="pi pi-refresh pi-espejo"></i></button>
+      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda"><i
+          class="pi pi-refresh pi-espejo"></i></button>
       <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
       <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
       <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>

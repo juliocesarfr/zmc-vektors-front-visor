@@ -1,0 +1,188 @@
+::ng-deep {
+  .ol-zoom {
+    position: absolute !important;
+    top: 100px !important;
+    bottom: auto !important;
+    left: 30px !important;
+    right: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .ol-zoomslider {
+    position: absolute !important;
+    top: 190px !important;
+    bottom: auto !important;
+    left: 30px !important;
+    right: auto !important;
+    height: 120px !important;
+    width: 36px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    border: 1px solid rgba(0,0,0,0.05) !important;
+    padding: 6px 0 !important;
+    transition: all 0.3s ease !important;
+  }
+
+  .ol-zoomslider:hover {
+    background: rgba(255, 255, 255, 1) !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2) !important;
+  }
+
+  .ol-zoomslider::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    bottom: 12px;
+    left: 17px;
+    width: 2px;
+    background: #e2e8f0;
+    z-index: 0;
+    border-radius: 1px;
+  }
+
+  .ol-zoomslider button {
+    width: 24px !important;
+    height: 8px !important;
+    margin-left: 6px !important;
+    background-color: #0284c7 !important;
+    border-radius: 4px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2) !important;
+    transition: background-color 0.2s, transform 0.2s !important;
+  }
+
+  .ol-zoomslider button:hover {
+    background-color: #0369a1 !important;
+    transform: scale(1.15) !important;
+  }
+
+  .ol-full-screen {
+    position: absolute !important;
+    top: 100px !important;
+    right: 20px !important;
+    left: auto !important;
+    bottom: auto !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+
+  .ol-scale-line {
+    bottom: 40px !important;
+    left: 50px !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+  }
+
+  .ol-scale-line-inner {
+    border: 2px solid #0284c7 !important;
+    border-top: none !important;
+    color: #1e293b !important;
+    font-weight: bold !important;
+    font-size: 13px !important;
+    text-align: center !important;
+    margin: 0 !important;
+  }
+
+  .ol-zoom button,
+  .ol-full-screen button,
+  .ol-custom-draw-menu button {
+    font-size: 16px !important;
+    font-weight: normal !important;
+    line-height: 1 !important;
+    height: 36px !important;
+    width: 36px !important;
+    cursor: pointer !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    border-radius: 8px !important;
+    color: #333 !important;
+    border: 1px solid rgba(0,0,0,0.05) !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+    padding: 0 !important;
+  }
+
+  .ol-zoom button:hover,
+  .ol-full-screen button:hover,
+  .ol-custom-draw-menu button:hover {
+    background-color: #ffffff !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.15) !important;
+  }
+
+  i.btn-zoom-in, i.btn-zoom-out { color: #0284c7 !important; }
+  i.btn-fs, i.btn-fs-active { color: #10b981 !important; }
+
+  .ol-custom-draw-menu {
+    top: 150px !important;
+    right: 20px !important;
+    left: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    background-color: transparent !important;
+    padding: 0 !important;
+
+    .btn-draw-main i { color: #6366f1 !important; }
+    .btn-draw-line i { color: #10b981 !important; }
+    .btn-draw-poly i { color: #f59e0b !important; }
+    .btn-draw-circle i { color: #3b82f6 !important; }
+    .btn-draw-clear i { color: #ef4444 !important; }
+  }
+
+  .ol-custom-draw-submenu {
+    display: none !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+
+    &.open {
+      display: flex !important;
+    }
+  }
+
+  .gis-sidebar-container {
+    position: absolute;
+    margin-left:80px !important;
+    right: auto !important;
+    top: 100px !important;
+    bottom: auto !important;
+    z-index: 10;
+    display: flex;
+    align-items: flex-start;
+    font-family: "Segoe UI", Arial, sans-serif;
+  }
+
+  .ol-tooltip-measure {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+    padding: 6px 10px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: bold !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    pointer-events: none !important;
+    white-space: nowrap !important;
+  }
+  
+  .ol-tooltip-static {
+    background: #f59e0b !important;
+    color: #1e293b !important;
+    border: 2px solid #ffffff !important;
+    padding: 6px 10px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: bold !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    pointer-events: none !important;
+    white-space: nowrap !important;
+  }
+}

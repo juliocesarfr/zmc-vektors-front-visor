@@ -57,6 +57,7 @@ import {
   Sector,
   SECTOR_TODOS,
 } from "../../../config/Controldigitacion.config";
+import { fromCircle } from 'ol/geom/Polygon';
 import {
   extraerCoordenada,
   distanciaHaversineMetros,
@@ -277,6 +278,11 @@ export class SeguimientoDeLecturaXinspectorComponent
     requestAnimationFrame(() => {
       this.map.setTarget(this.mapContainer.nativeElement);
       this.map.updateSize();
+      MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+        if (geometry && geometry.getType() === 'Circle') {
+          this.contarElementosEnRadio(geometry);
+        }
+      });
       this.detenerObservadorMapa = observarTamanoMapa(
         this.map,
         this.mapContainer.nativeElement,
@@ -288,6 +294,30 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.detenerObservadorMapa?.();
     this.map?.setTarget(undefined);
     this.ref?.close();
+  }
+
+  private contarElementosEnRadio(circleGeom: any): void {
+    const polygon = fromCircle(circleGeom);
+    const extent = polygon.getExtent();
+    let count = 0;
+
+    if (this.usuariosLayer) {
+      const source = this.usuariosLayer.getSource();
+      if (source) {
+        source.forEachFeatureIntersectingExtent(extent, (feature) => {
+          const geom = feature.getGeometry();
+          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
+            count++;
+          }
+        });
+      }
+    }
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Selección de Radio',
+      detail: `Se encontraron ${count} usuarios en el área seleccionada.`
+    });
   }
 
   // ============================================================
@@ -734,6 +764,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.map.on("singleclick", (evt) => {
       const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
         hitTolerance: 5,
+        layerFilter: (layer: any) => !layer.get('isDrawLayer')
       }) as Feature | undefined;
 
       if (feature) {

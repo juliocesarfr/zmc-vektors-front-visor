@@ -49,8 +49,10 @@ import {
   PROYECCION_MAPA,
   PROYECCION_UTM_18S,
   VISTA_INICIAL,
-  ORIGENES_COORDENADA
+  ORIGENES_COORDENADA,
+  ConfigOrigenCoordenada
 } from "../../../config/Controldigitacion.config";
+import { fromCircle } from 'ol/geom/Polygon';
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
 import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
 import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
@@ -101,7 +103,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   sidebarOpen = true;
   baseActive: string | null = "osm";
   cargando = false;
-  
+
   resultadoBusquedaJson: any[] = [];
   totalClientes = 0;
   totalSinCoordenadas = 0;
@@ -167,7 +169,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     private tipoUsuarioService: TipousuarioService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     forkJoin({
@@ -186,7 +188,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
             ...ciclos
           ];
           if (this.dataCiclos.length > 0) {
-            this.selectedCiclo = this.dataCiclos[1] || this.dataCiclos[0]; 
+            this.selectedCiclo = this.dataCiclos[1] || this.dataCiclos[0];
             this.onCicloChange();
           }
 
@@ -295,9 +297,9 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       });
 
     if (this.selectedSucursal.codsuc === "ALL" || this.selectedCiclo.codigo === "ALL") {
-       this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
-       this.selectedSector = this.listaSectores[0];
-       return;
+      this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
+      this.selectedSector = this.listaSectores[0];
+      return;
     }
 
     this.sectoresCicloService
@@ -436,7 +438,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
     const featuresUsr = puntos("usuario");
     this.usuariosLayer.getSource()!.addFeatures(featuresUsr);
-    
+
     this.totalSinCoordenadas = registros.length - featuresUsr.length;
 
     this.ajustarVista(fitBounds);
@@ -655,7 +657,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         });
       },
     });
-    
+
     this.capasVector = [this.usuariosLayer];
 
     this.registroCapas = {
@@ -680,6 +682,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         zoom: VISTA_INICIAL.zoom,
       }),
       controls: [new Zoom()],
+    });
+
+    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+      if (geometry && geometry.getType() === 'Circle') {
+        this.contarElementosEnRadio(geometry);
+      }
     });
 
     this.initClick();
@@ -711,7 +719,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       const feature = this.map.forEachFeatureAtPixel(
         evt.pixel,
         (f) => f,
-        { hitTolerance: 5 }
+        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
       ) as Feature | undefined;
 
       if (feature) {
@@ -782,5 +790,29 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   private avisar(severity: string, summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail });
+  }
+
+  private contarElementosEnRadio(circleGeom: any): void {
+    const polygon = fromCircle(circleGeom);
+    const extent = polygon.getExtent();
+    let count = 0;
+
+    if (this.usuariosLayer) {
+      const source = this.usuariosLayer.getSource();
+      if (source) {
+        source.forEachFeatureIntersectingExtent(extent, (feature) => {
+          const geom = feature.getGeometry();
+          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
+            count++;
+          }
+        });
+      }
+    }
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Selección de Radio',
+      detail: `Se encontraron ${count} clientes en el área seleccionada.`
+    });
   }
 }

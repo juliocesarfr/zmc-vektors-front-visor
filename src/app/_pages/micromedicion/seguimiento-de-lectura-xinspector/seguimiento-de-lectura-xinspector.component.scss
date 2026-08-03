@@ -1,3 +1,5 @@
+@import '../../../util/mapaestilos.scss';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -275,11 +277,6 @@
     height: 100%;
   }
 
-  ::ng-deep {
-    .ol-zoom, .leaflet-top, .leaflet-control-zoom {
-      margin-top: 58px !important;
-    }
-  }
 }
 
 .map-loading-overlay {
@@ -300,16 +297,8 @@
   }
 }
 
-// ---------- Sidebar de capas ----------
+
 .gis-sidebar-container {
-  position: absolute;
-  margin-left: 20px;
-  top: 58px !important;
-  left: 10px;
-  z-index: 20;
-  display: flex;
-  align-items: flex-start;
-  font-family: "Segoe UI", Arial, sans-serif;
 
   @media (max-width: 768px) {
     z-index: 1001;

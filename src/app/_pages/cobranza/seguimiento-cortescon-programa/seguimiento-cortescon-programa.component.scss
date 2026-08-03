@@ -1,3 +1,5 @@
+@import '../../../util/mapaestilos.scss';
+
 :host {
   display: flex;
   flex-direction: column;
@@ -634,14 +636,6 @@
 }
 
 .gis-sidebar-container {
-  position: absolute;
-  margin-left: 20px;
-  top: 58px !important;
-  left: 10px;
-  z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  font-family: "Segoe UI", Arial, sans-serif;
 
   @media (max-width: 768px) {
     z-index: 1001;
@@ -1605,11 +1599,11 @@
   }
 
   .gis-sidebar-container {
-    top: 58px !important;
+    top: 130px !important;
 
     .gis-sidebar-panel {
       width: 180px;
-      max-height: calc(100vh - 160px);
+      max-height: calc(100vh - 400px);
     }
   }
 
@@ -1762,16 +1756,6 @@
   transform: scaleX(-1);
   display: inline-block;
 }
-
-:host ::ng-deep .ol-zoom {
-  top: 58px !important;
-}
-
-/* ============================================================
-   AÑADIR AL FINAL de tu seguimiento-cortescon-programa.component.scss
-   (los estilos del lightbox, popup, sidebar y leyenda YA los tienes en
-   tu scss original; esto solo cubre lo nuevo del seguimiento)
-   ============================================================ */
 
 /* --- Tarjetas de resumen: rojo=cortado, verde=pendiente, azul=pagado --- */
 .cd-resumen {

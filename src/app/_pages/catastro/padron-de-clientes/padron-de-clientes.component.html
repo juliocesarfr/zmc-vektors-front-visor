@@ -67,9 +67,8 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector"
-            optionLabel="descripcion" [filter]="true" filterBy="descripcion"
-            [style]="{ width: '220px' }" placeholder="Sectores" [appendTo]="'body'">
+          <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector" optionLabel="descripcion" [filter]="true"
+            filterBy="descripcion" [style]="{ width: '220px' }" placeholder="Sectores" [appendTo]="'body'">
             <ng-template let-sector pTemplate="item">
               <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
             </ng-template>
@@ -81,49 +80,45 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaEstadoServicio" [(ngModel)]="selectedEstadoServicio"
-            optionLabel="descripcion" optionValue="codigo" [style]="{ width: '180px' }" placeholder="Estado Serv."
-            [appendTo]="'body'">
+          <p-dropdown [options]="listaEstadoServicio" [(ngModel)]="selectedEstadoServicio" optionLabel="descripcion"
+            optionValue="codigo" [style]="{ width: '180px' }" placeholder="Estado Serv." [appendTo]="'body'">
           </p-dropdown>
           <label>Estado Servicio</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaTipoServicio" [(ngModel)]="selectedTipoServicio"
-            optionLabel="descripcion" optionValue="codigo" [style]="{ width: '180px' }" placeholder="Tipo Serv."
-            [appendTo]="'body'">
+          <p-dropdown [options]="listaTipoServicio" [(ngModel)]="selectedTipoServicio" optionLabel="descripcion"
+            optionValue="codigo" [style]="{ width: '180px' }" placeholder="Tipo Serv." [appendTo]="'body'">
           </p-dropdown>
           <label>Tipo Servicio</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaTarifas" [(ngModel)]="selectedTarifa"
-            optionLabel="nomtar" optionValue="catetar" filterBy="nomtar" [filter]="true" [style]="{ width: '220px' }" placeholder="Categoría"
-            [appendTo]="'body'">
+          <p-dropdown [options]="listaTarifas" [(ngModel)]="selectedTarifa" optionLabel="nomtar" optionValue="catetar"
+            filterBy="nomtar" [filter]="true" [style]="{ width: '220px' }" placeholder="Categoría" [appendTo]="'body'">
           </p-dropdown>
           <label>Categoría</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaUrbanizaciones" [(ngModel)]="selectedUrbanizacion"
-            optionLabel="descripcionurba" optionValue="codurbaso" filterBy="descripcionurba" [filter]="true" [style]="{ width: '220px' }" placeholder="Urbanización"
-            [appendTo]="'body'">
+          <p-dropdown [options]="listaUrbanizaciones" [(ngModel)]="selectedUrbanizacion" optionLabel="descripcionurba"
+            optionValue="codurbaso" filterBy="descripcionurba" [filter]="true" [style]="{ width: '220px' }"
+            placeholder="Urbanización" [appendTo]="'body'">
           </p-dropdown>
           <label>Urbanización</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaActividades" [(ngModel)]="selectedActividad"
-            optionLabel="descripcion" optionValue="codigo" filterBy="descripcion" [filter]="true" [style]="{ width: '220px' }" placeholder="Tipo Actividad"
-            [appendTo]="'body'">
+          <p-dropdown [options]="listaActividades" [(ngModel)]="selectedActividad" optionLabel="descripcion"
+            optionValue="codigo" filterBy="descripcion" [filter]="true" [style]="{ width: '220px' }"
+            placeholder="Tipo Actividad" [appendTo]="'body'">
           </p-dropdown>
           <label>Tipo Actividad</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="listaTipoUsuario" [(ngModel)]="selectedTipoUsuario"
-            optionLabel="descripcion" optionValue="tipousuario" [style]="{ width: '220px' }" placeholder="Tipo Usuario"
-            [appendTo]="'body'">
+          <p-dropdown [options]="listaTipoUsuario" [(ngModel)]="selectedTipoUsuario" optionLabel="descripcion"
+            optionValue="tipousuario" [style]="{ width: '220px' }" placeholder="Tipo Usuario" [appendTo]="'body'">
           </p-dropdown>
           <label>Tipo de Usuario</label>
         </span>
@@ -173,8 +168,8 @@
       <div class="search-body p-inputgroup mt-2">
         <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
           (keyup.enter)="buscarPorCodCliente()">
-        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()"
-          class="p-button-primary" title="Buscar"></button>
+        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"
+          title="Buscar"></button>
       </div>
     </div>
     <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
@@ -243,7 +238,8 @@
         <div class="up-section">
           <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN
+              Y PREDIO
             </div>
             <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
               title="Ver en Google Street View"
@@ -255,14 +251,26 @@
             </button>
           </div>
           <div class="up-grid grid-3">
-            <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ clienteSeleccionado.codsector || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ clienteSeleccionado.codmza || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Lote/Sub.</span><span class="uc-val">{{ clienteSeleccionado.nrolote || '-' }}{{ clienteSeleccionado.nrosublote ? ' / ' + clienteSeleccionado.nrosublote : '' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ clienteSeleccionado.codsector
+                || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ clienteSeleccionado.codmza ||
+                '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Lote/Sub.</span><span class="uc-val">{{
+                clienteSeleccionado.nrolote || '-' }}{{ clienteSeleccionado.nrosublote ? ' / ' +
+                clienteSeleccionado.nrosublote : '' }}</span></div>
 
-            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ (clienteSeleccionado.descripcioncorta ? clienteSeleccionado.descripcioncorta + ' ' : '') + (clienteSeleccionado.descripcioncalle || '-') + (clienteSeleccionado.nrocalle ? ' N° ' + clienteSeleccionado.nrocalle : '') }}</span></div>
+            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{
+                (clienteSeleccionado.descripcioncorta ? clienteSeleccionado.descripcioncorta + ' ' : '') +
+                (clienteSeleccionado.descripcioncalle || '-') + (clienteSeleccionado.nrocalle ? ' N° ' +
+                clienteSeleccionado.nrocalle : '') }}</span></div>
 
-            <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{ clienteSeleccionado.catetar || '-' }} {{ getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria ? '- ' + (getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria) : '' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Actividad</span><span class="uc-val">{{ clienteSeleccionado.actividad || '-' }}</span></div>
+            <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{
+                clienteSeleccionado.catetar || '-' }} {{ getTarifaName(clienteSeleccionado.catetar) ||
+                clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria ? '- ' +
+                (getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa ||
+                clienteSeleccionado.nomtar || clienteSeleccionado.categoria) : '' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Actividad</span><span class="uc-val">{{
+                clienteSeleccionado.actividad || '-' }}</span></div>
           </div>
         </div>
 
@@ -272,21 +280,29 @@
           </div>
 
           <div class="up-lecturas-row">
-            <div class="up-lec-badge prev"><span class="ulb-label">LECTURA ANT.</span><span class="ulb-val">{{ clienteSeleccionado.lecturaanterior ?? '-' }}</span></div>
+            <div class="up-lec-badge prev"><span class="ulb-label">LECTURA ANT.</span><span class="ulb-val">{{
+                clienteSeleccionado.lecturaanterior ?? '-' }}</span></div>
             <i class="pi pi-arrow-right up-lec-arrow"></i>
-            <div class="up-lec-badge curr"><span class="ulb-label">LECTURA ACT.</span><span class="ulb-val">{{ clienteSeleccionado.lecturaultima ?? '-' }}</span></div>
+            <div class="up-lec-badge curr"><span class="ulb-label">LECTURA ACT.</span><span class="ulb-val">{{
+                clienteSeleccionado.lecturaultima ?? '-' }}</span></div>
           </div>
-          
+
           <div class="up-lecturas-row" style="margin-top: 8px;">
-            <div class="up-lec-badge prom"><span class="ulb-label">PROM. CONSUMO</span><span class="ulb-val">{{ clienteSeleccionado.lecturapromedio ?? '-' }}</span></div>
-            <div class="up-lec-badge cons"><span class="ulb-label">ÚLTIMO CONSUMO</span><span class="ulb-val">{{ clienteSeleccionado.consumo ?? '-' }}</span></div>
+            <div class="up-lec-badge prom"><span class="ulb-label">PROM. CONSUMO</span><span class="ulb-val">{{
+                clienteSeleccionado.lecturapromedio ?? '-' }}</span></div>
+            <div class="up-lec-badge cons"><span class="ulb-label">ÚLTIMO CONSUMO</span><span class="ulb-val">{{
+                clienteSeleccionado.consumo ?? '-' }}</span></div>
           </div>
 
           <div class="up-grid grid-2">
-            <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est">{{ clienteSeleccionado.estadoservicio || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est" style="background:#f0fdf4; color:#15803d;">{{ clienteSeleccionado.tiposervicio || '-' }}</span></div>
-            
-            <div class="up-cell full"><span class="uc-label">Fecha Ingreso</span><span class="uc-val">{{ clienteSeleccionado.flagnuevousu ? (clienteSeleccionado.flagnuevousu | date:'dd/MM/yyyy') : (clienteSeleccionado.feciniactividad | date:'dd/MM/yyyy') || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est">{{
+                clienteSeleccionado.estadoservicio || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est"
+                style="background:#f0fdf4; color:#15803d;">{{ clienteSeleccionado.tiposervicio || '-' }}</span></div>
+
+            <div class="up-cell full"><span class="uc-label">Fecha Ingreso</span><span class="uc-val">{{
+                clienteSeleccionado.flagnuevousu ? (clienteSeleccionado.flagnuevousu | date:'dd/MM/yyyy') :
+                (clienteSeleccionado.feciniactividad | date:'dd/MM/yyyy') || '-' }}</span></div>
           </div>
         </div>
 
