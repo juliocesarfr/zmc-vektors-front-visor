@@ -832,6 +832,8 @@ export class SeguimientoCortesconProgramaComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
+      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
+      if (isDrawing) return;
       const f = this.map.forEachFeatureAtPixel(
         evt.pixel,
         (ft, layer) => (layer === this.cortesLayer ? ft : undefined),

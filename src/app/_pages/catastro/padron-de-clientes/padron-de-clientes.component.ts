@@ -716,6 +716,8 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
+      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
+      if (isDrawing) return;
       const feature = this.map.forEachFeatureAtPixel(
         evt.pixel,
         (f) => f,

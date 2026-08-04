@@ -716,6 +716,8 @@ export class ControldigitacionComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
+      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
+      if (isDrawing) return;
       let clickedLayer: BaseLayer | null = null;
       const feature = this.map.forEachFeatureAtPixel(
         evt.pixel,

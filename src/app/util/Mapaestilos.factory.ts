@@ -11,6 +11,8 @@ import { unByKey } from 'ol/Observable';
 import OlMap from 'ol/Map';
 import Polygon, { fromCircle } from 'ol/geom/Polygon';
 import Point from 'ol/geom/Point';
+import CircleGeom from 'ol/geom/Circle';
+import { getPointResolution } from 'ol/proj';
 import { LARGO_MIN_LINEA_PX } from "../config/Controldigitacion.config";
 
 export type FormaPunto = "circulo" | "rombo";
@@ -47,7 +49,7 @@ export class MapEstilosFactory {
 
     const zoomInLabel = document.createElement('i');
     zoomInLabel.className = 'fa-solid fa-plus btn-zoom-in';
-    
+
     const zoomOutLabel = document.createElement('i');
     zoomOutLabel.className = 'fa-solid fa-minus btn-zoom-out';
 
@@ -55,7 +57,7 @@ export class MapEstilosFactory {
 
     const fsLabel = document.createElement('i');
     fsLabel.className = 'fa-solid fa-expand btn-fs';
-    
+
     const fsLabelActive = document.createElement('i');
     fsLabelActive.className = 'fa-solid fa-compress btn-fs-active';
 
@@ -66,7 +68,7 @@ export class MapEstilosFactory {
     const drawSource = new VectorSource();
     const drawLayer = new VectorLayer({
       source: drawSource,
-      style: function(feature) {
+      style: function (feature) {
         const styles = [
           new Style({
             fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
@@ -76,15 +78,15 @@ export class MapEstilosFactory {
         ];
         const geom = feature.getGeometry();
         if (geom && geom.getType() === 'Circle') {
-           const center = (geom as any).getCenter();
-           styles.push(new Style({
-             geometry: new Point(center),
-             image: new CircleStyle({
-               radius: 5,
-               fill: new Fill({ color: '#ef4444' }),
-               stroke: new Stroke({ color: '#fff', width: 1.5 })
-             })
-           }));
+          const center = (geom as any).getCenter();
+          styles.push(new Style({
+            geometry: new Point(center),
+            image: new CircleStyle({
+              radius: 5,
+              fill: new Fill({ color: '#ef4444' }),
+              stroke: new Stroke({ color: '#fff', width: 1.5 })
+            })
+          }));
         }
         return styles;
       },
@@ -109,12 +111,16 @@ export class MapEstilosFactory {
     let measureTooltip: Overlay | null = null;
 
     const createMeasureTooltip = () => {
+      if (measureTooltip) {
+        map.removeOverlay(measureTooltip);
+      }
       if (measureTooltipElement && measureTooltipElement.parentNode) {
         measureTooltipElement.parentNode.removeChild(measureTooltipElement);
       }
       measureTooltipElement = document.createElement('div');
       measureTooltipElement.className = 'ol-tooltip ol-tooltip-measure';
-      
+      measureTooltipElement.style.visibility = 'hidden'; // stay hidden until content is set
+
       measureTooltip = new Overlay({
         element: measureTooltipElement,
         offset: [0, -15],
@@ -125,7 +131,7 @@ export class MapEstilosFactory {
 
     const formatLength = (line: any) => {
       const length = getLength(line, { projection: map.getView().getProjection() });
-      return 'Perímetro: ' + (length > 100 ? (Math.round(length / 1000 * 100) / 100) + ' km' : Math.round(length * 100) / 100 + ' m');
+      return 'Distancia: ' + (length > 100 ? (Math.round(length / 1000 * 100) / 100) + ' km' : Math.round(length * 100) / 100 + ' m');
     };
 
     const formatArea = (polygon: any) => {
@@ -133,13 +139,49 @@ export class MapEstilosFactory {
       return 'Área: ' + (area > 10000 ? (Math.round(area / 1000000 * 100) / 100) + ' km²' : Math.round(area * 100) / 100 + ' m²');
     };
 
+    let helpTooltipElement: HTMLElement | null = null;
+    let helpTooltip: Overlay | null = null;
+    let pointerMoveListener: any;
+
+    const createHelpTooltip = () => {
+      if (helpTooltip) {
+        map.removeOverlay(helpTooltip);
+      }
+      if (helpTooltipElement && helpTooltipElement.parentNode) {
+        helpTooltipElement.parentNode.removeChild(helpTooltipElement);
+      }
+      helpTooltipElement = document.createElement('div');
+      helpTooltipElement.className = 'ol-tooltip ol-tooltip-static'; // Re-use static style or similar
+      helpTooltipElement.style.backgroundColor = 'rgba(0,0,0,0.7)';
+      helpTooltipElement.style.color = 'white';
+      helpTooltipElement.style.border = 'none';
+      helpTooltipElement.style.visibility = 'hidden';
+
+      helpTooltip = new Overlay({
+        element: helpTooltipElement,
+        offset: [15, 0],
+        positioning: 'center-left'
+      });
+      map.addOverlay(helpTooltip);
+    };
+
     const addDrawInteraction = (type: string) => {
-      if (currentDrawInteraction) map.removeInteraction(currentDrawInteraction);
+      if (currentDrawInteraction) {
+        map.removeInteraction(currentDrawInteraction);
+      }
+      if (pointerMoveListener) {
+        unByKey(pointerMoveListener);
+        pointerMoveListener = null;
+      }
       
+      createHelpTooltip();
+      
+      const drawType = type;
+
       currentDrawInteraction = new Draw({
         source: drawSource,
-        type: type as any,
-        style: function(feature) {
+        type: drawType as any,
+        style: function (feature) {
           const styles = [
             new Style({
               fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
@@ -149,22 +191,50 @@ export class MapEstilosFactory {
           ];
           const geom = feature.getGeometry();
           if (geom && geom.getType() === 'Circle') {
-             const center = (geom as any).getCenter();
-             styles.push(new Style({
-               geometry: new Point(center),
-               image: new CircleStyle({
-                 radius: 5,
-                 fill: new Fill({ color: '#ef4444' }),
-                 stroke: new Stroke({ color: '#fff', width: 1.5 })
-               })
-             }));
+            const center = (geom as any).getCenter();
+            styles.push(new Style({
+              geometry: new Point(center),
+              image: new CircleStyle({
+                radius: 5,
+                fill: new Fill({ color: '#ef4444' }),
+                stroke: new Stroke({ color: '#fff', width: 1.5 })
+              })
+            }));
           }
           return styles;
         }
       });
+      
+      currentDrawInteraction.set('isDrawInteraction', true);
 
       let listener: any;
       let sketch: any;
+      
+      const pointerMoveHandler = (evt: any) => {
+        if (evt.dragging) {
+          return;
+        }
+        let helpMsg = 'Clic para empezar a dibujar';
+
+        if (sketch) {
+          const geom = sketch.getGeometry();
+          if (geom.getType() === 'Polygon' || geom.getType() === 'LineString') {
+            helpMsg = 'Clic para continuar, doble clic para terminar';
+          }
+        } else {
+          if (type === 'Circle') {
+            helpMsg = 'Clic para establecer el centro del círculo (luego ingrese el radio)';
+          }
+        }
+
+        if (helpTooltipElement) {
+          helpTooltipElement.innerHTML = helpMsg;
+          helpTooltipElement.style.visibility = 'visible';
+          helpTooltip?.setPosition(evt.coordinate);
+        }
+      };
+
+      pointerMoveListener = map.on('pointermove', pointerMoveHandler);
 
       currentDrawInteraction.on('drawstart', (evt: any) => {
         sketch = evt.feature;
@@ -181,14 +251,15 @@ export class MapEstilosFactory {
             output = formatLength(geom);
             tooltipCoord = geom.getLastCoordinate();
           } else if (geom.getType() === 'Circle') {
-             const poly = fromCircle(geom);
-             const area = getArea(poly, { projection: map.getView().getProjection() });
-             const radius = Math.sqrt(area / Math.PI);
-             output = 'Radio: ' + (radius > 100 ? (Math.round(radius / 1000 * 100) / 100) + ' km' : Math.round(radius * 100) / 100 + ' m');
-             tooltipCoord = geom.getLastCoordinate();
+            const poly = fromCircle(geom as any);
+            const area = getArea(poly, { projection: map.getView().getProjection() });
+            const radius = Math.sqrt(area / Math.PI);
+            output = 'Radio: ' + (radius > 100 ? (Math.round(radius / 1000 * 100) / 100) + ' km' : Math.round(radius * 100) / 100 + ' m');
+            tooltipCoord = (geom as any).getLastCoordinate();
           }
-          
+
           if (measureTooltipElement && output) {
+            measureTooltipElement.style.visibility = 'visible'; // reveal once there is content
             measureTooltipElement.innerHTML = output;
             measureTooltip?.setPosition(tooltipCoord);
           }
@@ -196,21 +267,149 @@ export class MapEstilosFactory {
       });
 
       currentDrawInteraction.on('drawend', (evt: any) => {
-        if (measureTooltipElement) {
+        let finalGeometry = evt.feature.getGeometry();
+        
+        const cleanupInteraction = () => {
+          unByKey(listener);
+          if (pointerMoveListener) {
+            unByKey(pointerMoveListener);
+            pointerMoveListener = null;
+          }
+          if (helpTooltip) {
+            map.removeOverlay(helpTooltip);
+            helpTooltip = null;
+          }
+          if (currentDrawInteraction) {
+            map.removeInteraction(currentDrawInteraction);
+            currentDrawInteraction = null;
+          }
+          menu.classList.remove('open');
+        };
+
+        if (type === 'Circle' && finalGeometry.getType() === 'Circle') {
+           const center = (finalGeometry as any).getCenter();
+           const drawnRadiusMapUnits = (finalGeometry as any).getRadius();
+           
+           cleanupInteraction(); // Stop drawing immediately so they don't accidentally click again
+
+           const projection = map.getView().getProjection();
+           const pointRes = getPointResolution(projection, 1, center, 'm');
+           const drawnRadiusMeters = drawnRadiusMapUnits * pointRes;
+
+           const inputContainer = document.createElement('div');
+           inputContainer.className = 'ol-custom-radius-input';
+           inputContainer.style.background = 'white';
+           inputContainer.style.padding = '6px';
+           inputContainer.style.borderRadius = '6px';
+           inputContainer.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+           inputContainer.style.display = 'flex';
+           inputContainer.style.alignItems = 'center';
+           inputContainer.style.gap = '6px';
+           inputContainer.style.fontFamily = 'sans-serif';
+           
+           const input = document.createElement('input');
+           input.type = 'number';
+           input.step = '0.1';
+           if (drawnRadiusMeters > 0) {
+             input.value = (Math.round(drawnRadiusMeters * 100) / 100).toString();
+           } else {
+             input.placeholder = 'Radio (m)';
+           }
+           input.style.width = '80px';
+           input.style.border = '1px solid #ddd';
+           input.style.borderRadius = '4px';
+           input.style.padding = '4px 6px';
+           input.style.outline = 'none';
+           input.style.fontSize = '13px';
+           
+           const btn = document.createElement('button');
+           btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+           btn.style.background = '#0ea5e9';
+           btn.style.color = 'white';
+           btn.style.border = 'none';
+           btn.style.borderRadius = '4px';
+           btn.style.cursor = 'pointer';
+           btn.style.padding = '4px 8px';
+           btn.style.fontSize = '12px';
+           
+           inputContainer.appendChild(input);
+           inputContainer.appendChild(btn);
+           
+           const inputOverlay = new Overlay({
+             element: inputContainer,
+             position: center,
+             positioning: 'bottom-center',
+             offset: [0, -15]
+           });
+           
+           map.addOverlay(inputOverlay);
+           
+           if (measureTooltipElement) {
+             measureTooltipElement.style.visibility = 'hidden';
+           }
+           
+           const finishCircle = (radiusStr: string) => {
+              map.removeOverlay(inputOverlay);
+              const r = Number(radiusStr);
+              if (radiusStr && radiusStr.trim() !== '' && !isNaN(r) && r > 0) {
+                 const mapRadius = r / pointRes;
+                 
+                 finalGeometry = new CircleGeom(center, mapRadius);
+                 evt.feature.setGeometry(finalGeometry);
+                 
+                 if (measureTooltipElement) {
+                     measureTooltipElement.innerHTML = 'Radio: ' + (r > 100 ? (Math.round(r / 1000 * 100) / 100) + ' km' : r + ' m');
+                     measureTooltipElement.style.visibility = 'visible';
+                     measureTooltipElement.className = 'ol-tooltip ol-tooltip-static';
+                 }
+                 if (onDrawEnd) onDrawEnd(finalGeometry);
+              } else {
+                 drawSource.removeFeature(evt.feature);
+                 if (measureTooltip) map.removeOverlay(measureTooltip);
+                 if (measureTooltipElement && measureTooltipElement.parentNode) {
+                   measureTooltipElement.parentNode.removeChild(measureTooltipElement);
+                 }
+              }
+           };
+
+           input.onkeydown = (e) => {
+              if (e.key === 'Enter') finishCircle(input.value);
+              else if (e.key === 'Escape') finishCircle('');
+           };
+           const handleBtn = (e: Event) => {
+              e.preventDefault();
+              e.stopPropagation();
+              finishCircle(input.value);
+           };
+           btn.addEventListener('pointerdown', handleBtn);
+           btn.addEventListener('click', handleBtn);
+           
+           setTimeout(() => {
+              input.focus();
+              input.select();
+           }, 50);
+           
+           return; // Prevent standard cleanup since we handled it manually
+        } // end of if (type === 'Circle')
+
+        if (measureTooltipElement && measureTooltipElement.innerHTML.trim() !== '') {
           measureTooltipElement.className = 'ol-tooltip ol-tooltip-static';
+        } else {
+          if (measureTooltip) {
+            map.removeOverlay(measureTooltip);
+          }
+          if (measureTooltipElement && measureTooltipElement.parentNode) {
+            measureTooltipElement.parentNode.removeChild(measureTooltipElement);
+          }
         }
         measureTooltipElement = null;
-        createMeasureTooltip();
-        
+        measureTooltip = null;
+
         if (onDrawEnd) {
-          onDrawEnd(evt.feature.getGeometry());
+          onDrawEnd(finalGeometry);
         }
-        
-        unByKey(listener);
-        
-        map.removeInteraction(currentDrawInteraction!);
-        currentDrawInteraction = null;
-        menu.classList.remove('open');
+
+        cleanupInteraction();
       });
 
       map.addInteraction(currentDrawInteraction);
@@ -241,14 +440,22 @@ export class MapEstilosFactory {
     btnClear.onclick = () => {
       drawSource.clear();
       map.getOverlays().getArray().slice(0).forEach(overlay => {
-         const el = overlay.getElement();
-         if (el && el.classList.contains('ol-tooltip')) {
-            map.removeOverlay(overlay);
-         }
+        const el = overlay.getElement();
+        if (el && el.classList.contains('ol-tooltip')) {
+          map.removeOverlay(overlay);
+        }
       });
       if (currentDrawInteraction) {
         map.removeInteraction(currentDrawInteraction);
         currentDrawInteraction = null;
+      }
+      if (pointerMoveListener) {
+        unByKey(pointerMoveListener);
+        pointerMoveListener = null;
+      }
+      if (helpTooltip) {
+        map.removeOverlay(helpTooltip);
+        helpTooltip = null;
       }
       menu.classList.remove('open');
     };
@@ -261,8 +468,16 @@ export class MapEstilosFactory {
     mainBtn.onclick = () => {
       menu.classList.toggle('open');
       if (!menu.classList.contains('open') && currentDrawInteraction) {
-         map.removeInteraction(currentDrawInteraction);
-         currentDrawInteraction = null;
+        map.removeInteraction(currentDrawInteraction);
+        currentDrawInteraction = null;
+        if (pointerMoveListener) {
+          unByKey(pointerMoveListener);
+          pointerMoveListener = null;
+        }
+        if (helpTooltip) {
+          map.removeOverlay(helpTooltip);
+          helpTooltip = null;
+        }
       }
     };
 
