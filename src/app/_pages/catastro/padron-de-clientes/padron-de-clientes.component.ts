@@ -234,35 +234,22 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     this.listaSectores = [];
     this.listaTarifas = [];
     this.listaUrbanizaciones = [];
-
     if (!this.selectedCiclo) return;
-
-    if (this.selectedCiclo.codigo === "ALL") {
-      this.listaSucursales = [{ codsuc: "002", nombre: "YURIMAGUAS" }];
-      this.selectedSucursal = this.listaSucursales[0];
-      this.onSucursalChange();
-      return;
-    }
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(this.selectedCiclo.codigo)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          const yurimaguas = (data || []).find(s => s.codsuc === '002');
-          if (yurimaguas) {
-            this.listaSucursales = [yurimaguas];
-          } else {
-            this.listaSucursales = [{ codsuc: "002", nombre: "YURIMAGUAS" }];
+          this.listaSucursales = data || [];
+          if (this.listaSucursales.length > 0) {
+            this.selectedSucursal = this.listaSucursales[0];
+            this.onSucursalChange();
           }
-          this.selectedSucursal = this.listaSucursales[0];
-          this.onSucursalChange();
         },
         error: (err) => {
           console.error("Error al cargar sucursales:", err);
-          this.listaSucursales = [{ codsuc: "002", nombre: "YURIMAGUAS" }];
-          this.selectedSucursal = this.listaSucursales[0];
-          this.onSucursalChange();
+          this.listaSucursales = [];
         }
       });
   }
@@ -277,7 +264,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
     if (!this.selectedSucursal) return;
 
-    const sucursalCode = this.selectedSucursal.codsuc === 'ALL' ? '002' : this.selectedSucursal.codsuc;
+    const sucursalCode = this.selectedSucursal.codsuc;
 
     this.tarifasService
       .drop(sucursalCode)

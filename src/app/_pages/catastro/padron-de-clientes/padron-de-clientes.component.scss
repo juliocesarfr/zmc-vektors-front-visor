@@ -952,13 +952,15 @@
 }
 
 .user-popup {
+  --popup-top: 85px; 
+  --popup-bottom-margin: 20px; 
   position: absolute;
-  top: 58px;
+  top: var(--popup-top);
   right: 10px;
   width: min(360px, calc(100vw - 20px));
   min-width: 260px;
   height: auto;
-  max-height: calc(100% - 75px) !important;
+  max-height: calc(100% - var(--popup-top) - var(--popup-bottom-margin)) !important;
   z-index: 1000;
   background: #ffffff;
   border-radius: 8px;
@@ -1663,12 +1665,3 @@
   padding: 1px 8px;
   border-radius: 10px;
 }
-
-:host ::ng-deep {
-  .ol-full-screen {
-    top: 150px !important;
-  }
-   .ol-custom-draw-menu{
-    top: 192px !important;
-   }
-  }

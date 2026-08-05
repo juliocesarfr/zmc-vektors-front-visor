@@ -39,7 +39,7 @@ export class MapEstilosFactory {
     this.cache.clear();
   }
 
-  static setupAdvancedMapTools(map: OlMap, onDrawEnd?: (geometry: any) => void): void {
+  static setupAdvancedMapTools(map: OlMap, onDrawEnd?: (geometry: any) => void, fullScreenSource?: string | HTMLElement): void {
 
 
 
@@ -61,7 +61,11 @@ export class MapEstilosFactory {
     const fsLabelActive = document.createElement('i');
     fsLabelActive.className = 'fa-solid fa-compress btn-fs-active';
 
-    map.addControl(new FullScreen({ label: fsLabel, labelActive: fsLabelActive }));
+    map.addControl(new FullScreen({ 
+      label: fsLabel, 
+      labelActive: fsLabelActive,
+      source: fullScreenSource
+    }));
     map.addControl(new ZoomSlider());
     map.addControl(new ScaleLine({ units: 'metric' }));
 
@@ -69,21 +73,37 @@ export class MapEstilosFactory {
     const drawLayer = new VectorLayer({
       source: drawSource,
       style: function (feature) {
+        const geom = feature.getGeometry();
+        let strokeColor = '#ffcc33';
+        let fillColor = 'rgba(255, 204, 51, 0.2)'; // 20% opacity
+        
+        if (geom) {
+          if (geom.getType() === 'Polygon') {
+            strokeColor = '#10b981'; // Green
+            fillColor = 'rgba(16, 185, 129, 0.2)';
+          } else if (geom.getType() === 'LineString') {
+            strokeColor = '#3b82f6'; // Blue
+            fillColor = 'rgba(59, 130, 246, 0.2)';
+          } else if (geom.getType() === 'Circle') {
+            strokeColor = '#ef4444'; // Red
+            fillColor = 'rgba(239, 68, 68, 0.2)';
+          }
+        }
+
         const styles = [
           new Style({
-            fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
-            stroke: new Stroke({ color: '#ffcc33', width: 2 }),
-            image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#ffcc33' }) })
+            fill: new Fill({ color: fillColor }),
+            stroke: new Stroke({ color: strokeColor, width: 2 }),
+            image: new CircleStyle({ radius: 7, fill: new Fill({ color: strokeColor }) })
           })
         ];
-        const geom = feature.getGeometry();
         if (geom && geom.getType() === 'Circle') {
           const center = (geom as any).getCenter();
           styles.push(new Style({
             geometry: new Point(center),
             image: new CircleStyle({
               radius: 5,
-              fill: new Fill({ color: '#ef4444' }),
+              fill: new Fill({ color: strokeColor }),
               stroke: new Stroke({ color: '#fff', width: 1.5 })
             })
           }));
@@ -182,11 +202,23 @@ export class MapEstilosFactory {
         source: drawSource,
         type: drawType as any,
         style: function (feature) {
+          let sketchColor = 'rgba(0, 0, 0, 0.5)';
+          let sketchFill = 'rgba(255, 255, 255, 0.2)';
+          if (type === 'Polygon') {
+            sketchColor = '#10b981';
+            sketchFill = 'rgba(16, 185, 129, 0.1)';
+          } else if (type === 'LineString') {
+            sketchColor = '#3b82f6';
+          } else if (type === 'Circle') {
+            sketchColor = '#ef4444';
+            sketchFill = 'rgba(239, 68, 68, 0.1)';
+          }
+          
           const styles = [
             new Style({
-              fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }),
-              stroke: new Stroke({ color: 'rgba(0, 0, 0, 0.5)', lineDash: [10, 10], width: 2 }),
-              image: new CircleStyle({ radius: 5, stroke: new Stroke({ color: 'rgba(0, 0, 0, 0.7)' }), fill: new Fill({ color: 'rgba(255, 255, 255, 0.2)' }) })
+              fill: new Fill({ color: sketchFill }),
+              stroke: new Stroke({ color: sketchColor, lineDash: [10, 10], width: 2 }),
+              image: new CircleStyle({ radius: 5, stroke: new Stroke({ color: sketchColor }), fill: new Fill({ color: sketchFill }) })
             })
           ];
           const geom = feature.getGeometry();
@@ -196,7 +228,7 @@ export class MapEstilosFactory {
               geometry: new Point(center),
               image: new CircleStyle({
                 radius: 5,
-                fill: new Fill({ color: '#ef4444' }),
+                fill: new Fill({ color: sketchColor }),
                 stroke: new Stroke({ color: '#fff', width: 1.5 })
               })
             }));
@@ -290,7 +322,7 @@ export class MapEstilosFactory {
            const center = (finalGeometry as any).getCenter();
            const drawnRadiusMapUnits = (finalGeometry as any).getRadius();
            
-           cleanupInteraction(); // Stop drawing immediately so they don't accidentally click again
+           cleanupInteraction(); 
 
            const projection = map.getView().getProjection();
            const pointRes = getPointResolution(projection, 1, center, 'm');
@@ -389,8 +421,11 @@ export class MapEstilosFactory {
               input.select();
            }, 50);
            
-           return; // Prevent standard cleanup since we handled it manually
-        } // end of if (type === 'Circle')
+           return; 
+           
+
+           
+        } 
 
         if (measureTooltipElement && measureTooltipElement.innerHTML.trim() !== '') {
           measureTooltipElement.className = 'ol-tooltip ol-tooltip-static';
