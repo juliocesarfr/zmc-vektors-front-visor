@@ -69,18 +69,14 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
 
   map?: OlMap;
 
-  // Variables UI / Filtros
   cargando = false;
   filtrosVisible = true;
   totalClientes = 0;
   totalSinCoordenadas = 0;
   resultadoBusquedaJson: any[] | null = null;
-
-  // Feature y popup
   featureSeleccionado: Feature | null = null;
   clienteSeleccionado: any = null;
 
-  // Data de selectores
   dataCiclos: any[] = [];
   listaSucursales: any[] = [];
   listaSectores: any[] = [];
@@ -90,7 +86,6 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
   listaActividades: any[] = [];
   listaTipoUsuario: any[] = [];
 
-  // Valores seleccionados
   selectedCiclo: any = null;
   selectedSucursal: any = null;
   selectedSector: any = null;
@@ -100,7 +95,6 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
   selectedActividad: any = null;
   selectedTipoUsuario: any = null;
 
-  // Capas vectoriales
   usuariosLayer = new VectorLayer({
     source: new VectorSource(),
     style: (feature) => {
@@ -262,7 +256,6 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
       });
   }
 
-  // Métodos UI Getters (se pueden omitir si son muchos, pero los usabas en html)
   getDescEstadoServicio(): string {
     return this.listaEstadoServicio?.find(e => e.codigo === this.selectedEstadoServicio)?.descripcion ?? "TODOS";
   }
@@ -417,7 +410,6 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
             this.resultadoBusquedaJson = [response.data];
             this.dibujarResultados(true);
             
-            // Auto-abrir popup del feature encontrado
             const features = this.usuariosLayer.getSource()?.getFeatures();
             if (features && features.length > 0) {
               this.onFeatureClick(features[0]);
