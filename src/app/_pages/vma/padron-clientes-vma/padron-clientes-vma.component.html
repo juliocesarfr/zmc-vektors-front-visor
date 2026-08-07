@@ -1,0 +1,153 @@
+<p-toast [appendTo]="'body'"></p-toast>
+
+<app-mapa-visor
+  title="Padrón de Clientes VMA"
+  [cargando]="cargando"
+  [customVectorLayers]="capasVector"
+  (featureClick)="onFeatureClick($event)"
+  (mapClick)="onMapClick()"
+  (search)="buscarCliente($event)"
+  (clearSearch)="limpiarBusquedaCliente()"
+  (mapReady)="onMapReady($event)">
+  
+  <ng-container toolbar-actions>
+    <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
+      <span class="filtro-chip ciclo" *ngIf="selectedCiclo">
+        <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
+      </span>
+      <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
+        <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
+      </span>
+      <span class="filtro-chip sector" *ngIf="selectedSector">
+        <i class="pi pi-map"></i> {{ selectedSector.descripcion }}
+      </span>
+      <span class="filtro-chip estado" *ngIf="selectedEstadoServicio">
+        <i class="pi pi-tag"></i> Est: {{ getDescEstadoServicio() }}
+      </span>
+      <span class="filtro-chip tipo" *ngIf="selectedTipoServicio">
+        <i class="pi pi-cog"></i> Tipo Serv: {{ getDescTipoServicio() }}
+      </span>
+      <span class="filtro-chip tarifa" *ngIf="selectedTarifa">
+        <i class="pi pi-wallet"></i> Cat: {{ getDescTarifa() }}
+      </span>
+      <span class="filtro-chip actividad" *ngIf="selectedActividad">
+        <i class="pi pi-briefcase"></i> Act: {{ getDescActividad() }}
+      </span>
+      <span class="filtro-chip tipo-usuario" *ngIf="selectedTipoUsuario">
+        <i class="pi pi-users"></i> Tipo Usr: {{ getDescTipoUsuario() }}
+      </span>
+    </div>
+    <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
+      <span class="toggle-icon-wrap">
+        <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+      </span>
+      <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+      <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
+    </button>
+  </ng-container>
+
+
+  <ng-container filtros-panel>
+    <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
+      <div class="cd-filtros-inner">
+        <div class="filtros-label"><i class="pi pi-filter"></i> FILTROS DE BÚSQUEDA</div>
+        <div class="cd-filtros">
+          <span class="p-float-label">
+            <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
+              (ngModelChange)="onCicloChange()" [style]="{ width: '160px' }" placeholder="Ciclo"
+              [appendTo]="'body'"></p-dropdown>
+            <label>Ciclo</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedCiclo">
+            <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+              (ngModelChange)="onSucursalChange()" [style]="{ width: '180px' }" placeholder="Sucursales"
+              [appendTo]="'body'"></p-dropdown>
+            <label>Sucursal</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedSucursal">
+            <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector" optionLabel="descripcion" [filter]="true"
+              filterBy="descripcion" [style]="{ width: '220px' }" placeholder="Sectores" [appendTo]="'body'">
+              <ng-template let-sector pTemplate="item">
+                <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
+              </ng-template>
+              <ng-template pTemplate="selectedItem" let-sector>
+                <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
+              </ng-template>
+            </p-dropdown>
+            <label>Sector</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedSucursal">
+            <p-dropdown [options]="listaEstadoServicio" [(ngModel)]="selectedEstadoServicio" optionLabel="descripcion"
+              optionValue="codigo" [style]="{ width: '180px' }" placeholder="Estado Serv." [appendTo]="'body'">
+            </p-dropdown>
+            <label>Estado Servicio</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedSucursal">
+            <p-dropdown [options]="listaTipoServicio" [(ngModel)]="selectedTipoServicio" optionLabel="descripcion"
+              optionValue="codigo" [style]="{ width: '180px' }" placeholder="Tipo Serv." [appendTo]="'body'">
+            </p-dropdown>
+            <label>Tipo Servicio</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedSucursal">
+            <p-dropdown [options]="listaTarifas" [(ngModel)]="selectedTarifa" optionLabel="nomtar" optionValue="catetar"
+              filterBy="nomtar" [filter]="true" [style]="{ width: '220px' }" placeholder="Categoría" [appendTo]="'body'">
+            </p-dropdown>
+            <label>Categoría</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedSucursal">
+            <p-dropdown [options]="listaActividades" [(ngModel)]="selectedActividad" optionLabel="descripcion"
+              optionValue="codigo" filterBy="descripcion" [filter]="true" [style]="{ width: '220px' }"
+              placeholder="Tipo Actividad" [appendTo]="'body'">
+            </p-dropdown>
+            <label>Tipo Actividad</label>
+          </span>
+
+          <span class="p-float-label" *ngIf="selectedSucursal">
+            <p-dropdown [options]="listaTipoUsuario" [(ngModel)]="selectedTipoUsuario" optionLabel="descripcion"
+              optionValue="tipousuario" [style]="{ width: '220px' }" placeholder="Tipo Usuario" [appendTo]="'body'">
+            </p-dropdown>
+            <label>Tipo de Usuario</label>
+          </span>
+
+          <div class="filtros-btns" *ngIf="selectedSucursal">
+            <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
+              [loading]="cargando"></p-button>
+            <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar" [outlined]="true"></p-button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-container map-summary>
+    <div class="cd-resumen" *ngIf="totalClientes > 0">
+      <div class="card-resumen">
+        <span class="numero">{{ totalClientes }}</span>
+        <span class="titulo">Clientes</span>
+      </div>
+      <div class="card-resumen ok">
+        <span class="numero">{{ totalClientes - totalSinCoordenadas }}</span>
+        <span class="titulo">En Mapa</span>
+      </div>
+      <div class="card-resumen warn">
+        <span class="numero">{{ totalSinCoordenadas }}</span>
+        <span class="titulo">Sin Coord.</span>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-container map-popup>
+    <app-mapa-popup-cliente
+      [clienteSeleccionado]="clienteSeleccionado"
+      (onCerrar)="cerrarPopup()"
+      (onVerStreetView)="abrirStreetView()">
+    </app-mapa-popup-cliente>
+  </ng-container>
+
+</app-mapa-visor>

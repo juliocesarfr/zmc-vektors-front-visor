@@ -61,6 +61,27 @@ const routes: Routes = [
         (m) => m.PadronDeClientesComponent,
       ),
   },
+  {
+    path: "vma/padron_de_clientes",
+    loadComponent: () =>
+      import("../_pages/vma/padron-clientes-vma/padron-clientes-vma.component").then(
+        (m) => m.PadronClientesVmaComponent,
+      ),
+  },
+  {
+    path: "facturacion/clientes_vma",
+    loadComponent: () =>
+      import("../_pages/facturacion/facturacion-clientes-vma/facturacion-clientes-vma.component").then(
+        (m) => m.FacturacionClientesVmaComponent,
+      ),
+  },
+  {
+    path: "facturacion/clientes_altos_consumidores",
+    loadComponent: () =>
+      import("../_pages/facturacion/facturacion-clientes-altos-consumidores/facturacion-clientes-altos-consumidores.component").then(
+        (m) => m.FacturacionClientesAltosConsumidoresComponent,
+      ),
+  },
   { path: "", redirectTo: "/main", pathMatch: "full" },
 ];
 
