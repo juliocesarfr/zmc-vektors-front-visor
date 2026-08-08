@@ -33,6 +33,11 @@ export class CortesComponent implements AfterViewInit {
   /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
 
+  /** Nombre de la EPS logueada, para el campo "Sede" del panel de consulta. */
+  get sede(): string {
+    return this.gis.config.descripcion;
+  }
+
   map!: Map;
   popup!: Overlay;
 
@@ -243,7 +248,7 @@ export class CortesComponent implements AfterViewInit {
 
         resolution!,
 
-        'EPSG:4326',
+        this.gis.proyeccionMapa,
 
         {
           INFO_FORMAT: 'application/json'
@@ -291,7 +296,7 @@ export class CortesComponent implements AfterViewInit {
     const format = new GeoJSON();
 
     const olFeature = format.readFeature(feature, {
-      featureProjection: 'EPSG:4326'
+      featureProjection: this.gis.proyeccionMapa
     });
 
     this.highlightLayer.getSource()?.clear();
@@ -394,7 +399,7 @@ activarSector(codigo: string): void {
       const format = new GeoJSON();
 
       const features = format.readFeatures(data, {
-        featureProjection: 'EPSG:4326'
+        featureProjection: this.gis.proyeccionMapa
       });
 
     if (features.length > 0 && features[0].getGeometry()) {

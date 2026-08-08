@@ -6,6 +6,7 @@ import { conConfigGis } from "../core/gis";
 const routes: Routes = conConfigGis([
   {
     path: "main",
+    data: { preload: true },
     loadChildren: () =>
       import("../_pages/main-georeferencia/main-georeferencia.module").then(
         (m) => m.MainGeoreferenciaModule,

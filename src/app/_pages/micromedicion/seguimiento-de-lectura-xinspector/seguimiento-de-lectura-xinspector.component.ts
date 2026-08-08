@@ -46,7 +46,6 @@ import { Filtroresumenxinspector } from "@host/_models/vektors/Filtroresumenxins
 import { Filtrodetalletomalectura_xinspector } from "@host/_models/vektors/Filtrodetalletomalectura_xinspector";
 
 import {
-  PROYECCION_MAPA,
   ORIGENES_COORDENADA,
   ConfigOrigenCoordenada,
   COLORES_SEGUIMIENTO_LECTURA,
@@ -257,6 +256,9 @@ export class SeguimientoDeLecturaXinspectorComponent
   ) {}
 
   ngOnInit(): void {
+    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
+    this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+
     this.aperturaservices
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -753,7 +755,7 @@ export class SeguimientoDeLecturaXinspectorComponent
         this.usuariosLayer,
       ],
       view: new View({
-        projection: PROYECCION_MAPA,
+        projection: this.gis.proyeccionMapa,
         center: this.gis.vista.centro,
         zoom: this.gis.vista.zoom,
       }),

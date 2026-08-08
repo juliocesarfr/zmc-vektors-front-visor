@@ -51,7 +51,6 @@ import { TagModule } from "primeng/tag";
 import { InputTextModule } from "primeng/inputtext";
 
 import {
-  PROYECCION_MAPA,
   DISTANCIA_MAX_ACOMETIDA_M,
   ORIGENES_COORDENADA,
   colorPorEstadoLectura,
@@ -237,6 +236,9 @@ export class ControldigitacionComponent
   ) { }
 
   ngOnInit(): void {
+    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
+    this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+
     this.aperturaservices
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -688,7 +690,7 @@ export class ControldigitacionComponent
         this.lecturasLayer,
       ],
       view: new View({
-        projection: PROYECCION_MAPA,
+        projection: this.gis.proyeccionMapa,
         center: this.gis.vista.centro,
         zoom: this.gis.vista.zoom,
       }),

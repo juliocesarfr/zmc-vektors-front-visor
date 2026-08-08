@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": []
+  },
+  "include": [
+    "src/app/core/gis/**/*.ts",
+    "src/app/shared/**/*.ts",
+    "src/app/_pages/**/*.ts",
+    "src/app/util/**/*.ts"
+  ]
+}

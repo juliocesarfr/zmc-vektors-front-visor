@@ -1,5 +1,27 @@
-import { GisEpsConfig } from "./gis-config.model";
+import {
+  GisEpsConfig,
+  GisProyeccionesConfig,
+  GisVistaConfig,
+} from "./gis-config.model";
+import {
+  PROYECCION_MAPA_DEFECTO,
+  PROYECCION_UTM_DEFECTO,
+} from "./gis-proyeccion";
 
+export const PROYECCIONES_POR_DEFECTO: GisProyeccionesConfig = {
+  mapa: PROYECCION_MAPA_DEFECTO,
+  utm: PROYECCION_UTM_DEFECTO,
+};
+
+/**
+ * Catálogo de capas por EPS.
+ *
+ * Cada entrada es independiente: los nombres reales de las capas no siguen
+ * ninguna convención compartida, así que **nunca** se derivan de otra EPS ni
+ * del workspace. Para dar de alta una EPS basta agregar su `ccodeps` aquí con
+ * las capas que esa EPS publica realmente; puede declarar roles propios que
+ * ninguna otra tenga y omitir los que no publique.
+ */
 export const CONFIG_EPS: Record<string, GisEpsConfig> = {
   "004": {
     ccodeps: "004",
@@ -9,15 +31,15 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       workspace: "eps_yurimaguas",
     },
     capas: {
-      lotes: "yurimaguas_sig_lotes",
-      lotesPorSector: "yurimaguas_sig_lotes_sector_{sector}",
-      sectoresComerciales: "yurimaguas_sig_sectores_comerciales",
-      calles: "yurimaguas_sig_calles",
+      lotes: "emapa_sig_lotes",
+      lotesPorSector: "emapa_sig_lotes_sector_{sector}",
+      sectoresComerciales: "emapa_sig_sectores_comerciales",
+      calles: "emapa_sig_calles",
       usuarios: "usuarios",
       acometidaAgua: "acometida_agua",
       acometidaAlcantarillado: "acometida_alcantarillado",
-      fichaAgua: "yurimaguas_ficha_agua",
-      fichaAlcantarillado: "yurimaguas_ficha_alcantarillado",
+      fichaAgua: "emapa_ficha_agua",
+      fichaAlcantarillado: "emapa_ficha_alcantarillado",
     },
     vista: {
       centro: [-76.1223, -5.9018],
@@ -36,13 +58,13 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       workspace: "emapa",
     },
     capas: {
-      lotes: "emapa_sig_lotes",
-      lotesPorSector: "emapa_sig_lotes_sector_{sector}",
-      sectoresComerciales: "emapa_sig_sectores_comerciales",
-      calles: "emapa_sig_calles",
-      usuarios: "usuarios",
-      acometidaAgua: "acometida_agua",
-      acometidaAlcantarillado: "acometida_alcantarillado",
+      lotes: "lotes_clientes",
+      lotesPorSector: "fcom_sector_{sector}",
+      sectoresComerciales: "fcom_sector",
+      calles: "sm_sig_calles",
+      usuarios: "v_com_fichas_catastrales",
+      acometidaAgua: "sm_sig_acometidas_ap",
+      acometidaAlcantarillado: "sm_sig_acometidas_al",
       fichaAgua: "emapa_ficha_agua",
       fichaAlcantarillado: "emapa_ficha_alcantarillado",
     },
@@ -57,6 +79,36 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
   },
 };
 
-export const CONFIG_EPS_DEFAULT: GisEpsConfig = CONFIG_EPS["016"];
-
 export const ZOOM_POR_DEFECTO = 18;
+
+/**
+ * Vista neutra (Perú completo). Solo se usa cuando ni la EPS ni la empresa
+ * declaran coordenadas: encuadrar sobre la ciudad de otra EPS sería mentirle
+ * al usuario sobre dónde está mirando.
+ */
+export const VISTA_POR_DEFECTO: GisVistaConfig = {
+  centro: [-75.0152, -9.19],
+  zoom: 5,
+};
+
+/**
+ * Configuración para una EPS que todavía no tiene entrada en `CONFIG_EPS`.
+ *
+ * Conserva el GeoServer que reporta el backend (`paramae/URLGIS`) para que las
+ * URLs se construyan bien, pero deja el catálogo de capas **vacío**: como los
+ * nombres no se pueden deducir, es preferible no dibujar capas a dibujar las de
+ * otra EPS.
+ */
+export function configSinCapas(
+  ccodeps: string,
+  baseUrl: string,
+  workspace: string,
+): GisEpsConfig {
+  return {
+    ccodeps,
+    descripcion: ccodeps ? `EPS ${ccodeps}` : "EPS sin identificar",
+    geoserver: { baseUrl, workspace },
+    capas: {},
+    proyecciones: PROYECCIONES_POR_DEFECTO,
+  };
+}

@@ -44,7 +44,6 @@ import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import {
-  PROYECCION_MAPA,
   ORIGENES_COORDENADA,
   ConfigOrigenCoordenada
 } from "../../../config/Controldigitacion.config";
@@ -171,6 +170,9 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   ) { }
 
   ngOnInit(): void {
+    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
+    this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+
     forkJoin({
       ciclos: this.consulGenericService.getconsultaService("CCO", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
       estadoServicio: this.consulGenericService.getconsultaService("TES", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
@@ -663,7 +665,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         this.usuariosLayer
       ],
       view: new View({
-        projection: PROYECCION_MAPA,
+        projection: this.gis.proyeccionMapa,
         center: this.gis.vista.centro,
         zoom: this.gis.vista.zoom,
       }),

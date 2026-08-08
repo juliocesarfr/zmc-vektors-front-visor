@@ -2,10 +2,8 @@ import { transform } from "ol/proj";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
-import {
-  ConfigOrigenCoordenada,
-  PROYECCION_MAPA,
-} from "../config/Controldigitacion.config";
+import { ConfigOrigenCoordenada } from "../config/Controldigitacion.config";
+import { getProyeccionMapa } from "../core/gis/gis-proyeccion";
 
 /** Distancia entre dos puntos WGS84 en metros (fórmula de Haversine). */
 export function distanciaHaversineMetros(
@@ -50,8 +48,10 @@ export function extraerCoordenada(
 
   if (invalida) return null;
 
-  if (config.proyeccion !== PROYECCION_MAPA) {
-    return transform([lon, lat], config.proyeccion, PROYECCION_MAPA) as [
+  // Proyección de la EPS logueada; la publica `GisConfigService` al resolverse.
+  const proyeccionMapa = getProyeccionMapa();
+  if (config.proyeccion !== proyeccionMapa) {
+    return transform([lon, lat], config.proyeccion, proyeccionMapa) as [
       number,
       number,
     ];

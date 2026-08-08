@@ -57,7 +57,6 @@ import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/c
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
 
 import {
-  PROYECCION_MAPA,
   TIPOS_RECEPCION_IMG,
   TIPOS_RECEPCION_IMGCORE,
   ORIGENES_COORDENADA,
@@ -301,6 +300,9 @@ export class SeguimientoCortesconProgramaComponent
   // ============================================================
 
   ngOnInit(): void {
+    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
+    this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+
     this.consultaService
       .getconsultaService("SUC", "ALL", "ALL", "ALL")
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -582,11 +584,12 @@ export class SeguimientoCortesconProgramaComponent
     const x = flat[0];
     const y = flat[1];
     if (x == null || y == null) return null;
+    const proyeccionMapa = this.gis.proyeccionMapa;
     const src =
       Math.abs(x) > 180 || Math.abs(y) > 90
         ? this.gis.proyeccionUtm
-        : PROYECCION_MAPA;
-    if (src !== PROYECCION_MAPA) geom.transform(src, PROYECCION_MAPA);
+        : proyeccionMapa;
+    if (src !== proyeccionMapa) geom.transform(src, proyeccionMapa);
     return geom;
   }
 
@@ -790,7 +793,7 @@ export class SeguimientoCortesconProgramaComponent
         this.cortesLayer,
       ],
       view: new View({
-        projection: PROYECCION_MAPA,
+        projection: this.gis.proyeccionMapa,
         center: this.gis.vista.centro,
         zoom: this.gis.vista.zoom,
       }),

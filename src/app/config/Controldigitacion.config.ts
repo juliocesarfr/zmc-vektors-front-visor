@@ -1,4 +1,11 @@
-export const PROYECCION_MAPA = "EPSG:4326";
+import { PROYECCION_MAPA_DEFECTO } from "../core/gis/gis-proyeccion";
+
+/**
+ * @deprecated La proyección del mapa depende de la EPS. Use
+ * `GisConfigService.proyeccionMapa` en componentes y `getProyeccionMapa()` en
+ * funciones puras; esta constante queda solo como valor por defecto.
+ */
+export const PROYECCION_MAPA = PROYECCION_MAPA_DEFECTO;
 
 export const DISTANCIA_MAX_ACOMETIDA_M = 50;
 
@@ -22,6 +29,11 @@ export interface ConfigOrigenCoordenada {
   proyeccion: string;
 }
 
+/**
+ * `proyeccion` es la proyección en la que el backend guarda esos campos (WGS84
+ * en todas las EPS), no la del mapa: `extraerCoordenada` reproyecta de aquí a
+ * la proyección de la EPS logueada cuando difieren.
+ */
 export const ORIGENES_COORDENADA: Record<
   OrigenCoordenada,
   ConfigOrigenCoordenada

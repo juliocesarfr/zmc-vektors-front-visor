@@ -9,7 +9,8 @@ import {
   ViewChild,
   ElementRef,
   CUSTOM_ELEMENTS_SCHEMA,
-  ViewEncapsulation
+  ViewEncapsulation,
+  inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -28,7 +29,7 @@ import VectorSource from 'ol/source/Vector';
 import { Feature } from 'ol';
 
 import { observarTamanoMapa } from '../../../util/Mapinit.util';
-import { GEOSERVER_URL, GEOSERVER_CAPAS, VISTA_INICIAL } from '../../../config/Controldigitacion.config';
+import { GisConfigService } from '../../../core/gis';
 import { MapEstilosFactory } from '../../../util/Mapaestilos.factory';
 
 export interface BaseLayerConfig {
@@ -57,20 +58,22 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() title: string = "MAPA VISOR";
   @Input() titleIcon: string = "assets/images/img-medicion/writing.png";
   @Input() cargando: boolean = false;
-  @Input() mapCenter: [number, number] = VISTA_INICIAL.centro;
-  @Input() mapZoom: number = VISTA_INICIAL.zoom;
+  /** Override opcional; por defecto se usa la vista de la EPS logueada. */
+  @Input() mapCenter?: [number, number];
+  /** Override opcional; por defecto se usa el zoom de la EPS logueada. */
+  @Input() mapZoom?: number;
 
   @Input() baseLayers: BaseLayerConfig[] = [
     { id: "osm", label: "OSM", iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif" },
     { id: "satelital", label: "Satelital", iconUrl: "assets/images/img-georeferencia/satellital-icon.gif" },
   ];
 
-  @Input() commercialLayers: CommercialLayerConfig[] = [
-    { id: "usuarios", label: "Usuarios", active: true },
-    { id: "lotes", label: "Lotes", active: true },
-    { id: "sectores", label: "Sectores Comerciales", active: false },
-    { id: "calles", label: "Calles", active: false },
-  ];
+  /**
+   * Switches de capas comerciales. No se recibe por parámetro: se arma con las
+   * capas que declara la EPS logueada, así que cada EPS ve exactamente las
+   * suyas (incluidas las que ninguna otra publica) sin tocar este componente.
+   */
+  commercialLayers: CommercialLayerConfig[] = [];
 
   @Input() customVectorLayers: VectorLayer<VectorSource>[] = [];
 
@@ -82,6 +85,9 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @ViewChild('mapContainer', { static: false }) mapContainer!: ElementRef;
 
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
+
   map!: OlMap;
   private detenerObservadorMapa?: () => void;
   sidebarOpen = false;
@@ -92,11 +98,38 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private osmLayer!: TileLayer<OSM>;
   private satelitalLayer!: TileLayer<XYZ>;
-  private catastroLayer!: TileLayer<TileWMS>;
-  private callLayer!: TileLayer<TileWMS>;
-  private secComLayer!: TileLayer<TileWMS>;
 
-  ngOnInit(): void {}
+  /** Rol de capa -> capa WMS creada para esta EPS. */
+  private readonly capasWms = new Map<string, TileLayer<TileWMS>>();
+
+  /** Id del switch que agrupa las capas vectoriales que aporta el padre. */
+  private static readonly SWITCH_VECTORIAL = "usuarios";
+
+  ngOnInit(): void {
+    // Las capas WMS salen del catálogo de la EPS logueada, en su orden de
+    // declaración. La primera arranca visible (es la capa base catastral de esa
+    // EPS); el resto queda apagada.
+    const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
+
+    const switchVectorial: CommercialLayerConfig[] = this.customVectorLayers.length
+      ? [
+          {
+            id: MapaVisorComponent.SWITCH_VECTORIAL,
+            label: this.gis.etiquetaCapa(MapaVisorComponent.SWITCH_VECTORIAL),
+            active: true,
+          },
+        ]
+      : [];
+
+    this.commercialLayers = [
+      ...switchVectorial,
+      ...capasEps.map((capa, i) => ({
+        id: capa.id,
+        label: capa.label,
+        active: i === 0,
+      })),
+    ];
+  }
 
   ngAfterViewInit(): void {
     this.crearMapa();
@@ -120,6 +153,20 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /** Capa WMS del workspace de la EPS. */
+  private crearWms(capa: string, visible: boolean, opacity = 1): TileLayer<TileWMS> {
+    return new TileLayer({
+      visible,
+      opacity,
+      source: new TileWMS({
+        url: this.gis.urlWms(),
+        params: { LAYERS: capa, TILED: false },
+        serverType: "geoserver",
+        transition: 0,
+      }),
+    });
+  }
+
   private crearMapa(): void {
     this.osmLayer = new TileLayer({
       source: new OSM(),
@@ -133,51 +180,32 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
       visible: this.baseActive === "satelital",
     });
 
-    this.catastroLayer = new TileLayer({
-      source: new TileWMS({
-        url: GEOSERVER_URL,
-        params: { LAYERS: GEOSERVER_CAPAS.lotes, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-      visible: true,
-      opacity: 0.7,
+    // Una capa WMS por cada capa que declara la EPS, en el mismo orden que los
+    // switches. La capa base catastral va semitransparente para dejar ver el
+    // mapa de fondo.
+    this.capasWms.clear();
+    const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
+    capasEps.forEach((capa, i) => {
+      this.capasWms.set(
+        capa.id,
+        this.crearWms(capa.capa, i === 0, i === 0 ? 0.7 : 1),
+      );
     });
 
-    this.callLayer = new TileLayer({
-      source: new TileWMS({
-        url: GEOSERVER_URL,
-        params: { LAYERS: GEOSERVER_CAPAS.calles, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-      visible: false,
-    });
-
-    this.secComLayer = new TileLayer({
-      source: new TileWMS({
-        url: GEOSERVER_URL,
-        params: { LAYERS: GEOSERVER_CAPAS.sectoresComerciales, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-      visible: false,
-    });
+    const vista = this.gis.vista;
 
     this.map = new OlMap({
       target: undefined,
       layers: [
         this.osmLayer,
         this.satelitalLayer,
-        this.catastroLayer,
-        this.callLayer,
-        this.secComLayer,
+        ...this.capasWms.values(),
         ...this.customVectorLayers
       ],
       view: new View({
-        projection: "EPSG:4326",
-        center: this.mapCenter,
-        zoom: this.mapZoom,
+        projection: this.gis.proyeccionMapa,
+        center: this.mapCenter ?? vista.centro,
+        zoom: this.mapZoom ?? vista.zoom,
       }),
       controls: defaultControls({ zoom: false }),
     });
@@ -215,15 +243,13 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   toggleCommercialLayer(layer: CommercialLayerConfig): void {
     layer.active = !layer.active;
-    if (layer.id === "usuarios") {
+
+    if (layer.id === MapaVisorComponent.SWITCH_VECTORIAL) {
       this.customVectorLayers.forEach(l => l.setVisible(layer.active));
-    } else if (layer.id === "lotes") {
-      this.catastroLayer.setVisible(layer.active);
-    } else if (layer.id === "sectores") {
-      this.secComLayer.setVisible(layer.active);
-    } else if (layer.id === "calles") {
-      this.callLayer.setVisible(layer.active);
+      return;
     }
+
+    this.capasWms.get(layer.id)?.setVisible(layer.active);
   }
 
   abrirBusqueda(): void {
