@@ -2,10 +2,8 @@ import { transform } from "ol/proj";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
-import {
-  ConfigOrigenCoordenada,
-  PROYECCION_MAPA,
-} from "../config/Controldigitacion.config";
+import { ConfigOrigenCoordenada } from "../config/Controldigitacion.config";
+import { getProyeccionMapa } from "../core/gis/gis-proyeccion";
 
 /** Distancia entre dos puntos WGS84 en metros (fórmula de Haversine). */
 export function distanciaHaversineMetros(
@@ -29,8 +27,15 @@ export function extraerCoordenada(
   registro: Record<string, unknown>,
   config: ConfigOrigenCoordenada,
 ): [number, number] | null {
-  const rawLon = registro[config.lonField];
-  const rawLat = registro[config.latField];
+  let rawLon = registro[config.lonField];
+  let rawLat = registro[config.latField];
+
+  // Fallback para manejar variaciones en los procedures
+  if (rawLon == null || rawLat == null) {
+    rawLon = registro['lon'] ?? registro['lonpredio'] ?? registro['coord_x'] ?? registro['longitud'] ?? rawLon;
+    rawLat = registro['lat'] ?? registro['latpredio'] ?? registro['coord_y'] ?? registro['latitud'] ?? rawLat;
+  }
+
   const lon = Number(rawLon);
   const lat = Number(rawLat);
 
@@ -43,8 +48,10 @@ export function extraerCoordenada(
 
   if (invalida) return null;
 
-  if (config.proyeccion !== PROYECCION_MAPA) {
-    return transform([lon, lat], config.proyeccion, PROYECCION_MAPA) as [
+  // Proyección de la EPS logueada; la publica `GisConfigService` al resolverse.
+  const proyeccionMapa = getProyeccionMapa();
+  if (config.proyeccion !== proyeccionMapa) {
+    return transform([lon, lat], config.proyeccion, proyeccionMapa) as [
       number,
       number,
     ];

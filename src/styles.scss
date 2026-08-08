@@ -1,6 +1,3 @@
-/* You can add global styles to this file, and also import other style files */
-
-/* Ensures router-outlet sibling elements (the routed components) fill the available space */
 html,
 body {
   height: 100%;
@@ -51,7 +48,6 @@ app-controldigitacion {
   }
 }
 
-/* Custom styling for the dynamic dialog header */
 .custom-dialog-instalacion {
   .p-dialog-header {
     background: #0284c7 !important;
@@ -70,7 +66,7 @@ app-controldigitacion {
       text-transform: none !important;
 
       &::before {
-        content: "\e92b" !important; /* user icon in primeicons */
+        content: "\e92b" !important; 
         font-family: 'primeicons' !important;
         font-size: 1.2rem !important;
         color: #bae6fd !important;
@@ -85,6 +81,6 @@ app-controldigitacion {
         background: rgba(255, 255, 255, 0.2) !important;
         color: #ffffff !important;
       }
-    }
   }
+}
 }

@@ -46,10 +46,6 @@ import { Filtroresumenxinspector } from "@host/_models/vektors/Filtroresumenxins
 import { Filtrodetalletomalectura_xinspector } from "@host/_models/vektors/Filtrodetalletomalectura_xinspector";
 
 import {
-  GEOSERVER_URL,
-  GEOSERVER_CAPAS,
-  PROYECCION_MAPA,
-  VISTA_INICIAL,
   ORIGENES_COORDENADA,
   ConfigOrigenCoordenada,
   COLORES_SEGUIMIENTO_LECTURA,
@@ -57,6 +53,7 @@ import {
   Sector,
   SECTOR_TODOS,
 } from "../../../config/Controldigitacion.config";
+import { fromCircle } from 'ol/geom/Polygon';
 import {
   extraerCoordenada,
   distanciaHaversineMetros,
@@ -68,6 +65,7 @@ import {
   RADIOS_LECTURA,
   RADIOS_FICHA,
 } from "../../../util/Mapaestilos.factory";
+import { GisConfigService } from "../../../core/gis";
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
 
 // ============================================================
@@ -154,6 +152,8 @@ export class SeguimientoDeLecturaXinspectorComponent
   implements OnInit, AfterViewInit, OnDestroy
 {
   private readonly destroyRef = inject(DestroyRef);
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -175,8 +175,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private capasVector: VectorLayer<VectorSource>[] = [];
-
-  /** id de capa (HTML) → capa de OpenLayers. Mismo patrón que Control Digitación. */
   private registroCapas: Record<string, BaseLayer> = {};
 
   // ---- Sesión ----
@@ -214,7 +212,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   totalSospechosas = 0;
   totalLejos = 0;
 
-  // ---- UI ----
   filtrosVisible = true;
   sidebarOpen = true;
   cargando = false;
@@ -231,7 +228,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     {
       id: "osm",
       label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-icon.gif",
+      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
     },
     {
       id: "satelital",
@@ -259,6 +256,9 @@ export class SeguimientoDeLecturaXinspectorComponent
   ) {}
 
   ngOnInit(): void {
+    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
+    this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+
     this.aperturaservices
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -280,6 +280,11 @@ export class SeguimientoDeLecturaXinspectorComponent
     requestAnimationFrame(() => {
       this.map.setTarget(this.mapContainer.nativeElement);
       this.map.updateSize();
+      MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+        if (geometry && geometry.getType() === 'Circle') {
+          this.contarElementosEnRadio(geometry);
+        }
+      });
       this.detenerObservadorMapa = observarTamanoMapa(
         this.map,
         this.mapContainer.nativeElement,
@@ -291,6 +296,30 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.detenerObservadorMapa?.();
     this.map?.setTarget(undefined);
     this.ref?.close();
+  }
+
+  private contarElementosEnRadio(circleGeom: any): void {
+    const polygon = fromCircle(circleGeom);
+    const extent = polygon.getExtent();
+    let count = 0;
+
+    if (this.usuariosLayer) {
+      const source = this.usuariosLayer.getSource();
+      if (source) {
+        source.forEachFeatureIntersectingExtent(extent, (feature) => {
+          const geom = feature.getGeometry();
+          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
+            count++;
+          }
+        });
+      }
+    }
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Selección de Radio',
+      detail: `Se encontraron ${count} usuarios en el área seleccionada.`
+    });
   }
 
   // ============================================================
@@ -633,7 +662,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     return new TileLayer({
       visible,
       source: new TileWMS({
-        url: GEOSERVER_URL,
+        url: this.gis.urlWms(),
         params: { LAYERS: layer, TILED: false },
         serverType: "geoserver",
         transition: 0,
@@ -653,12 +682,12 @@ export class SeguimientoDeLecturaXinspectorComponent
       visible: this.baseActive === "satelital",
     });
 
-    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
     this.sectoresComercialesLayer = this.crearWms(
-      GEOSERVER_CAPAS.sectoresComerciales,
+      this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -726,9 +755,9 @@ export class SeguimientoDeLecturaXinspectorComponent
         this.usuariosLayer,
       ],
       view: new View({
-        projection: PROYECCION_MAPA,
-        center: VISTA_INICIAL.centro,
-        zoom: VISTA_INICIAL.zoom,
+        projection: this.gis.proyeccionMapa,
+        center: this.gis.vista.centro,
+        zoom: this.gis.vista.zoom,
       }),
     });
   }
@@ -737,6 +766,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.map.on("singleclick", (evt) => {
       const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
         hitTolerance: 5,
+        layerFilter: (layer: any) => !layer.get('isDrawLayer')
       }) as Feature | undefined;
 
       if (feature) {
@@ -758,6 +788,17 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.registroSeleccionado = null;
     this.featureSeleccionado = null;
     this.capasVector.forEach((capa) => capa.changed());
+  }
+
+  abrirStreetView(lon: any, lat: any) {
+    if (lat && lon) {
+      window.open(
+        `https://www.google.com/maps?layer=c&cbll=${lat},${lon}`,
+        "_blank"
+      );
+    } else {
+      this.avisar("warn", "Aviso", "Coordenadas no disponibles para este predio");
+    }
   }
 
   // ============================================================

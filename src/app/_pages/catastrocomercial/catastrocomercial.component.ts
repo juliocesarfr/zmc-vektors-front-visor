@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
@@ -7,6 +7,7 @@ import LayerGroup from 'ol/layer/Group';
 import XYZ from 'ol/source/XYZ';
 import TileWMS from 'ol/source/TileWMS';
 import { CommonModule } from '@angular/common';
+import { CapaGisId, GisConfigService } from '../../core/gis';
 
 @Component({
   selector: 'app-catastrocomercial',
@@ -16,6 +17,9 @@ import { CommonModule } from '@angular/common';
   styleUrl: './catastrocomercial.component.scss'
 })
 export class CatastrocomercialComponent implements OnInit {
+
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
 
   map!: Map;
       acometidaAgua!: TileLayer;
@@ -30,7 +34,22 @@ export class CatastrocomercialComponent implements OnInit {
       tabActiva = 'general';
       popupX = 0;
       popupY = 0;
-      
+
+/** Capa WMS de la EPS a partir de su id lógico. */
+private crearWms(id: CapaGisId): TileLayer {
+  return new TileLayer({
+    visible: false,
+    source: new TileWMS({
+      url: this.gis.urlWms(),
+      params: {
+        LAYERS: this.gis.capa(id),
+        TILED: true
+      },
+      serverType: 'geoserver'
+    })
+  });
+}
+
 ngOnInit(): void {
   const capasBase = new LayerGroup({
     layers: [
@@ -46,76 +65,14 @@ ngOnInit(): void {
       })
     ]
   });
-this.lotesLayer = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms',
-    params: {
-      LAYERS: 'eps_yurimaguas:yurimaguas_sig_lotes',
-      TILED: true
-    },
-    serverType: 'geoserver'
-  })
-});
+this.lotesLayer = this.crearWms('lotes');
+this.usuariosLayer = this.crearWms('usuarios');
+this.sectoresLayer = this.crearWms('sectoresComerciales');
+this.acometidaAgua = this.crearWms('acometidaAgua');
+this.acometidaAlcantarillado = this.crearWms('acometidaAlcantarillado');
+this.fichaAgua = this.crearWms('fichaAgua');
+this.fichaAlcantarillado = this.crearWms('fichaAlcantarillado');
 
-this.usuariosLayer = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms',
-    params: {
-      LAYERS: 'eps_yurimaguas:usuarios',
-      TILED: true
-    },
-    serverType: 'geoserver'
-  })
-});
-  this.acometidaAgua = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms',
-        params: {
-      LAYERS: 'eps_yurimaguas:acometida_agua',
-      TILED: true
-    },
-    serverType: 'geoserver'
-  })
-});
-
-this.acometidaAlcantarillado = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms',
-    params: {
-      LAYERS: 'eps_yurimaguas:acometida_alcantarillado',
-      TILED: true
-    },
-    serverType: 'geoserver'
-  })
-});
-
-this.fichaAgua = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms',
-    params: {
-      LAYERS: 'eps_yurimaguas:yurimaguas_ficha_agua',
-      TILED: true
-    },
-    serverType: 'geoserver'
-  })
-});
-
-this.fichaAlcantarillado = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms',
-    params: {
-      LAYERS: 'eps_yurimaguas:yurimaguas_ficha_alcantarillado',
-      TILED: true
-    },
-    serverType: 'geoserver'
-  })
-});  
 this.map = new Map({
   target: 'map',
   layers: [
@@ -125,13 +82,14 @@ this.map = new Map({
   this.fichaAgua,
   this.fichaAlcantarillado,
   this.lotesLayer,
+  this.sectoresLayer,
   this.usuariosLayer
 ],
 
  view: new View({
-    projection: 'EPSG:4326',
-    center: [-76.1223, -5.9018],
-    zoom: 18
+    projection: this.gis.proyeccionMapa,
+    center: this.gis.vista.centro,
+    zoom: this.gis.vista.zoom
   })
 });
 this.map.on('singleclick', (evt) => {
@@ -143,7 +101,7 @@ this.map.on('singleclick', (evt) => {
   const url = source.getFeatureInfoUrl(
     evt.coordinate,
     viewResolution!,
-    'EPSG:4326',
+    this.gis.proyeccionMapa,
     {
       INFO_FORMAT: 'application/json'
     }

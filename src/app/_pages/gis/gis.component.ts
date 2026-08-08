@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
@@ -18,7 +18,7 @@ import { Point, LineString, Polygon } from 'ol/geom';
 import { Fill, RegularShape, Stroke, Style, Text } from 'ol/style';
 import CircleStyle from 'ol/style/Circle';
 import { ConsulGenericService } from '@host/_servicios/consultaGeneral/consul-generic.service';
-import { ParamaeService } from '@host/_servicios/administracion/paramae.service';
+import { GisConfigService } from '../../core/gis';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
 import { DropdownModule } from 'primeng/dropdown';
@@ -31,6 +31,12 @@ import { DropdownModule } from 'primeng/dropdown';
   styleUrl: './gis.component.scss',
 })
 export class GisComponent implements OnInit {
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
+
+  /** Zoom general de este visor de dibujo/medición (vista de ciudad, no de lote). */
+  private static readonly ZOOM_VISOR = 12.5;
+
   map!: Map;
   longitud: any;
   latitud: any;
@@ -163,8 +169,7 @@ export class GisComponent implements OnInit {
   tipPoint;
 
   constructor(
-    private _consultaService: ConsulGenericService,
-    private _paramaeService: ParamaeService
+    private _consultaService: ConsulGenericService
   ) {}
 
   ngOnInit(): void {
@@ -172,9 +177,9 @@ export class GisComponent implements OnInit {
   }
 
   cargarDatos() {
-    this._consultaService.getdatosEmpresa().subscribe((data) => {
-      this.latitud = data.data.emp.latitud;
-      this.longitud = data.data.emp.longitud;
+    // `cargar()` está cacheado (shareReplay): el resolver de ruta ya lo resolvió.
+    this.gis.cargar().subscribe(() => {
+      [this.longitud, this.latitud] = this.gis.vista.centro;
 
       const lg_capas_base = new LayerGroup({
         properties: {
@@ -202,9 +207,9 @@ export class GisComponent implements OnInit {
         target: 'map',
         layers: [lg_capas_base],
         view: new View({
-          projection: 'EPSG:4326',
+          projection: this.gis.proyeccionMapa,
           center: [this.longitud, this.latitud],
-          zoom: 12.5,
+          zoom: GisComponent.ZOOM_VISOR,
         }),
       });
 
@@ -276,7 +281,7 @@ export class GisComponent implements OnInit {
   }
 
   formatLength(line: LineString): string {
-    const transformedLine = line.clone().transform('EPSG:4326', 'EPSG:3857');
+    const transformedLine = line.clone().transform(this.gis.proyeccionMapa, 'EPSG:3857');
     const length = getLength(transformedLine);
     let output;
     if (length > 100) {
@@ -309,7 +314,7 @@ export class GisComponent implements OnInit {
 
       if (type === 'Polygon') {
         point = geometry.getInteriorPoint();
-        const transformedPolygon = geometry.clone().transform('EPSG:4326', 'EPSG:3857');
+        const transformedPolygon = geometry.clone().transform(this.gis.proyeccionMapa, 'EPSG:3857');
         label = this.formatArea(transformedPolygon);
         line = new LineString(geometry.getCoordinates()[0]);
       } else if (type === 'LineString') {
