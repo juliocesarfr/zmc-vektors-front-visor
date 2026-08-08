@@ -29,8 +29,15 @@ export function extraerCoordenada(
   registro: Record<string, unknown>,
   config: ConfigOrigenCoordenada,
 ): [number, number] | null {
-  const rawLon = registro[config.lonField];
-  const rawLat = registro[config.latField];
+  let rawLon = registro[config.lonField];
+  let rawLat = registro[config.latField];
+
+  // Fallback para manejar variaciones en los procedures
+  if (rawLon == null || rawLat == null) {
+    rawLon = registro['lon'] ?? registro['lonpredio'] ?? registro['coord_x'] ?? registro['longitud'] ?? rawLon;
+    rawLat = registro['lat'] ?? registro['latpredio'] ?? registro['coord_y'] ?? registro['latitud'] ?? rawLat;
+  }
+
   const lon = Number(rawLon);
   const lat = Number(rawLat);
 

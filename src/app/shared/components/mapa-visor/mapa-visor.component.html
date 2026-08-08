@@ -1,0 +1,77 @@
+<div class="cd-wrapper">
+  
+  <div class="cd-toolbar">
+    <div class="cd-title">
+      <img [src]="titleIcon" alt="mapa-visor" />
+      <h3>{{ title }} <span>| Mapa</span></h3>
+    </div>
+    
+    <div class="cd-toolbar-actions">
+      <ng-content select="[toolbar-actions]"></ng-content>
+    </div>
+  </div>
+
+  <ng-content select="[filtros-panel]"></ng-content>
+
+  <div class="cd-map-container">
+    <div *ngIf="cargando" class="map-loading-overlay">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Cargando mapa...</span>
+    </div>
+
+    <ng-content select="[map-summary]"></ng-content>
+
+    <div id="map" #mapContainer class="map"></div>
+
+    <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
+      <div class="search-header">
+        <span><i class="pi pi-search"></i> Buscar Cliente</span>
+        <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+      </div>
+      <div class="search-actions" *ngIf="isBusquedaActiva">
+        <span class="limpiar-link" (click)="limpiarBusqueda()">
+          <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+        </span>
+      </div>
+      <div class="search-body p-inputgroup mt-2">
+        <input type="text" pInputText placeholder="Buscar..." [(ngModel)]="searchQuery" (keyup.enter)="emitirBusqueda()">
+        <button pButton type="button" icon="pi pi-search" (click)="emitirBusqueda()" class="p-button-primary" title="Buscar"></button>
+      </div>
+    </div>
+    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
+      <i class="pi pi-search"></i>
+    </button>
+
+    <div class="gis-sidebar-container">
+      <div class="gis-sidebar-panel" *ngIf="sidebarOpen">
+        <div class="sidebar-title">
+          <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
+        </div>
+        <div class="base-layers">
+          <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
+            <img class="icon" [src]="l.iconUrl" [alt]="l.label" />
+            <span>{{ l.label }}</span>
+          </button>
+        </div>
+        <div class="divider"></div>
+        <div class="sidebar-title">
+          <img src="assets/images/img-georeferencia/radar-icon.gif" class="gif-icon" alt="Capas"> CAPAS COMERCIALES
+        </div>
+        <div class="commercial-layers">
+          <div class="c-layer" *ngFor="let l of commercialLayers" (click)="toggleCommercialLayer(l)">
+            <span [class.active-text]="l.active">{{ l.label }}</span>
+            <div class="custom-toggle" [class.on]="l.active">
+              <div class="toggle-circle"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="sidebar-toggle-btn" [class.closed]="!sidebarOpen" (click)="toggleSidebar()" [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
+        <span *ngIf="!sidebarOpen" class="stb-text">VER CAPAS</span>
+        <i class="pi" [class.pi-chevron-left]="sidebarOpen" [class.pi-chevron-right]="!sidebarOpen"></i>
+      </button>
+    </div>
+
+    <ng-content select="[map-popup]"></ng-content>
+  </div>
+</div>

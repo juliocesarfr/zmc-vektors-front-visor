@@ -1,0 +1,198 @@
+<div class="user-popup" *ngIf="clienteSeleccionado" (click)="$event.stopPropagation()">
+  <div class="up-header">
+    <div class="up-header-left">
+      <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
+      <div class="up-header-info">
+        <span class="up-label">TITULAR DEL PREDIO</span>
+        <strong class="up-name">{{ clienteSeleccionado.propietario || 'SIN REGISTRO' }}</strong>
+      </div>
+    </div>
+    <button class="up-close" (click)="cerrarPopup($event)"><i class="pi pi-times"></i></button>
+  </div>
+
+  <div class="up-suministro">
+    <div class="up-sum-item primary">
+      <i class="pi pi-bolt"></i>
+      <span class="up-sum-label">CÓDIGO CLIENTE</span>
+      <span class="up-sum-value">{{ clienteSeleccionado.codcliente || '-' }}</span>
+    </div>
+    <div class="up-sum-sep"></div>
+    <div class="up-sum-item">
+      <i class="pi pi-bolt"></i>
+      <span class="up-sum-label">NRO. MEDIDOR</span>
+      <span class="up-sum-value">{{ clienteSeleccionado.nromed || clienteSeleccionado.nromedidor || clienteSeleccionado.nummed || '-' }}</span>
+    </div>
+  </div>
+
+  <div class="up-body">
+    <div class="up-section">
+      <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN
+          Y PREDIO
+        </div>
+        <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+          title="Ver en Google Street View"
+          (click)="abrirStreetView($event)"
+          style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
+            alt="Street View">
+          <span style="font-weight: 900;">Ver en Maps</span>
+        </button>
+      </div>
+      <div class="up-grid grid-3">
+        <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ clienteSeleccionado.codsector || '-' }} <small *ngIf="clienteSeleccionado.sector">{{ clienteSeleccionado.sector }}</small></span></div>
+        <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ clienteSeleccionado.mza || clienteSeleccionado.manzana || clienteSeleccionado.codmza || '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Lote/Sub.</span><span class="uc-val">{{
+            clienteSeleccionado.lote || clienteSeleccionado.nrolote || '-' }}{{ (clienteSeleccionado.sublote || clienteSeleccionado.nrosublote) ? ' / ' +
+            (clienteSeleccionado.sublote || clienteSeleccionado.nrosublote) : '' }}</span></div>
+
+        <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{
+            clienteSeleccionado.direccion || 
+            ((clienteSeleccionado.descripcioncorta ? clienteSeleccionado.descripcioncorta + ' ' : '') +
+            (clienteSeleccionado.descripcioncalle || clienteSeleccionado.descalle || '-') + (clienteSeleccionado.nrocalle ? ' N° ' +
+            clienteSeleccionado.nrocalle : '')) }}</span></div>
+
+        <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{
+            clienteSeleccionado.catetar || '-' }} {{ getTarifaName(clienteSeleccionado.catetar) ||
+            clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria || clienteSeleccionado.destarifa ? '- ' +
+            (getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa ||
+            clienteSeleccionado.nomtar || clienteSeleccionado.categoria || clienteSeleccionado.destarifa) : '' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Actividad</span><span class="uc-val">{{
+            clienteSeleccionado.actividad || clienteSeleccionado.desactividad || clienteSeleccionado.descactividad || clienteSeleccionado.codactividad || '-' }}</span></div>
+      </div>
+    </div>
+
+    <div class="up-section">
+      <div class="up-section-title medidor">
+        <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Medidor"> SERVICIO
+      </div>
+
+      <div class="up-lecturas-row">
+        <div class="up-lec-badge prev"><span class="ulb-label">LECTURA ANT.</span><span class="ulb-val">{{
+            clienteSeleccionado.lecturaanterior ?? '-' }}</span></div>
+        <i class="pi pi-arrow-right up-lec-arrow"></i>
+        <div class="up-lec-badge curr"><span class="ulb-label">LECTURA ACT.</span><span class="ulb-val">{{
+            clienteSeleccionado.lecturaultima ?? '-' }}</span></div>
+      </div>
+
+      <div class="up-lecturas-row" style="margin-top: 8px;">
+        <div class="up-lec-badge prom"><span class="ulb-label">PROM. CONSUMO</span><span class="ulb-val">{{
+            clienteSeleccionado.lecturapromedio ?? '-' }}</span></div>
+        <div class="up-lec-badge cons"><span class="ulb-label">ÚLTIMO CONSUMO</span><span class="ulb-val">{{
+            clienteSeleccionado.consumo ?? '-' }}</span></div>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 8px;" *ngIf="clienteSeleccionado.fechaaforoini !== undefined || clienteSeleccionado.fechainsmed !== undefined">
+        <div class="up-cell"><span class="uc-label">Fecha Aforo Ini.</span><span class="uc-val">{{ clienteSeleccionado.fechaaforoini ? (clienteSeleccionado.fechaaforoini | date:'dd/MM/yyyy') : '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Fecha Ins. Med.</span><span class="uc-val">{{ clienteSeleccionado.fechainsmed ? (clienteSeleccionado.fechainsmed | date:'dd/MM/yyyy') : '-' }}</span></div>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 5px;" *ngIf="clienteSeleccionado.situacionmed !== undefined || clienteSeleccionado.tipopromedio !== undefined">
+        <div class="up-cell"><span class="uc-label">Situación Medidor</span><span class="uc-val">{{ clienteSeleccionado.situacionmed || '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Tipo Promedio</span><span class="uc-val">{{ clienteSeleccionado.tipopromedio == '0' ? '0-Medido' : (clienteSeleccionado.tipopromedio == '1' ? '1-Asignado' : (clienteSeleccionado.tipopromedio == '2' ? '2-Promediado' : (clienteSeleccionado.tipopromedio || '-'))) }}</span></div>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 5px;" *ngIf="clienteSeleccionado.volumesp !== undefined || clienteSeleccionado.actinac !== undefined">
+        <div class="up-cell"><span class="uc-label">Volumen Esp.</span><span class="uc-val">{{ clienteSeleccionado.volumesp ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Est. Activo</span><span class="uc-val">{{ clienteSeleccionado.actinac_str || (clienteSeleccionado.actinac === 'A' ? 'ACTIVO' : (clienteSeleccionado.actinac === 'I' ? 'INACTIVO' : (clienteSeleccionado.actinac || '-'))) }}</span></div>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 5px;">
+        <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est"
+            [ngStyle]="{'background': clienteSeleccionado.estservicio === 'A' ? '#f0fdf4' : (clienteSeleccionado.estservicio === 'C' ? '#fef2f2' : '#fefce8'), 'color': clienteSeleccionado.estservicio === 'A' ? '#15803d' : (clienteSeleccionado.estservicio === 'C' ? '#b91c1c' : '#a16207')}">
+            {{ clienteSeleccionado.estadoservicio || clienteSeleccionado.desestadoservicio || clienteSeleccionado.desestservicio || '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est"
+            style="background:#f0fdf4; color:#15803d;">{{ clienteSeleccionado.tiposervicio || clienteSeleccionado.destiposervicio || '-' }}</span></div>
+
+        <div class="up-cell full"><span class="uc-label">Fecha Ingreso</span><span class="uc-val">{{
+            clienteSeleccionado.flagnuevousu ? (clienteSeleccionado.flagnuevousu | date:'dd/MM/yyyy') :
+            (clienteSeleccionado.feciniactividad | date:'dd/MM/yyyy') || '-' }}</span></div>
+      </div>
+    </div>
+
+    <!-- HISTORIAL DE CONSUMO (Altos Consumidores) -->
+    <div class="up-section" *ngIf="clienteSeleccionado.consumo_1 !== undefined">
+      <div class="up-section-title medidor">
+        <i class="pi pi-chart-bar" style="margin-right: 5px;"></i> HISTORIAL CONSUMOS
+      </div>
+      <div class="up-grid grid-3" style="text-align: center;">
+        <div class="up-cell"><span class="uc-label" style="color:#0369a1;">Actual</span><span class="uc-val" style="background:#e0f2fe; color:#0369a1; padding: 2px 4px; border-radius: 4px; font-weight: 700; display: inline-block;">{{ clienteSeleccionado.consumo_6 ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Mes -1</span><span class="uc-val">{{ clienteSeleccionado.consumo_5 ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Mes -2</span><span class="uc-val">{{ clienteSeleccionado.consumo_4 ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Mes -3</span><span class="uc-val">{{ clienteSeleccionado.consumo_3 ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Mes -4</span><span class="uc-val">{{ clienteSeleccionado.consumo_2 ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Mes -5</span><span class="uc-val">{{ clienteSeleccionado.consumo_1 ?? '-' }}</span></div>
+      </div>
+    </div>
+
+    <!-- DATOS VMA -->
+    <div class="up-section" *ngIf="clienteSeleccionado.nvma !== undefined || clienteSeleccionado.factortotal !== undefined || clienteSeleccionado.dbo5_f !== undefined">
+      <div class="up-section-title medidor" style="color: #ea580c; border-bottom-color: #ea580c;">
+        <i class="pi pi-filter" style="margin-right: 5px;"></i> PARÁMETROS VMA
+      </div>
+      <div class="up-grid grid-2">
+        <div class="up-cell"><span class="uc-label">N° VMA</span><span class="uc-val">{{ clienteSeleccionado.nvma ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Factor Total</span><span class="uc-val badge-est" style="background:#fff7ed; color:#ea580c;">{{ clienteSeleccionado.factortotal ?? '-' }}</span></div>
+      </div>
+      
+      <!-- Valores Muestra (m) -->
+      <div class="up-section-title medidor" style="font-size: 10px; margin-top: 5px; color: #64748b; border: none; padding: 0;">MUESTRA (m)</div>
+      <div class="up-grid grid-4" style="margin-top: 2px;">
+        <ng-container *ngFor="let p of vmaParamsList">
+          <div class="up-cell" *ngIf="clienteSeleccionado[p.key + '_m'] !== undefined">
+            <span class="uc-label">{{ p.label }} (m)</span>
+            <span class="uc-val">{{ clienteSeleccionado[p.key + '_m'] ?? '-' }}</span>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Valores Límite (v) -->
+      <div class="up-section-title medidor" style="font-size: 10px; margin-top: 8px; color: #64748b; border: none; padding: 0;">LÍMITE (v)</div>
+      <div class="up-grid grid-4" style="margin-top: 2px;">
+        <ng-container *ngFor="let p of vmaParamsList">
+          <div class="up-cell" *ngIf="clienteSeleccionado[p.key + '_v'] !== undefined">
+            <span class="uc-label">{{ p.label }} (v)</span>
+            <span class="uc-val">{{ clienteSeleccionado[p.key + '_v'] ?? '-' }}</span>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Excesos (f) -->
+      <div class="up-section-title medidor" style="font-size: 10px; margin-top: 8px; color: #ea580c; border: none; padding: 0;">EXCESOS (f)</div>
+      <div class="up-grid grid-4" style="margin-top: 2px;">
+        <ng-container *ngFor="let p of vmaParamsList">
+          <div class="up-cell" *ngIf="clienteSeleccionado[p.key + '_f'] !== undefined">
+            <span class="uc-label">{{ p.label }}</span>
+            <span class="uc-val" style="color: #ea580c; font-weight: 700;">{{ clienteSeleccionado[p.key + '_f'] ?? '-' }}</span>
+          </div>
+        </ng-container>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 5px;">
+        <div class="up-cell full"><span class="uc-label">FA (Suma Excesos)</span><span class="uc-val badge-est" style="background:#fef2f2; color:#b91c1c;">{{ clienteSeleccionado.fa !== undefined ? clienteSeleccionado.fa : (clienteSeleccionado.dbo5_f || 0) + (clienteSeleccionado.dqo_f || 0) + (clienteSeleccionado.sst_f || 0) + (clienteSeleccionado.ayg_f || 0) }}</span></div>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 5px;" *ngIf="clienteSeleccionado.impmesagu !== undefined || clienteSeleccionado.consumofac !== undefined">
+        <div class="up-cell"><span class="uc-label">Importe Agua</span><span class="uc-val">S/ {{ clienteSeleccionado.impmesagu ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Importe Alcant.</span><span class="uc-val">S/ {{ clienteSeleccionado.impmesalc ?? '-' }}</span></div>
+        <div class="up-cell full"><span class="uc-label">Consumo Fac.</span><span class="uc-val">{{ clienteSeleccionado.consumofac ?? '-' }} m3</span></div>
+        <div class="up-cell span-2" *ngIf="clienteSeleccionado.laboratorio || clienteSeleccionado.codciiu"><span class="uc-label">Lab. / CIIU</span><span class="uc-val">{{ clienteSeleccionado.laboratorio ?? '-' }} <br> <small>CIIU: {{ clienteSeleccionado.codciiu ?? '-' }}</small></span></div>
+        <div class="up-cell span-2" *ngIf="clienteSeleccionado.observacion"><span class="uc-label">Observación</span><span class="uc-val">{{ clienteSeleccionado.observacion ?? '-' }}</span></div>
+      </div>
+
+      <div class="up-grid grid-2" style="margin-top: 5px;" *ngIf="clienteSeleccionado.fechamuestrainopi !== undefined || clienteSeleccionado.fecharecepcionresul !== undefined || clienteSeleccionado.fechanotificaresultado !== undefined">
+        <div class="up-cell"><span class="uc-label">Fecha Muestra Inopi.</span><span class="uc-val">{{ clienteSeleccionado.fechamuestrainopi ? (clienteSeleccionado.fechamuestrainopi | date:'dd/MM/yyyy') : '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Recepción Resul.</span><span class="uc-val">{{ clienteSeleccionado.fecharecepcionresul ? (clienteSeleccionado.fecharecepcionresul | date:'dd/MM/yyyy') : '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Notifica Resul.</span><span class="uc-val">{{ clienteSeleccionado.fechanotificaresultado ? (clienteSeleccionado.fechanotificaresultado | date:'dd/MM/yyyy') : '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Muestra Inopinada</span><span class="uc-val">{{ clienteSeleccionado.muestrainopinada ?? '-' }}</span></div>
+      </div>
+    </div>
+
+    <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;" *ngIf="mostrarBotonVerMas">
+      <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
+        class="p-button-sm w-full btn-ver-mas"
+        (click)="verMasInformacion($event)"></button>
+    </div>
+  </div>
+</div>
