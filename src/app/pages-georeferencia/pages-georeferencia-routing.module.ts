@@ -1,7 +1,9 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
-const routes: Routes = [
+import { conConfigGis } from "../core/gis";
+
+const routes: Routes = conConfigGis([
   {
     path: "main",
     loadChildren: () =>
@@ -62,7 +64,7 @@ const routes: Routes = [
       ),
   },
   { path: "", redirectTo: "/main", pathMatch: "full" },
-];
+]);
 
 @NgModule({
   imports: [RouterModule.forChild(routes)],

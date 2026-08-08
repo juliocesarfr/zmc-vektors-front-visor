@@ -44,14 +44,11 @@ import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import {
-  GEOSERVER_URL,
-  GEOSERVER_CAPAS,
   PROYECCION_MAPA,
-  PROYECCION_UTM_18S,
-  VISTA_INICIAL,
   ORIGENES_COORDENADA,
   ConfigOrigenCoordenada
 } from "../../../config/Controldigitacion.config";
+import { GisConfigService } from "../../../core/gis";
 import { fromCircle } from 'ol/geom/Polygon';
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
 import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
@@ -80,6 +77,8 @@ import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/
 })
 export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -601,7 +600,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     return new TileLayer({
       visible,
       source: new TileWMS({
-        url: GEOSERVER_URL,
+        url: this.gis.urlWms(),
         params: { LAYERS: layer, TILED: false },
         serverType: "geoserver",
         transition: 0,
@@ -621,12 +620,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       visible: this.baseActive === "satelital",
     });
 
-    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
     this.sectoresComercialesLayer = this.crearWms(
-      GEOSERVER_CAPAS.sectoresComerciales,
+      this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -665,8 +664,8 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       ],
       view: new View({
         projection: PROYECCION_MAPA,
-        center: VISTA_INICIAL.centro,
-        zoom: VISTA_INICIAL.zoom,
+        center: this.gis.vista.centro,
+        zoom: this.gis.vista.zoom,
       }),
       controls: [new Zoom()],
     });
@@ -751,7 +750,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
     let [lng, lat] = [x, y];
     if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], PROYECCION_UTM_18S, "EPSG:4326");
+      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
     }
 
     window.open(

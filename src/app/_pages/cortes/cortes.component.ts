@@ -1,4 +1,4 @@
-import { Component, AfterViewInit } from '@angular/core';
+import { Component, AfterViewInit, inject } from '@angular/core';
 import Map from 'ol/Map';
 import View from 'ol/View';
 
@@ -19,6 +19,7 @@ import { Stroke, Style } from 'ol/style';
 import { CommonModule } from '@angular/common';
 import Feature from 'ol/Feature';
 import Geometry from 'ol/geom/Geometry';
+import { CapaGisId, GisConfigService } from '../../core/gis';
 
 @Component({
   selector: 'app-cortes',
@@ -28,6 +29,9 @@ import Geometry from 'ol/geom/Geometry';
   styleUrls: ['./cortes.component.scss']
 })
 export class CortesComponent implements AfterViewInit {
+
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
 
   map!: Map;
   popup!: Overlay;
@@ -81,22 +85,11 @@ export class CortesComponent implements AfterViewInit {
       ]
     });
 
-    const url = 'http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms';
+    this.lotesLayer = this.createWMS('lotes');
 
-    this.lotesLayer = this.createWMS(
-      url,
-      'eps_yurimaguas:yurimaguas_sig_lotes'
-    );
+    this.usuariosLayer = this.createWMS('usuarios');
 
-    this.usuariosLayer = this.createWMS(
-      url,
-      'eps_yurimaguas:usuarios'
-    );
-
-    this.sectoresLayer = this.createWMS(
-      url,
-      'eps_yurimaguas:yurimaguas_sig_sectores_comerciales'
-    );
+    this.sectoresLayer = this.createWMS('sectoresComerciales');
 
     this.map = new Map({
 
@@ -116,9 +109,9 @@ export class CortesComponent implements AfterViewInit {
 
       view: new View({
 
-        projection: 'EPSG:4326',
+        projection: this.gis.proyeccionMapa,
 
-        center: [-76.1223, -5.9018],
+        center: this.gis.vista.centro,
 
         zoom: 19
 
@@ -131,16 +124,16 @@ export class CortesComponent implements AfterViewInit {
   //==================================
   // CREAR WMS
   //==================================
-  private createWMS(url: string, layer: string): TileLayer {
+  private createWMS(id: CapaGisId): TileLayer {
 
    return new TileLayer({
 
   source: new TileWMS({
 
-    url: url,
+    url: this.gis.urlWms(),
 
     params: {
-      LAYERS: layer,
+      LAYERS: this.gis.capa(id),
       TILED: true,
       INFO_FORMAT: 'application/json',
 
@@ -380,8 +373,19 @@ activarSector(codigo: string): void {
   this.usuariosLayer.getSource()?.refresh();
 
   // 🔥 ZOOM AUTOMÁTICO AL SECTOR
-  const url =
-    `http://167.88.36.54:8085/geoserver/eps_yurimaguas/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=eps_yurimaguas:yurimaguas_sig_sectores_comerciales&outputFormat=application/json&CQL_FILTER=ZONECODE='${codigo}'`;
+  const url = this.gis.urlGetFeature(
+    'sectoresComerciales',
+    `ZONECODE='${codigo}'`
+  );
+
+  // La EPS puede no publicar la capa de sectores: en ese caso no hay a dónde
+  // hacer zoom, pero los filtros CQL de arriba ya se aplicaron.
+  if (!url) {
+    this.sectorResumen = codigo;
+    this.totalUsuarios = 0;
+    this.totalLotes = 0;
+    return;
+  }
 
   fetch(url)
     .then(res => res.json())

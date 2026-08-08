@@ -51,11 +51,7 @@ import { TagModule } from "primeng/tag";
 import { InputTextModule } from "primeng/inputtext";
 
 import {
-  GEOSERVER_URL,
-  GEOSERVER_CAPAS,
   PROYECCION_MAPA,
-  PROYECCION_UTM_18S,
-  VISTA_INICIAL,
   DISTANCIA_MAX_ACOMETIDA_M,
   ORIGENES_COORDENADA,
   colorPorEstadoLectura,
@@ -80,6 +76,7 @@ import {
   RADIOS_FICHA,
 } from "../../../util/Mapaestilos.factory";
 import { observarTamanoMapa } from "../.././../util/Mapinit.util";
+import { GisConfigService } from "../../../core/gis";
 
 @Component({
   selector: "app-controldigitacion",
@@ -108,6 +105,8 @@ import { observarTamanoMapa } from "../.././../util/Mapinit.util";
 export class ControldigitacionComponent
   implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -553,7 +552,7 @@ export class ControldigitacionComponent
     return new TileLayer({
       visible,
       source: new TileWMS({
-        url: GEOSERVER_URL,
+        url: this.gis.urlWms(),
         params: { LAYERS: layer, TILED: false },
         serverType: "geoserver",
         transition: 0,
@@ -573,12 +572,12 @@ export class ControldigitacionComponent
       visible: this.baseActive === "satelital",
     });
 
-    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
     this.sectoresComercialesLayer = this.crearWms(
-      GEOSERVER_CAPAS.sectoresComerciales,
+      this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -690,8 +689,8 @@ export class ControldigitacionComponent
       ],
       view: new View({
         projection: PROYECCION_MAPA,
-        center: VISTA_INICIAL.centro,
-        zoom: VISTA_INICIAL.zoom,
+        center: this.gis.vista.centro,
+        zoom: this.gis.vista.zoom,
       }),
     });
   }
@@ -762,10 +761,10 @@ export class ControldigitacionComponent
     const source = this.lotesLayer.getSource() as TileWMS;
 
     if (isTodos) {
-      source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotes });
+      source.updateParams({ LAYERS: this.gis.capa("lotes") });
     } else {
       const layers = sectores
-        .map((s) => GEOSERVER_CAPAS.lotesPorSector(s.codsector.slice(-2)))
+        .map((s) => this.gis.lotesPorSector(s.codsector.slice(-2)))
         .join(",");
       source.updateParams({ LAYERS: layers });
     }
@@ -1288,7 +1287,7 @@ export class ControldigitacionComponent
     // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
     let [lng, lat] = [x, y];
     if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], PROYECCION_UTM_18S, "EPSG:4326");
+      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
     }
 
     window.open(

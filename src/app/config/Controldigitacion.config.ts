@@ -1,27 +1,7 @@
-export const GEOSERVER_URL =
-  "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms";
-
-export const GEOSERVER_CAPAS = {
-  lotes: "eps_yurimaguas:yurimaguas_sig_lotes",
-  lotesPorSector: (sufijo: string) =>
-    `eps_yurimaguas:yurimaguas_sig_lotes_sector_${sufijo}`,
-  sectoresComerciales: "eps_yurimaguas:yurimaguas_sig_sectores_comerciales",
-  calles: "eps_yurimaguas:yurimaguas_sig_calles",
-} as const;
-
 export const PROYECCION_MAPA = "EPSG:4326";
-export const PROYECCION_UTM_18S = "EPSG:32718";
 
-/** Centro inicial del mapa y zoom por defecto. */
-export const VISTA_INICIAL = {
-  centro: [-76.1223, -5.9018] as [number, number],
-  zoom: 18,
-};
-
-/** Distancia máxima (metros) entre ficha y acometida para dibujar la línea. */
 export const DISTANCIA_MAX_ACOMETIDA_M = 50;
 
-/** Largo mínimo en pixeles de una línea de acometida para que sea clickeable. */
 export const LARGO_MIN_LINEA_PX = 25;
 
 // ============================================================

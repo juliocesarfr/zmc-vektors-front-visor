@@ -57,11 +57,7 @@ import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/c
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
 
 import {
-  GEOSERVER_URL,
-  GEOSERVER_CAPAS,
   PROYECCION_MAPA,
-  PROYECCION_UTM_18S,
-  VISTA_INICIAL,
   TIPOS_RECEPCION_IMG,
   TIPOS_RECEPCION_IMGCORE,
   ORIGENES_COORDENADA,
@@ -81,6 +77,7 @@ import {
   RADIOS_LECTURA,
 } from "../../../util/Mapaestilos.factory";
 import { observarTamanoMapa } from "../.././../util/Mapinit.util";
+import { GisConfigService } from "../../../core/gis";
 
 /* La parametrización corte/reapertura vive como propiedades protected de la
  * clase (ver abajo) para que la ventana de reaperturas EXTIENDA esta y solo
@@ -176,6 +173,8 @@ export class SeguimientoCortesconProgramaComponent
 
 
 
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
 
   @ViewChild("mapContainer", { static: false })
@@ -584,7 +583,9 @@ export class SeguimientoCortesconProgramaComponent
     const y = flat[1];
     if (x == null || y == null) return null;
     const src =
-      Math.abs(x) > 180 || Math.abs(y) > 90 ? PROYECCION_UTM_18S : PROYECCION_MAPA;
+      Math.abs(x) > 180 || Math.abs(y) > 90
+        ? this.gis.proyeccionUtm
+        : PROYECCION_MAPA;
     if (src !== PROYECCION_MAPA) geom.transform(src, PROYECCION_MAPA);
     return geom;
   }
@@ -712,7 +713,7 @@ export class SeguimientoCortesconProgramaComponent
     return new TileLayer({
       visible,
       source: new TileWMS({
-        url: GEOSERVER_URL,
+        url: this.gis.urlWms(),
         params: { LAYERS: layer, TILED: false },
         serverType: "geoserver",
         transition: 0,
@@ -732,12 +733,12 @@ export class SeguimientoCortesconProgramaComponent
       visible: this.baseActive === "satelital",
     });
 
-    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
     this.sectoresLayer = this.crearWms(
-      GEOSERVER_CAPAS.sectoresComerciales,
+      this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
 
     this.lotesUsuarioLayer = new VectorLayer({
       source: new VectorSource(),
@@ -790,8 +791,8 @@ export class SeguimientoCortesconProgramaComponent
       ],
       view: new View({
         projection: PROYECCION_MAPA,
-        center: VISTA_INICIAL.centro,
-        zoom: VISTA_INICIAL.zoom,
+        center: this.gis.vista.centro,
+        zoom: this.gis.vista.zoom,
       }),
     });
 
@@ -1044,7 +1045,7 @@ export class SeguimientoCortesconProgramaComponent
     let [lng, lat] = coord;
 
     if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
-      [lng, lat] = transform([lng, lat], PROYECCION_UTM_18S, "EPSG:4326") as [
+      [lng, lat] = transform([lng, lat], this.gis.proyeccionUtm, "EPSG:4326") as [
         number,
         number,
       ];

@@ -46,10 +46,7 @@ import { Filtroresumenxinspector } from "@host/_models/vektors/Filtroresumenxins
 import { Filtrodetalletomalectura_xinspector } from "@host/_models/vektors/Filtrodetalletomalectura_xinspector";
 
 import {
-  GEOSERVER_URL,
-  GEOSERVER_CAPAS,
   PROYECCION_MAPA,
-  VISTA_INICIAL,
   ORIGENES_COORDENADA,
   ConfigOrigenCoordenada,
   COLORES_SEGUIMIENTO_LECTURA,
@@ -69,6 +66,7 @@ import {
   RADIOS_LECTURA,
   RADIOS_FICHA,
 } from "../../../util/Mapaestilos.factory";
+import { GisConfigService } from "../../../core/gis";
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
 
 // ============================================================
@@ -155,6 +153,8 @@ export class SeguimientoDeLecturaXinspectorComponent
   implements OnInit, AfterViewInit, OnDestroy
 {
   private readonly destroyRef = inject(DestroyRef);
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -660,7 +660,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     return new TileLayer({
       visible,
       source: new TileWMS({
-        url: GEOSERVER_URL,
+        url: this.gis.urlWms(),
         params: { LAYERS: layer, TILED: false },
         serverType: "geoserver",
         transition: 0,
@@ -680,12 +680,12 @@ export class SeguimientoDeLecturaXinspectorComponent
       visible: this.baseActive === "satelital",
     });
 
-    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
     this.sectoresComercialesLayer = this.crearWms(
-      GEOSERVER_CAPAS.sectoresComerciales,
+      this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -754,8 +754,8 @@ export class SeguimientoDeLecturaXinspectorComponent
       ],
       view: new View({
         projection: PROYECCION_MAPA,
-        center: VISTA_INICIAL.centro,
-        zoom: VISTA_INICIAL.zoom,
+        center: this.gis.vista.centro,
+        zoom: this.gis.vista.zoom,
       }),
     });
   }
