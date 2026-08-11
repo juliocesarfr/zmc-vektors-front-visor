@@ -64,18 +64,8 @@ export class GisConfigService {
             return of(null);
           }),
         ),
-        gis: this.paramaeService.URLGIS().pipe(
-          catchError(() => {
-            console.warn(
-              "[GIS] No se pudo obtener paramae/URLGIS; se usa el GeoServer de la tabla CONFIG_EPS.",
-            );
-            return of(null);
-          }),
-        ),
       }).pipe(
-        map(({ empresa, gis }) =>
-          this.resolverEmpresa((empresa as any)?.data?.emp, gis?.aaData),
-        ),
+        map(({ empresa }) => this.resolverEmpresa((empresa as any)?.data?.emp)),
         catchError(() => of(configSinCapas("", "", ""))),
         tap((config) => {
           this.actual = config;
@@ -89,7 +79,7 @@ export class GisConfigService {
   }
 
   /** Traduce el `emp` del backend a la configuración GIS que le corresponde. */
-  private resolverEmpresa(emp: any, gis?: GIS): GisEpsConfig {
+  private resolverEmpresa(emp: any): GisEpsConfig {
     const lon = Number(emp?.longitud);
     const lat = Number(emp?.latitud);
     this.centroEmpresa =
@@ -107,8 +97,6 @@ export class GisConfigService {
     // Sin entrada propia no se puede saber cómo se llaman las capas de esta
     // EPS: no hay convención que derivar ni otra EPS de la que heredar. Se
     // conserva el GeoServer del backend y se deja el catálogo vacío.
-    const workspace = gis?.ESPACIO?.trim() ?? "";
-    const baseUrl = this.baseUrlGeoserver(gis?.URLGIS) ?? "";
 
     console.warn(
       `[GIS] La EPS "${ccodeps ?? "(sin ccodeps)"}" no tiene entrada en CONFIG_EPS; ` +
@@ -116,7 +104,7 @@ export class GisConfigService {
         `Agregue su ccodeps en core/gis/eps-config.data.ts con las capas que publica.`,
     );
 
-    return configSinCapas(ccodeps ?? "", baseUrl, workspace);
+    return configSinCapas(ccodeps ?? "", emp?.URLGIS, emp?.WORKSPACE);
   }
 
   /** `URLGIS` llega como host raíz; el endpoint de GeoServer le agrega `/geoserver`. */

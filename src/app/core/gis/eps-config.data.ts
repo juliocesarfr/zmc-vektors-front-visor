@@ -13,15 +13,7 @@ export const PROYECCIONES_POR_DEFECTO: GisProyeccionesConfig = {
   utm: PROYECCION_UTM_DEFECTO,
 };
 
-/**
- * Catálogo de capas por EPS.
- *
- * Cada entrada es independiente: los nombres reales de las capas no siguen
- * ninguna convención compartida, así que **nunca** se derivan de otra EPS ni
- * del workspace. Para dar de alta una EPS basta agregar su `ccodeps` aquí con
- * las capas que esa EPS publica realmente; puede declarar roles propios que
- * ninguna otra tenga y omitir los que no publique.
- */
+
 export const CONFIG_EPS: Record<string, GisEpsConfig> = {
   "004": {
     ccodeps: "004",
@@ -54,7 +46,7 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
     ccodeps: "016",
     descripcion: "EPS emapa",
     geoserver: {
-      baseUrl: "http://167.88.36.54:8085/geoserver",
+      baseUrl: "https://167.88.36.54/geoserver",
       workspace: "emapa",
     },
     capas: {
