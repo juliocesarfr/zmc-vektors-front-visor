@@ -13,7 +13,7 @@ import { CommonModule, DatePipe } from "@angular/common";
 import { forkJoin, of } from "rxjs";
 import { catchError, switchMap, tap } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
+//mport { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -116,18 +116,10 @@ export class ControldigitacionComponent
   acomAguaLayer!: VectorLayer<VectorSource>;
   acomDesagueLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
-<<<<<<< HEAD
-  osmLayer!: TileLayer<any>;
-  satelitalLayer!: TileLayer<any>;
-  secuenciaLecturaLayer!: TileLayer<TileWMS>;
-  sectoresComercialesLayer!: TileLayer<TileWMS>;
-  tipoPopup: 'lectura' | 'agua' | 'alcantarillado' = 'lectura';
-=======
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
->>>>>>> b8173999d2f532e30c8b19bc01459d7600dae8ab
 
   /** id de capa comercial (HTML) → capa de OpenLayers. Evita el if/else gigante. */
   private registroCapas: Record<string, BaseLayer> = {};
@@ -571,32 +563,6 @@ export class ControldigitacionComponent
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    //capa de secuencia de lectura (WMS)
-    this.secuenciaLecturaLayer = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
-    params: {
-      LAYERS: "eps_yurimaguas:secuencia_ruta_lectura",
-      TILED: false,
-    },
-    serverType: "geoserver",
-    transition: 0,
-  }),
-});
-  //capa de sectorcomercial (WMS)
-    this.sectoresComercialesLayer = new TileLayer({
-  visible: false,
-  source: new TileWMS({
-    url: "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms",
-    params: {
-      LAYERS: "eps_yurimaguas:yurimaguas_sig_sectores_comerciales",
-      TILED: false,
-    },
-    serverType: "geoserver",
-    transition: 0,
-  }),
-});
     this.lecturasLayer = new VectorLayer({
       source: new VectorSource(),
       visible: true,
@@ -689,9 +655,6 @@ export class ControldigitacionComponent
 
     this.map = new OlMap({
       target: "map",
-<<<<<<< HEAD
-      layers: [base, this.lotesLayer, this.fichaAlcLayer, this.cajaAguaLayer, this.lecturasLayer,this.secuenciaLecturaLayer,],
-=======
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
@@ -703,7 +666,6 @@ export class ControldigitacionComponent
         this.cajaAguaLayer,
         this.lecturasLayer,
       ],
->>>>>>> b8173999d2f532e30c8b19bc01459d7600dae8ab
       view: new View({
         projection: PROYECCION_MAPA,
         center: VISTA_INICIAL.centro,
@@ -791,23 +753,23 @@ export class ControldigitacionComponent
   // ============================================================
 
   verMasInformacion(codcliente: string | undefined): void {
-    if (!codcliente) return;
+    // if (!codcliente) return;
 
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc:
-          this.selectedSucursal?.codsuc ||
-          this.lecturaSeleccionada?.codsuc ||
-          this.datosClientePopup?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    // this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
+    //   header: "Consulta General de Usuario",
+    //   width: "90%",
+    //   height: "95%",
+    //   baseZIndex: 10000,
+    //   maximizable: true,
+    //   data: {
+    //     codcliente,
+    //     codsuc:
+    //       this.selectedSucursal?.codsuc ||
+    //       this.lecturaSeleccionada?.codsuc ||
+    //       this.datosClientePopup?.codsuc,
+    //     operacion: "Vektors",
+    //   },
+    // });
   }
 
   cerrarPopup(): void {
