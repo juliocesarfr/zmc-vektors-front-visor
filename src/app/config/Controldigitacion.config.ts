@@ -1,25 +1,14 @@
-export const GEOSERVER_URL = "http://167.88.36.54:8085/geoserver/eps_yurimaguas/wms";
+import { PROYECCION_MAPA_DEFECTO } from "../core/gis/gis-proyeccion";
 
-export const GEOSERVER_CAPAS = {
-  lotes: "eps_yurimaguas:yurimaguas_sig_lotes",
-  lotesPorSector: (sufijo: string) => `eps_yurimaguas:yurimaguas_sig_lotes_sector_${sufijo}`,
-  sectoresComerciales: "eps_yurimaguas:yurimaguas_sig_sectores_comerciales",
-  calles: "eps_yurimaguas:yurimaguas_sig_calles",
-} as const;
+/**
+ * @deprecated La proyección del mapa depende de la EPS. Use
+ * `GisConfigService.proyeccionMapa` en componentes y `getProyeccionMapa()` en
+ * funciones puras; esta constante queda solo como valor por defecto.
+ */
+export const PROYECCION_MAPA = PROYECCION_MAPA_DEFECTO;
 
-export const PROYECCION_MAPA = "EPSG:4326";
-export const PROYECCION_UTM_18S = "EPSG:32718";
-
-/** Centro inicial del mapa y zoom por defecto. */
-export const VISTA_INICIAL = {
-  centro: [-76.1223, -5.9018] as [number, number],
-  zoom: 18,
-};
-
-/** Distancia máxima (metros) entre ficha y acometida para dibujar la línea. */
 export const DISTANCIA_MAX_ACOMETIDA_M = 50;
 
-/** Largo mínimo en pixeles de una línea de acometida para que sea clickeable. */
 export const LARGO_MIN_LINEA_PX = 25;
 
 // ============================================================
@@ -40,13 +29,37 @@ export interface ConfigOrigenCoordenada {
   proyeccion: string;
 }
 
-export const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenada> = {
-  usuario:     { lonField: "lon",                latField: "lat",                proyeccion: "EPSG:4326" },
-  predio:      { lonField: "lonpredio",          latField: "latpredio",          proyeccion: "EPSG:4326" },
-  agua:        { lonField: "lonagua",            latField: "latagua",            proyeccion: "EPSG:4326" },
-  desague:     { lonField: "londesague",         latField: "latdesague",         proyeccion: "EPSG:4326" },
-  acomagua:    { lonField: "lonacometidaagua",   latField: "latacometidaagua",   proyeccion: "EPSG:4326" },
-  acomdesague: { lonField: "lonacometidadesague",latField: "latacometidadesague",proyeccion: "EPSG:4326" },
+/**
+ * `proyeccion` es la proyección en la que el backend guarda esos campos (WGS84
+ * en todas las EPS), no la del mapa: `extraerCoordenada` reproyecta de aquí a
+ * la proyección de la EPS logueada cuando difieren.
+ */
+export const ORIGENES_COORDENADA: Record<
+  OrigenCoordenada,
+  ConfigOrigenCoordenada
+> = {
+  usuario: { lonField: "lon", latField: "lat", proyeccion: "EPSG:4326" },
+  predio: {
+    lonField: "lonpredio",
+    latField: "latpredio",
+    proyeccion: "EPSG:4326",
+  },
+  agua: { lonField: "lonagua", latField: "latagua", proyeccion: "EPSG:4326" },
+  desague: {
+    lonField: "londesague",
+    latField: "latdesague",
+    proyeccion: "EPSG:4326",
+  },
+  acomagua: {
+    lonField: "lonacometidaagua",
+    latField: "latacometidaagua",
+    proyeccion: "EPSG:4326",
+  },
+  acomdesague: {
+    lonField: "lonacometidadesague",
+    latField: "latacometidadesague",
+    proyeccion: "EPSG:4326",
+  },
 };
 
 // ============================================================
@@ -54,12 +67,18 @@ export const ORIGENES_COORDENADA: Record<OrigenCoordenada, ConfigOrigenCoordenad
 // ============================================================
 
 export const COLORES_LECTURA = {
-  normal: "#22c55e",      // estado 000
-  atipico: "#ef4444",     // estado 008
+  normal: "#22c55e", // estado 000
+  atipico: "#ef4444", // estado 008
   sinRegistro: "#f97316", // estados 003 / 999
-  observado: "#3b82f6",   // cualquier otro
+  observado: "#3b82f6", // cualquier otro
 } as const;
-
+export const COLORES_SEGUIMIENTO_LECTURA = {
+  tomada: COLORES_LECTURA.normal, // #22c55e  lectura enviada (web=1, recibido=1)
+  sinToma: COLORES_LECTURA.atipico, // #ef4444  lectura pendiente
+  puntoToma: "#2563eb", // punto GPS de la toma del inspector
+  lineaOk: "#64748b", // línea usuario→toma dentro del umbral
+  lineaLejos: "#dc2626", // línea usuario→toma fuera del umbral
+} as const;
 export function colorPorEstadoLectura(estado: string | undefined): string {
   if (estado === "008") return COLORES_LECTURA.atipico;
   if (estado === "003" || estado === "999") return COLORES_LECTURA.sinRegistro;
@@ -67,8 +86,8 @@ export function colorPorEstadoLectura(estado: string | undefined): string {
   return COLORES_LECTURA.normal;
 }
 
-export const COLOR_FICHA_AGUA = "#00bfff";  // celeste
-export const COLOR_FICHA_ALC = "#8b4513";   // marrón
+export const COLOR_FICHA_AGUA = "#00bfff"; // celeste
+export const COLOR_FICHA_ALC = "#8b4513"; // marrón
 
 export const LISTA_MESES = [
   { mes: "ENERO", numero: "01" },
@@ -92,10 +111,23 @@ export const TIPOS_PROMEDIO = [
 ];
 
 export const TIPOS_RECEPCION_IMG = [
-  "000", "050", "046", "045", "044", "043", "042", "041",
-  "040", "039", "038", "037", "004", "003",
+  "000",
+  "050",
+  "046",
+  "045",
+  "044",
+  "043",
+  "042",
+  "041",
+  "040",
+  "039",
+  "038",
+  "037",
+  "004",
+  "003",
 ].map((tipo) => ({ tipo }));
 
+export const TIPOS_RECEPCION_IMGCORE = ["054", "055"].map((tipo) => ({ tipo }));
 
 export type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
@@ -104,7 +136,7 @@ export interface RegistroLectura {
   codsuc?: string;
   codsector?: string;
   estadolectura?: string;
-  [key: string]: unknown; 
+  [key: string]: unknown;
 }
 
 export interface Sector {

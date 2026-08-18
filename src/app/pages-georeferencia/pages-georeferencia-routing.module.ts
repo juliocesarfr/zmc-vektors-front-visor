@@ -1,9 +1,12 @@
 import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
-const routes: Routes = [
+import { conConfigGis } from "../core/gis";
+
+const routes: Routes = conConfigGis([
   {
     path: "main",
+    data: { preload: true },
     loadChildren: () =>
       import("../_pages/main-georeferencia/main-georeferencia.module").then(
         (m) => m.MainGeoreferenciaModule,
@@ -41,14 +44,49 @@ const routes: Routes = [
       ),
   },
   {
-    path: "micromedicion/recorrido_del_inspector",
+    path: "cobranza/seguimiento_cortes_conprograma",
     loadComponent: () =>
-      import("../_pages/micromedicion/recorrido-del-inspector/recorrido-del-inspector.component").then(
-        (m) => m.RecorridoDelInspectorComponent,
+      import("../_pages/cobranza/seguimiento-cortescon-programa/seguimiento-cortescon-programa.component").then(
+        (m) => m.SeguimientoCortesconProgramaComponent,
+      ),
+  },
+  {
+    path: "cobranza/seguimiento_reapertura_conprograma",
+    loadComponent: () =>
+      import("../_pages/cobranza/seguimiento-reaperturacon-programa/seguimiento-reaperturacon-programa.component").then(
+        (m) => m.SeguimientoReaperturaconProgramaComponent,
+      ),
+  },
+  {
+    path: "catastro/padron_de_clientes",
+    loadComponent: () =>
+      import("../_pages/catastro/padron-de-clientes/padron-de-clientes.component").then(
+        (m) => m.PadronDeClientesComponent,
+      ),
+  },
+  {
+    path: "vma/padron_de_clientes",
+    loadComponent: () =>
+      import("../_pages/vma/padron-clientes-vma/padron-clientes-vma.component").then(
+        (m) => m.PadronClientesVmaComponent,
+      ),
+  },
+  {
+    path: "facturacion/clientes_vma",
+    loadComponent: () =>
+      import("../_pages/facturacion/facturacion-clientes-vma/facturacion-clientes-vma.component").then(
+        (m) => m.FacturacionClientesVmaComponent,
+      ),
+  },
+  {
+    path: "facturacion/clientes_altos_consumidores",
+    loadComponent: () =>
+      import("../_pages/facturacion/facturacion-clientes-altos-consumidores/facturacion-clientes-altos-consumidores.component").then(
+        (m) => m.FacturacionClientesAltosConsumidoresComponent,
       ),
   },
   { path: "", redirectTo: "/main", pathMatch: "full" },
-];
+]);
 
 @NgModule({
   imports: [RouterModule.forChild(routes)],

@@ -1,6 +1,5 @@
-import {Component, ElementRef, Input} from '@angular/core';
+import {Component, ElementRef, Input, inject} from '@angular/core';
 import {ActivatedRoute, Params, Router} from "@angular/router";
-import {ParamaeService} from "@host/_servicios/administracion/paramae.service";
 // import 'ol/ol.css';
 import Map from 'ol/Map';
 import View from 'ol/View';
@@ -16,6 +15,7 @@ import {
 } from 'ol/control';
 import {FormsModule} from "@angular/forms";
 import {SucursalesService} from "@host/_servicios/administracion/sucursales.service";
+import {GisConfigService} from "../../core/gis";
 
 export const DEFAULT_HEIGHT = `${window.innerHeight - 70}px`;
 export const DEFAULT_WIDTH = `${window.innerWidth - 260}px`;
@@ -41,10 +41,12 @@ export class GeoreferenciaComponent {
   @Input() width: string | number = DEFAULT_WIDTH;
   @Input() height: string | number = DEFAULT_HEIGHT;
 
+  /** GeoServer, capas y proyección de la EPS logueada (resueltos por `ccodeps`). */
+  private readonly gis = inject(GisConfigService);
+
   constructor(
     private router: Router,
     private route: ActivatedRoute,
-    private _paramaeService: ParamaeService,
     private _sucursalService: SucursalesService,
     private elementRef: ElementRef
   ) {}
@@ -64,7 +66,8 @@ export class GeoreferenciaComponent {
           return;
         }
 
-        this._paramaeService.URLGIS().subscribe((url) => {
+        // Esta ruta no pasa por `gisConfigResolver`, así que se resuelve aquí.
+        this.gis.cargar().subscribe(() => {
           this.mapEl = this.elementRef.nativeElement.querySelector('#' + this.target);
           this.setSize();
 
@@ -96,9 +99,9 @@ export class GeoreferenciaComponent {
 
                 tileWMS = new TileLayer({
                   source: new TileWMS({
-                    url: `${url.aaData.URLGIS}/geoserver/${url.aaData.ESPACIO}/wms`,
+                    url: this.gis.urlWms(),
                     params: {
-                      LAYERS: `${url.aaData.ESPACIO}:${rows}`,
+                      LAYERS: this.gis.calificarCapa(rows),
                       TILED: true,
                       CQL_FILTER: `USERCODE like '${codiCliente}'`
                     },
@@ -109,8 +112,8 @@ export class GeoreferenciaComponent {
               } else {
                 tileWMS = new TileLayer({
                   source: new TileWMS({
-                    url: `${url.aaData.URLGIS}/geoserver/${url.aaData.ESPACIO}/wms`,
-                    params: { LAYERS: `${url.aaData.ESPACIO}:${rows}`, TILED: true },
+                    url: this.gis.urlWms(),
+                    params: { LAYERS: this.gis.calificarCapa(rows), TILED: true },
                     serverType: 'geoserver',
                     transition: 0
                   })
@@ -129,8 +132,9 @@ export class GeoreferenciaComponent {
             layers: layers01,
             target: this.target,
             view: new View({
-              projection: 'EPSG:4326',
-              center: [data.aaData.longitud, data.aaData.latitud],
+              projection: this.gis.proyeccionMapa,
+              // La sucursal manda; si no trae coordenadas se usa la vista de la EPS.
+              center: this.centroSucursal(data.aaData) ?? this.gis.vista.centro,
               zoom: 12.5
             })
           });
@@ -145,6 +149,15 @@ export class GeoreferenciaComponent {
       codigocliente = 0;
     }
     location.href = `sysco-gis/frontend/#/dashboard/${this.token}/${this.capa}/${codigocliente}/${this.base}`;
+  }
+
+  /** Centro declarado por la sucursal, o `null` si no tiene coordenadas válidas. */
+  private centroSucursal(sucursal: any): [number, number] | null {
+    const lon = Number(sucursal?.longitud);
+    const lat = Number(sucursal?.latitud);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+    if (lon === 0 && lat === 0) return null;
+    return [lon, lat];
   }
 
   private setSize(): void {

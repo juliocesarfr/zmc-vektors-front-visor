@@ -451,19 +451,15 @@
     vertical-align: middle;
   }
 
-  .verde {
-    background: #22c55e;
-  }
-
-  .rojo {
+  .pendiente {
     background: #ef4444;
   }
 
-  .naranja {
-    background: #f97316;
+  .ejecutado {
+    background: #22c55e;
   }
 
-  .azul {
+  .pagado {
     background: #3b82f6;
   }
 }
@@ -691,8 +687,8 @@
 
       .icon {
         font-size: 10px;
-        height: 22px;
         width: 22px;
+        height: 22px;
       }
 
       &.active {
@@ -1699,42 +1695,40 @@
     }
   }
 
-  /* --- Pie del lightbox con nombre y fecha de la foto abierta --- */
-  .img-lightbox .lightbox-caption {
-    position: absolute;
-    bottom: -58px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    max-width: 90vw;
-    text-align: center;
-    color: #fff;
-    font-family: "Segoe UI", Arial, sans-serif;
+  .img-lightbox {
+    .lightbox-nav {
+      width: 40px;
+      height: 40px;
+      font-size: 18px;
 
-    .lc-nombre {
-      font-size: 13px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 90vw;
+      &.prev {
+        left: 8px;
+      }
+
+      &.next {
+        right: 8px;
+      }
     }
 
-    .lc-fecha {
-      font-size: 11px;
-      opacity: 0.85;
-      color: #e0e0e0;
-    }
+    .lightbox-zoom-bar {
+      top: auto;
+      bottom: 24px;
+      right: 50%;
+      transform: translateX(50%);
+      flex-direction: row;
+      padding: 4px 6px;
 
-    .lc-tipo {
-      font-size: 10px;
-      font-weight: 700;
-      background: rgba(124, 58, 237, 0.85);
-      padding: 1px 8px;
-      border-radius: 10px;
+      .lz-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+      }
+
+      .lz-pct {
+        font-size: 11px;
+        min-width: 42px;
+        text-align: center;
+      }
     }
   }
 
@@ -1759,14 +1753,339 @@
   display: inline-block;
 }
 
+.cd-resumen {
+  .card-resumen {
+    transition:
+      transform 0.12s,
+      box-shadow 0.12s;
 
+    &.exec {
+      border-top-color: #22c55e;
+    }
 
+    /* Reapertura  */
+    &.pend {
+      border-top-color: #ef4444;
+    }
 
-.lc-tipo {
-  font-size: 14px;
-  font-weight: 700;
-  background: rgba(124, 58, 237, 0.85);
-  padding: 1px 8px;
+    /* pendiente */
+    &.pagado {
+      border-top-color: #3b82f6;
+    }
+
+    /* pagó      */
+    &.rend {
+      border-top-color: #7c3aed;
+    }
+
+    /* rendimiento */
+
+    &.filtro-on {
+      box-shadow:
+        0 0 0 2px #0f172a,
+        0 2px 8px rgba(0, 0, 0, 0.25);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+/* --- Panel de inspectores (izquierda, junto al sidebar de capas) --- */
+.cd-inspectores {
+  position: absolute;
+  top: 58px;
+  left: 380px;
+  z-index: 6;
+  width: 300px;
+  max-height: calc(100% - 150px);
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(4px);
   border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: "Segoe UI", Arial, sans-serif;
+
+  @media (max-width: 768px) {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    z-index: 1001;
+  }
+
+  .insp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #012a71;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 800;
+
+    .cerrar {
+      cursor: pointer;
+      opacity: 0.85;
+
+      &:hover {
+        color: #ff5470;
+        opacity: 1;
+      }
+    }
+  }
+
+  .insp-body {
+    overflow-y: auto;
+    padding: 4px;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+  }
+
+  .insp-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 7px 9px;
+    border-radius: 7px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition:
+      background 0.12s,
+      border-color 0.12s;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+
+    &.active {
+      background: #eff6ff;
+      border-color: #60a5fa;
+    }
+
+    .insp-name {
+      font-size: 11px;
+      color: #334155;
+      line-height: 1.15;
+
+      strong {
+        color: #012a71;
+      }
+    }
+
+    .insp-stats {
+      display: flex;
+      gap: 5px;
+
+      .chip {
+        font-size: 10.5px;
+        font-weight: 800;
+        border-radius: 6px;
+        padding: 1px 8px;
+        min-width: 30px;
+        text-align: center;
+
+        &.total {
+          background: #e2e8f0;
+          color: #1e293b;
+        }
+
+        &.exec {
+          background: #dcfce7;
+          color: #15803d;
+        }
+
+        /* Reapertura */
+        &.pend {
+          background: #fee2e2;
+          color: #b91c1c;
+        }
+
+        /* pendientes */
+        &.rend {
+          background: #ede9fe;
+          color: #6d28d9;
+          margin-left: auto;
+        }
+      }
+    }
+  }
+}
+
+.cd-insp-toggle {
+  position: absolute;
+  top: 58px;
+  left: 280px;
+  z-index: 6;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 50%;
+  background: #012a71;
+  box-shadow: 0 2px 8px rgba(1, 42, 113, 0.4);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #013a8f;
+  }
+
+  @media (max-width: 768px) {
+    left: 8px;
+    z-index: 1001;
+  }
+}
+
+/* --- Leyenda clickeable --- */
+.cd-leyenda {
+  .ley-item {
+    cursor: pointer;
+    border-radius: 5px;
+    padding: 1px 4px;
+    transition:
+      opacity 0.12s,
+      background 0.12s;
+
+    &:hover {
+      background: #f1f5f9;
+    }
+
+    &.off {
+      opacity: 0.35;
+    }
+  }
+}
+
+/* --- Tag de estado del popup: texto blanco sobre el color inyectado --- */
+.user-popup .up-suministro ::ng-deep .p-tag {
+  color: #ffffff !important;
+  font-weight: 800;
+}
+
+/* --- Caption de miniatura (nombre + fecha + tipo bajo cada foto) --- */
+.user-popup .up-section-imgs {
+  .up-thumb {
+    width: 92px;
+    display: flex;
+    flex-direction: column;
+
+    img {
+      width: 92px;
+      height: 62px;
+    }
+
+    /* deja de superponer el tipo sobre la imagen: ahora va en el caption */
+    .up-tipo {
+      display: none;
+    }
+
+    .up-thumb-info {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      padding: 3px 4px 2px;
+      background: #f8fafc;
+      border-top: 1px solid #e2e8f0;
+
+      .tn-nombre {
+        font-size: 8px;
+        font-weight: 700;
+        color: #1e293b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .tn-fecha {
+        font-size: 7.5px;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .tn-tipo {
+        font-size: 7px;
+        font-weight: 700;
+        color: #7c3aed;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+}
+
+/* --- Pie del lightbox con nombre y fecha de la foto abierta --- */
+.img-lightbox .lightbox-caption {
+  position: absolute;
+  bottom: -58px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: 90vw;
+  text-align: center;
+  color: #fff;
+  font-family: "Segoe UI", Arial, sans-serif;
+
+  .lc-nombre {
+    font-size: 13px;
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90vw;
+  }
+
+  .lc-fecha {
+    font-size: 11px;
+    opacity: 0.85;
+  }
+
+  .lc-tipo {
+    font-size: 10px;
+    font-weight: 700;
+    background: rgba(124, 58, 237, 0.85);
+    padding: 1px 8px;
+    border-radius: 10px;
+  }
+}
+
+.cd-inspectores .insp-header {
+  .insp-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .insp-limpiar {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #ffd7d7;
+    transition: color 0.15s;
+
+    &:hover {
+      color: #ffffff;
+      text-decoration: underline;
+    }
+
+    i {
+      font-size: 9px;
+    }
+  }
 }
 

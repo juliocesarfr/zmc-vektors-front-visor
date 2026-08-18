@@ -6,6 +6,8 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   HostListener,
   DestroyRef,
+  ViewChild,
+  ElementRef,
   inject,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
@@ -49,11 +51,6 @@ import { TagModule } from "primeng/tag";
 import { InputTextModule } from "primeng/inputtext";
 
 import {
-  GEOSERVER_URL,
-  GEOSERVER_CAPAS,
-  PROYECCION_MAPA,
-  PROYECCION_UTM_18S,
-  VISTA_INICIAL,
   DISTANCIA_MAX_ACOMETIDA_M,
   ORIGENES_COORDENADA,
   colorPorEstadoLectura,
@@ -77,6 +74,8 @@ import {
   RADIOS_LECTURA,
   RADIOS_FICHA,
 } from "../../../util/Mapaestilos.factory";
+import { observarTamanoMapa } from "../.././../util/Mapinit.util";
+import { GisConfigService } from "../../../core/gis";
 
 @Component({
   selector: "app-controldigitacion",
@@ -103,10 +102,16 @@ import {
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent
-  implements OnInit, AfterViewInit, OnDestroy
-{
+  implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+  private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
+  private detenerObservadorMapa?: () => void;
+
+  /** Referencia directa al <div #mapContainer> real montado por Angular. */
+  @ViewChild("mapContainer", { static: false })
+  private mapContainer!: ElementRef<HTMLDivElement>;
 
   // ---- Mapa y capas ----
   map!: OlMap;
@@ -141,7 +146,7 @@ export class ControldigitacionComponent
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
-  selectedSector: Sector[] | null = null; // '%' = todos
+  selectedSector: Sector | null = null; // '%' = todos
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
@@ -181,7 +186,7 @@ export class ControldigitacionComponent
     {
       id: "osm",
       label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-icon.gif",
+      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
     },
     {
       id: "satelital",
@@ -228,9 +233,12 @@ export class ControldigitacionComponent
     private clientesService: ClientesService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) {}
+  ) { }
 
   ngOnInit(): void {
+    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
+    this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+
     this.aperturaservices
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -250,12 +258,28 @@ export class ControldigitacionComponent
 
   ngAfterViewInit(): void {
     this.crearMapa();
+
+    MapEstilosFactory.setupAdvancedMapTools(this.map);
+
     this.initClick();
-    // el layout de la toolbar puede cambiar el alto del contenedor tras el primer render
-    setTimeout(() => this.map.updateSize(), 300);
+
+    requestAnimationFrame(() => {
+      const el =
+        this.mapContainer?.nativeElement ?? document.getElementById("map");
+      if (!el) {
+        console.error(
+          "[ControlDigitacion] No se encontró el contenedor del mapa (#map ni #mapContainer).",
+        );
+        return;
+      }
+      this.map.setTarget(el);
+      this.map.updateSize();
+      this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
+    });
   }
 
   ngOnDestroy(): void {
+    this.detenerObservadorMapa?.();
     this.map?.setTarget(undefined);
     this.ref?.close();
   }
@@ -311,7 +335,7 @@ export class ControldigitacionComponent
       .subscribe((data) => {
         this.totalSectores2 = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
-        this.selectedSector = def ? [def] : [];
+        this.selectedSector = def;
         this.consumoini = 0;
         this.consumofin = 0;
       });
@@ -333,11 +357,7 @@ export class ControldigitacionComponent
     return {
       codsuc: this.selectedSucursal.codsuc,
       codsede: this._codsede ?? "%",
-      codsector: this.selectedSector?.length
-        ? this.selectedSector.some((s) => s.codsector === "%")
-          ? "%"
-          : this.selectedSector.map((s) => s.codsector).join(",")
-        : "%",
+      codsector: this.selectedSector ? this.selectedSector.codsector : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
       mes: this.selectedMes,
@@ -416,7 +436,7 @@ export class ControldigitacionComponent
 
   limpiar(): void {
     const def = this.sectorPorDefecto();
-    this.selectedSector = def ? [def] : [];
+    this.selectedSector = def;
     this.selectedEstados = [];
     this.consumoini = 0;
     this.consumofin = 0;
@@ -534,7 +554,7 @@ export class ControldigitacionComponent
     return new TileLayer({
       visible,
       source: new TileWMS({
-        url: GEOSERVER_URL,
+        url: this.gis.urlWms(),
         params: { LAYERS: layer, TILED: false },
         serverType: "geoserver",
         transition: 0,
@@ -554,12 +574,12 @@ export class ControldigitacionComponent
       visible: this.baseActive === "satelital",
     });
 
-    this.lotesLayer = this.crearWms(GEOSERVER_CAPAS.lotes, true);
+    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
     this.sectoresComercialesLayer = this.crearWms(
-      GEOSERVER_CAPAS.sectoresComerciales,
+      this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(GEOSERVER_CAPAS.calles, false);
+    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -654,7 +674,10 @@ export class ControldigitacionComponent
     };
 
     this.map = new OlMap({
-      target: "map",
+      // NO se pasa target aquí: en un microfrontend, resolver el id "map" por
+      // string durante la construcción engancha un div equivocado o inexistente
+      // (por eso salía en blanco al navegar y bien al recargar). Se engancha
+      // en ngAfterViewInit con setTarget sobre la referencia real del @ViewChild.
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
@@ -667,9 +690,9 @@ export class ControldigitacionComponent
         this.lecturasLayer,
       ],
       view: new View({
-        projection: PROYECCION_MAPA,
-        center: VISTA_INICIAL.centro,
-        zoom: VISTA_INICIAL.zoom,
+        projection: this.gis.proyeccionMapa,
+        center: this.gis.vista.centro,
+        zoom: this.gis.vista.zoom,
       }),
     });
   }
@@ -694,6 +717,8 @@ export class ControldigitacionComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
+      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
+      if (isDrawing) return;
       let clickedLayer: BaseLayer | null = null;
       const feature = this.map.forEachFeatureAtPixel(
         evt.pixel,
@@ -701,7 +726,7 @@ export class ControldigitacionComponent
           clickedLayer = layer;
           return f;
         },
-        { hitTolerance: 5 },
+        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
       ) as Feature | undefined;
 
       if (feature) {
@@ -738,10 +763,10 @@ export class ControldigitacionComponent
     const source = this.lotesLayer.getSource() as TileWMS;
 
     if (isTodos) {
-      source.updateParams({ LAYERS: GEOSERVER_CAPAS.lotes });
+      source.updateParams({ LAYERS: this.gis.capa("lotes") });
     } else {
       const layers = sectores
-        .map((s) => GEOSERVER_CAPAS.lotesPorSector(s.codsector.slice(-2)))
+        .map((s) => this.gis.lotesPorSector(s.codsector.slice(-2)))
         .join(",");
       source.updateParams({ LAYERS: layers });
     }
@@ -842,13 +867,15 @@ export class ControldigitacionComponent
           this.imagenesPopup =
             imagenes?.mensaje === "EXITO" && imagenes?.data?.length > 0
               ? imagenes.data
-                  .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
-                  .map((e: any) => ({
-                    ...e,
-                    src: e.img64?.startsWith("data:")
-                      ? e.img64
-                      : "data:image/jpeg;base64," + e.img64,
-                  }))
+                .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
+                .map((e: any) => ({
+                  ...e,
+                  src: e.img64?.startsWith("data:")
+                    ? e.img64
+                    : "data:image/jpeg;base64," + e.img64,
+
+                  fechareg: e?.fechareg,
+                }))
               : [];
         },
         error: () => (this.cargandoImagenes = false),
@@ -910,28 +937,26 @@ export class ControldigitacionComponent
           this.resultadoBusquedaJson = [userFeature];
           this.actualizarCapasComerciales(false);
 
-          setTimeout(() => {
-            const refound = this.lecturasLayer
-              ?.getSource()
-              ?.getFeatures()
-              .find(
-                (f) =>
-                  String(
-                    f.get("codcliente") || f.get("nroSuministro") || "",
-                  ).trim() === query,
-              );
-            if (refound) {
-              this.seleccionarFeature(refound, "lectura");
-              const geom = refound.getGeometry();
-              if (geom) {
-                this.map.getView().animate({
-                  center: getCenter(geom.getExtent()),
-                  zoom: 21,
-                  duration: 800,
-                });
-              }
+          const refound = this.lecturasLayer
+            ?.getSource()
+            ?.getFeatures()
+            .find(
+              (f) =>
+                String(
+                  f.get("codcliente") || f.get("nroSuministro") || "",
+                ).trim() === query,
+            );
+          if (refound) {
+            this.seleccionarFeature(refound, "lectura");
+            const geom = refound.getGeometry();
+            if (geom) {
+              this.map.getView().animate({
+                center: getCenter(geom.getExtent()),
+                zoom: 21,
+                duration: 800,
+              });
             }
-          }, 100);
+          }
         }
         return;
       }
@@ -978,43 +1003,41 @@ export class ControldigitacionComponent
           this.searchCodCliente = "";
           this.actualizarCapasComerciales(false);
 
-          setTimeout(() => {
-            const fEncontrado = this.lecturasLayer
-              ?.getSource()
-              ?.getFeatures()
-              .find((f) => {
-                const fc = String(
-                  f.get("codcliente") || f.get("nroSuministro") || "",
-                ).trim();
-                return fc === query;
+          const fEncontrado = this.lecturasLayer
+            ?.getSource()
+            ?.getFeatures()
+            .find((f) => {
+              const fc = String(
+                f.get("codcliente") || f.get("nroSuministro") || "",
+              ).trim();
+              return fc === query;
+            });
+          if (fEncontrado) {
+            this.seleccionarFeature(fEncontrado, "lectura");
+            this.activarCapasPorDefectoBusqueda();
+            const geom = fEncontrado.getGeometry();
+            if (geom) {
+              this.map.getView().animate({
+                center: getCenter(geom.getExtent()),
+                zoom: 21,
+                duration: 800,
               });
-            if (fEncontrado) {
-              this.seleccionarFeature(fEncontrado, "lectura");
-              this.activarCapasPorDefectoBusqueda();
-              const geom = fEncontrado.getGeometry();
-              if (geom) {
-                this.map.getView().animate({
-                  center: getCenter(geom.getExtent()),
-                  zoom: 21,
-                  duration: 800,
-                });
-              }
-            } else {
-              this.lecturaSeleccionada = registros[0];
-              this.cargarDatosPopup(registros[0]);
-              this.activarCapasPorDefectoBusqueda();
-
-              const coord = extraerCoordenada(
-                registros[0],
-                ORIGENES_COORDENADA["usuario"],
-              );
-              if (coord) {
-                this.map
-                  .getView()
-                  .animate({ center: coord, zoom: 17, duration: 600 });
-              }
             }
-          }, 100);
+          } else {
+            this.lecturaSeleccionada = registros[0];
+            this.cargarDatosPopup(registros[0]);
+            this.activarCapasPorDefectoBusqueda();
+
+            const coord = extraerCoordenada(
+              registros[0],
+              ORIGENES_COORDENADA["usuario"],
+            );
+            if (coord) {
+              this.map
+                .getView()
+                .animate({ center: coord, zoom: 17, duration: 600 });
+            }
+          }
         },
         error: () => {
           this.cargando = false;
@@ -1101,38 +1124,36 @@ export class ControldigitacionComponent
           this.searchCodCliente = "";
           this.actualizarCapasComerciales(false);
 
-          setTimeout(() => {
-            const feature = this.lecturasLayer
-              .getSource()
-              ?.getFeatures()
-              .find((f) => {
-                const fc = String(
-                  f.get("codcliente") || f.get("nroSuministro") || "",
-                )
-                  .trim()
-                  .toLowerCase();
-                return fc === query;
-              });
+          const feature = this.lecturasLayer
+            .getSource()
+            ?.getFeatures()
+            .find((f) => {
+              const fc = String(
+                f.get("codcliente") || f.get("nroSuministro") || "",
+              )
+                .trim()
+                .toLowerCase();
+              return fc === query;
+            });
 
-            if (feature) {
-              this.seleccionarFeature(feature, "lectura");
-              this.activarCapasPorDefectoBusqueda();
-            } else {
-              this.lecturaSeleccionada = registros[0];
-              this.cargarDatosPopup(registros[0]);
-              this.activarCapasPorDefectoBusqueda();
-            }
+          if (feature) {
+            this.seleccionarFeature(feature, "lectura");
+            this.activarCapasPorDefectoBusqueda();
+          } else {
+            this.lecturaSeleccionada = registros[0];
+            this.cargarDatosPopup(registros[0]);
+            this.activarCapasPorDefectoBusqueda();
+          }
 
-            const coord = extraerCoordenada(
-              registros[0],
-              ORIGENES_COORDENADA["usuario"],
-            );
-            if (coord) {
-              this.map
-                .getView()
-                .animate({ center: coord, zoom: 17, duration: 600 });
-            }
-          }, 100);
+          const coord = extraerCoordenada(
+            registros[0],
+            ORIGENES_COORDENADA["usuario"],
+          );
+          if (coord) {
+            this.map
+              .getView()
+              .animate({ center: coord, zoom: 17, duration: 600 });
+          }
         },
         error: () => {
           this.cargando = false;
@@ -1152,6 +1173,11 @@ export class ControldigitacionComponent
   // (candidato a extraerse como <app-lightbox-imagenes> reutilizable)
   // ============================================================
 
+  get imagenActual(): any | null {
+    return this.imagenAbiertaIndex >= 0
+      ? this.imagenesPopup[this.imagenAbiertaIndex]
+      : null;
+  }
   abrirImagenCompleta(index: number): void {
     if (index < 0 || index >= this.imagenesPopup.length) return;
     this.imagenAbiertaIndex = index;
@@ -1178,7 +1204,7 @@ export class ControldigitacionComponent
     if (this.imagenesPopup.length === 0) return;
     this.abrirImagenCompleta(
       (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) %
-        this.imagenesPopup.length,
+      this.imagenesPopup.length,
     );
   }
 
@@ -1263,7 +1289,7 @@ export class ControldigitacionComponent
     // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
     let [lng, lat] = [x, y];
     if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], PROYECCION_UTM_18S, "EPSG:4326");
+      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
     }
 
     window.open(

@@ -11,26 +11,30 @@
 
     <div class="sl-toolbar-actions">
       <div class="sl-filtros-summary" *ngIf="!filtrosVisible">
-        <span class="filtro-chip" *ngIf="selectedCiclo">
+        <span class="filtro-chip ciclo" *ngIf="selectedCiclo">
           <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedMes && fechaCiclos">
+        <span class="filtro-chip mes" *ngIf="selectedMes && fechaCiclos">
           <i class="pi pi-calendar"></i> {{ selectedMes }}/{{ selectedAnio }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedSucursal">
+        <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
           <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedSector">
+        <span class="filtro-chip sector" *ngIf="selectedSector">
           <i class="pi pi-map"></i> {{ selectedSector?.descripcion }}
         </span>
-        <span class="filtro-chip" *ngIf="selectedInspector">
+        <span class="filtro-chip estado" *ngIf="selectedInspector">
           <i class="pi pi-user"></i> {{ selectedInspector?.names }}
         </span>
       </div>
 
       <button class="sl-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
-        <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
-        <span>{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <span class="toggle-icon-wrap">
+          <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+          <span class="pulse-dot" *ngIf="!selectedSucursal && !filtrosVisible"></span>
+        </span>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down sl-chevron" [class.rotated]="filtrosVisible"></i>
       </button>
     </div>
   </div>
@@ -66,7 +70,7 @@
 
       <span class="p-float-label" *ngIf="selectedSucursal">
         <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion"
-          (onChange)="seleccionarSector($event.value)" [filter]="true" filterBy="descripcion"
+           [filter]="true" filterBy="descripcion"
           [style]="{ width: '180px' }" placeholder="Sector" [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
             <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
@@ -105,7 +109,7 @@
       <span>Cargando seguimiento...</span>
     </div>
 
-    <div id="map" class="map"></div>
+    <div #mapContainer id="map" class="map"></div>
 
     <!-- Sidebar de capas -->
     <div class="gis-sidebar-container">
@@ -121,7 +125,7 @@
         </div>
         <div class="divider"></div>
         <div class="sidebar-title">
-          <img src="assets/images/img-georeferencia/satellital-icon.gif" class="gif-icon" alt="Capas"> CAPAS DEL SEGUIMIENTO
+          <img src="assets/images/img-georeferencia/radar-icon.gif" class="gif-icon" alt="Capas"> CAPAS DEL SEGUIMIENTO
         </div>
         <div class="commercial-layers">
           <div class="c-layer" *ngFor="let l of commercialLayers" (click)="toggleCommercialLayer(l)">
@@ -208,12 +212,12 @@
         selectionMode="single" styleClass="p-datatable-sm p-datatable-striped">
         <ng-template pTemplate="header">
           <tr>
-            <th>Cód.</th>
-            <th>Inspector</th>
-            <th class="num">Asignados</th>
-            <th class="num">Enviados</th>
-            <th class="num">Pendientes</th>
-            <th class="num">Avance</th>
+            <th pSortableColumn="codinspector">Cód. <p-sortIcon field="codinspector"></p-sortIcon></th>
+            <th pSortableColumn="inspector">Inspector <p-sortIcon field="inspector"></p-sortIcon></th>
+            <th class="num" pSortableColumn="asignados">Asignados <p-sortIcon field="asignados"></p-sortIcon></th>
+            <th class="num" pSortableColumn="enviados">Enviados <p-sortIcon field="enviados"></p-sortIcon></th>
+            <th class="num" pSortableColumn="pendientes">Pendientes <p-sortIcon field="pendientes"></p-sortIcon></th>
+            <th class="num" pSortableColumn="avance">Avance <p-sortIcon field="avance"></p-sortIcon></th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-fila>
@@ -245,11 +249,10 @@
 
     <!-- Popup de registro seleccionado -->
     <div class="sl-popup" *ngIf="registroSeleccionado">
-      <div class="sp-header">
+      <div class="sp-header" [class.ok]="registroSeleccionado['_tomada']" [class.error]="!registroSeleccionado['_tomada']">
         <strong>
           <i class="pi" [class.pi-check-circle]="registroSeleccionado['_tomada']"
-            [class.pi-times-circle]="!registroSeleccionado['_tomada']"
-            [style.color]="registroSeleccionado['_tomada'] ? '#22c55e' : '#ef4444'"></i>
+            [class.pi-times-circle]="!registroSeleccionado['_tomada']"></i>
           {{ registroSeleccionado['_tomada'] ? 'LECTURA ENVIADA' : 'LECTURA PENDIENTE' }}
         </strong>
         <button class="sp-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
@@ -257,7 +260,16 @@
       <div class="sp-body">
         <div class="sp-row">
           <span class="sp-label">Suministro</span>
-          <span class="sp-val">{{ registroSeleccionado['codcliente'] || '-' }}</span>
+          <span class="sp-val" style="justify-content: space-between; width: 100%;">
+            <span>{{ registroSeleccionado['codcliente'] || '-' }}</span>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View"
+              (click)="abrirStreetView($any(registroSeleccionado['lonpredio'] ?? registroSeleccionado['longitud'] ?? registroSeleccionado['lon']), $any(registroSeleccionado['latpredio'] ?? registroSeleccionado['latitud'] ?? registroSeleccionado['lat']))"
+              style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.2rem 0.6rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2rem;" alt="Street View">
+              <span style="font-weight: 900; font-size: 0.85rem;">Ver en Maps</span>
+            </button>
+          </span>
         </div>
         <div class="sp-row">
           <span class="sp-label">Inspector</span>
@@ -276,7 +288,7 @@
           </span>
         </div>
         <button pButton type="button" icon="pi pi-map-marker" label="Centrar en mapa"
-          class="p-button-sm p-button-outlined w-full" (click)="centrarEnSeleccion()"></button>
+          class="p-button-sm p-button-outlined w-full" (click)="centrarEnSeleccion()" style="margin-bottom: 0.5rem;"></button>
         <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
           class="p-button-sm w-full"
           (click)="verMasInformacion($any(registroSeleccionado['codcliente']))"></button>
