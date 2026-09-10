@@ -291,7 +291,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     }
 
     this.sectoresCicloService
-      .drop_sectores_x_ciclo(this.selectedCiclo.codigo, this.selectedSucursal.codsuc)
+      .drop_sectores_x_ciclo(this.selectedSucursal.codsuc, this.selectedCiclo.codigo)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
