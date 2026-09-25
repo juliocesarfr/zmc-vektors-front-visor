@@ -46,6 +46,8 @@
             inputStyleClass="w-full" [showButtons]="false" placeholder="N° Programa"></p-inputNumber>
           <label>N° Programa</label>
         </span>
+        <p-button (click)="abrirBuscarPrograma()" icon="pi pi-list" [outlined]="true" severity="info"
+          pTooltip="Buscar N° de programa" tooltipPosition="bottom"></p-button>
 
         <div class="filtros-btns">
           <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"

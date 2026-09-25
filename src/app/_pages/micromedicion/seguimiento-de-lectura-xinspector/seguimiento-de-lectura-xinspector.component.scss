@@ -532,6 +532,91 @@
     &.warn {
       border-top-color: #f59e0b;
     }
+    // Tomas reflejadas por socket desde que se cargó el mapa.
+    &.vivo {
+      border-top-color: #2563eb;
+    }
+  }
+}
+
+// ---------- Actividad en vivo ----------
+// Rótulo efímero con el inspector que acaba de registrar una toma.
+// Va a top:58px (misma línea que las tarjetas de resumen) porque su contenedor
+// es .sl-wrapper, no el mapa: con top:12px caía encima del toolbar y tapaba
+// el título. El centrado es por flex y NO por translateX(-50%): el transform
+// dejaba el texto a medio pixel, y el backdrop-filter sobre un fondo ya 92%
+// opaco lo rasterizaba en una capa aparte. Entre las dos cosas se veía borroso
+// Indicador de tiempo real. Vive DENTRO de .sl-toolbar, al lado del título:
+// flotando sobre el mapa quedaba tapado por el panel de filtros y competía con
+// las tarjetas de resumen. Sigue la estética de los .filtro-chip de la barra.
+// Sin backdrop-filter ni translate: ambos rasterizaban el texto en una capa
+// aparte / a medio pixel y se veía borroso.
+.sl-envivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 10px;
+  padding: 3px 12px 3px 10px;
+  border-radius: 20px;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: default;
+
+  @media (max-width: 900px) {
+    max-width: 130px;
+  }
+
+  .sl-envivo__pulso {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    animation: sl-envivo-pulso 1.6s ease-out infinite;
+  }
+
+  .sl-envivo__texto {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  strong {
+    font-weight: 800;
+  }
+
+  // Socket caído: el mapa ya no refleja el campo, hay que notarlo.
+  &.offline {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #64748b;
+
+    .sl-envivo__pulso {
+      background: #94a3b8;
+      animation: none;
+      box-shadow: none;
+    }
+  }
+}
+
+@keyframes sl-envivo-pulso {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
   }
 }
 

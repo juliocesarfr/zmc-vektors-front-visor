@@ -23,6 +23,7 @@ import { InputNumberModule } from "primeng/inputnumber";
 import { InputTextModule } from "primeng/inputtext";
 import { ToastModule } from "primeng/toast";
 import { TagModule } from "primeng/tag";
+import { TooltipModule } from "primeng/tooltip";
 import { MessageService } from "primeng/api";
 import {
   DialogService,
@@ -55,6 +56,7 @@ import { ControlImgService } from "@host/_servicios/procesar-img/control-img.ser
 import { ConsultaUsuarioService } from "@host/_servicios/consulta/consulta-usuario.service";
 import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
+import { BuscarProgramaCorteComponent } from "../buscar-programa-corte/buscar-programa-corte.component";
 
 import {
   TIPOS_RECEPCION_IMG,
@@ -77,10 +79,6 @@ import {
 } from "../../../util/Mapaestilos.factory";
 import { observarTamanoMapa } from "../.././../util/Mapinit.util";
 import { GisConfigService } from "../../../core/gis";
-
-/* La parametrización corte/reapertura vive como propiedades protected de la
- * clase (ver abajo) para que la ventana de reaperturas EXTIENDA esta y solo
- * sobreescriba esos 4 valores, sin duplicar la lógica del mapa. */
 
 export type EstadoCorte = "ejecutado" | "pagado" | "pendiente";
 
@@ -158,6 +156,7 @@ interface ResumenInspector {
     InputTextModule,
     ToastModule,
     TagModule,
+    TooltipModule,
   ],
   templateUrl: "./seguimiento-cortescon-programa.component.html",
   styleUrl: "./seguimiento-cortescon-programa.component.scss",
@@ -310,11 +309,12 @@ export class SeguimientoCortesconProgramaComponent
         this.dataSucursales = resp || [];
 
         // Handoff desde la ventana de resumen: si viene codsuc/nroprecorte, auto-busca.
-        const codsucIni = this.dialogConfig?.data?.codsuc;
-        this.selectedSucursal = codsucIni
-          ? (this.dataSucursales.find((s) => s.codsuc === codsucIni) ??
-            this.dataSucursales[0])
-          : this.dataSucursales[0];
+        // Si no, se toma la sucursal por defecto del token (sessionStorage.codsuc).
+        const codsucIni =
+          this.dialogConfig?.data?.codsuc ?? sessionStorage.getItem("codsuc");
+        this.selectedSucursal =
+          this.dataSucursales.find((s) => s.codsuc === codsucIni) ??
+          this.dataSucursales[0];
 
         const nroIni = this.dialogConfig?.data?.nroprecorte;
         if (nroIni && this.selectedSucursal) {
@@ -393,6 +393,29 @@ export class SeguimientoCortesconProgramaComponent
     this.filtroInspector = null;
     this.filtroEstado = null;
     this.ejecutarBusqueda();
+  }
+
+  /** Abre el modal para buscar el N° de programa (tipo de operación fijo). */
+  abrirBuscarPrograma(): void {
+    this.ref = this.dialogService.open(BuscarProgramaCorteComponent, {
+      header: "Buscar N° de Programa",
+      width: "80%",
+      contentStyle: { overflow: "auto" },
+      baseZIndex: 10000,
+      maximizable: true,
+      data: { tipooperacion: this.tipoOperacion },
+    });
+    this.ref.onClose
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((programa) => {
+        if (!programa?.nroprecorte) return;
+        const suc = this.dataSucursales.find(
+          (s) => s.codsuc === programa.filtrocodsuc,
+        );
+        if (suc) this.selectedSucursal = suc;
+        this.nroPrecorte = Number(programa.nroprecorte);
+        this.procesar();
+      });
   }
 
   private ejecutarBusqueda(): void {

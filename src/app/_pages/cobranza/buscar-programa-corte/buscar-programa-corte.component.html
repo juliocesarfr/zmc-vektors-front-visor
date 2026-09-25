@@ -1,0 +1,92 @@
+<div class="row">
+  <div class="col-md-6 col-sm-12">
+    <p-panel [toggleable]="true">
+      <ng-template pTemplate="header">
+        <div class="flex align-items-center text-primary">
+          <span class="pi pi-map-marker mr-2"></span>
+          <span class="font-bold text-lg">Filtrar por estados</span>
+        </div>
+      </ng-template>
+      <span class="p-float-label mt-2">
+        <p-dropdown [options]="listaSede" [(ngModel)]="envioLista.codsede" optionLabel="descripcion"
+          optionValue="codigo" [style]="{ width: '100%' }" [appendTo]="'body'"></p-dropdown>
+        <label class="form-label">Sede</label>
+      </span>
+      <span class="p-float-label mt-3">
+        <p-dropdown [options]="estados" [(ngModel)]="envioLista.codestado" optionLabel="descripcion"
+          optionValue="codigo" [style]="{ width: '100%' }" [appendTo]="'body'"></p-dropdown>
+        <label class="form-label">Estados de Programa</label>
+      </span>
+      <button pButton label="Procesar" class="p-button-outlined p-button-success mt-2" icon="pi pi-search"
+        [loading]="loading" (click)="cargarLista()"></button>
+    </p-panel>
+  </div>
+  <div class="col-md-6 col-sm-12">
+    <p-panel [toggleable]="true">
+      <ng-template pTemplate="header">
+        <div class="flex align-items-center text-primary">
+          <span class="pi pi-map-marker mr-2"></span>
+          <span class="font-bold text-lg">Filtrar por Nro y fecha</span>
+        </div>
+      </ng-template>
+      <span class="p-float-label mt-2">
+        <p-inputNumber [(ngModel)]="envioLista.nroprecorte_start" [useGrouping]="false" [style]="{ width: '100%' }"
+          [inputStyle]="{ width: '100%' }" class="w-full"></p-inputNumber>
+        <label>Nro corte</label>
+      </span>
+      <span class="p-float-label mt-3">
+        <p-inputNumber [(ngModel)]="envioLista.nroprecrte_end" [useGrouping]="false" [style]="{ width: '100%' }"
+          [inputStyle]="{ width: '100%' }" class="w-full"></p-inputNumber>
+        <label>Nro corte final</label>
+      </span>
+      <span class="p-float-label mt-3" *ngIf="rangeDates.length > 0">
+        <p-calendar [(ngModel)]="rangeDates" selectionMode="range" [readonlyInput]="true" class="w-full"
+          dateFormat="dd/mm/yy" appendTo="body" [baseZIndex]="20000" [style]="{ width: '100%' }" />
+        <label>Rango de Fechas</label>
+      </span>
+    </p-panel>
+  </div>
+</div>
+
+<p-table class="mt-2" [value]="programas" [rowHover]="true" [scrollable]="true" scrollHeight="320px"
+  [loading]="loading" styleClass="p-datatable-striped p-datatable-sm" [tableStyle]="{ 'min-width': '50rem' }">
+  <ng-template pTemplate="header">
+    <tr class="fs-11">
+      <th style="min-width:40px">Año</th>
+      <th style="min-width:40px">Mes</th>
+      <th style="min-width:50px">Precorte</th>
+      <th style="min-width:100px">Tipo de Operación</th>
+      <th style="min-width:100px">F.Programa</th>
+      <th style="min-width:50px">Total</th>
+      <th style="min-width:50px">Pend.</th>
+      <th style="min-width:50px">Ejecut.</th>
+      <th style="min-width:50px">Pagó</th>
+      <th style="min-width:150px">Rendimiento</th>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="body" let-rows>
+    <tr class="fs-11">
+      <td class="text-center">{{ rows.filtroanio }}</td>
+      <td>{{ rows.filtromes }}</td>
+      <td>
+        <p-button [label]="rows.nroprecorte" pTooltip="Seleccionar programa" severity="info"
+          (click)="seleccionar(rows)" />
+      </td>
+      <td>{{ rows.c_destipoopera }}</td>
+      <td class="text-center">{{ rows.fechareg | date: 'dd/MM/yyyy HH:mm' }}</td>
+      <td class="text-center text-success">{{ rows.asignados }}</td>
+      <td class="text-center text-danger">{{ rows.pendientes }}</td>
+      <td class="text-center">{{ rows.ejecutados }}</td>
+      <td class="text-center text-warn">{{ rows.pagados }}</td>
+      <td class="text-center">
+        <p-progressBar [value]="rows.rendimiento" [showValue]="false"></p-progressBar>
+        <div>{{ rows.rendimiento | number: '1.2-2' }}%</div>
+      </td>
+    </tr>
+  </ng-template>
+  <ng-template pTemplate="emptymessage">
+    <tr>
+      <td colspan="10" class="text-center">No existen valores</td>
+    </tr>
+  </ng-template>
+</p-table>

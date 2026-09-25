@@ -7,6 +7,7 @@ import { InputNumberModule } from "primeng/inputnumber";
 import { InputTextModule } from "primeng/inputtext";
 import { ToastModule } from "primeng/toast";
 import { TagModule } from "primeng/tag";
+import { TooltipModule } from "primeng/tooltip";
 import { MessageService } from "primeng/api";
 import { DialogService } from "primeng/dynamicdialog";
 
@@ -27,6 +28,7 @@ import {
     InputTextModule,
     ToastModule,
     TagModule,
+    TooltipModule,
   ],
   templateUrl: "./seguimiento-reaperturacon-programa.component.html",
   styleUrl: "./seguimiento-reaperturacon-programa.component.scss",

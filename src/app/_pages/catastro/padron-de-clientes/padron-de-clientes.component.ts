@@ -45,12 +45,15 @@ import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/c
 
 import {
   ORIGENES_COORDENADA,
-  ConfigOrigenCoordenada
+  ConfigOrigenCoordenada,
 } from "../../../config/Controldigitacion.config";
 import { GisConfigService } from "../../../core/gis";
-import { fromCircle } from 'ol/geom/Polygon';
+import { fromCircle } from "ol/geom/Polygon";
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
-import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
+import {
+  MapEstilosFactory,
+  RADIOS_LECTURA,
+} from "../../../util/Mapaestilos.factory";
 import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
 import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/Catastro/FiltroPadronClientesTipoActividadRequest";
 
@@ -63,18 +66,16 @@ import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/
     ButtonModule,
     ToastModule,
     DropdownModule,
-    InputTextModule
+    InputTextModule,
   ],
   templateUrl: "./padron-de-clientes.component.html",
   styleUrl: "./padron-de-clientes.component.scss",
-  providers: [
-    DatePipe,
-    MessageService,
-    DialogService,
-  ],
+  providers: [DatePipe, MessageService, DialogService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestroy {
+export class PadronDeClientesComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
   private readonly destroyRef = inject(DestroyRef);
   /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
@@ -167,26 +168,42 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     private tipoUsuarioService: TipousuarioService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
     forkJoin({
-      ciclos: this.consulGenericService.getconsultaService("CCO", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      estadoServicio: this.consulGenericService.getconsultaService("TES", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      tipoServicio: this.consulGenericService.getconsultaService("TSE", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      actividades: this.consulGenericService.getconsultaService("TAC", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      tipoUsuario: this.tipoUsuarioService.drop().pipe(catchError(() => of<any[]>(([]))))
+      ciclos: this.consulGenericService
+        .getconsultaService("CCO", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      estadoServicio: this.consulGenericService
+        .getconsultaService("TES", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      tipoServicio: this.consulGenericService
+        .getconsultaService("TSE", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      actividades: this.consulGenericService
+        .getconsultaService("TAC", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      tipoUsuario: this.tipoUsuarioService
+        .drop()
+        .pipe(catchError(() => of<any[]>([]))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ ciclos, estadoServicio, tipoServicio, actividades, tipoUsuario }) => {
+        next: ({
+          ciclos,
+          estadoServicio,
+          tipoServicio,
+          actividades,
+          tipoUsuario,
+        }) => {
           // Ciclos
           this.dataCiclos = [
             { codigo: "ALL", descripcion: "TODOS", codemp: "ALL", estareg: 1 },
-            ...ciclos
+            ...ciclos,
           ];
           if (this.dataCiclos.length > 0) {
             this.selectedCiclo = this.dataCiclos[1] || this.dataCiclos[0];
@@ -196,35 +213,39 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           // Estado Servicio
           this.listaEstadoServicio = [
             { codigo: "ALL", descripcion: "TODOS" },
-            ...estadoServicio
+            ...estadoServicio,
           ];
           this.selectedEstadoServicio = "ALL";
 
           // Tipo Servicio
           this.listaTipoServicio = [
             { codigo: "ALL", descripcion: "TODOS" },
-            ...tipoServicio
+            ...tipoServicio,
           ];
           this.selectedTipoServicio = "ALL";
 
           // Actividad
           this.listaActividades = [
             { codigo: "ALL", descripcion: "TODOS" },
-            ...actividades
+            ...actividades,
           ];
           this.selectedActividad = "ALL";
 
           // Tipo Usuario
           this.listaTipoUsuario = [
             { tipousuario: "ALL", descripcion: "TODOS" },
-            ...(tipoUsuario || [])
+            ...(tipoUsuario || []),
           ];
           this.selectedTipoUsuario = "ALL";
         },
         error: (err) => {
           console.error("Error cargando catálogos iniciales:", err);
-          this.avisar("error", "Error", "Error al cargar catálogos iniciales. Revisa tu conexión.");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Error al cargar catálogos iniciales. Revisa tu conexión.",
+          );
+        },
       });
   }
 
@@ -251,7 +272,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         error: (err) => {
           console.error("Error al cargar sucursales:", err);
           this.listaSucursales = [];
-        }
+        },
       });
   }
 
@@ -272,32 +293,39 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          const uniqueData = (data || []).filter((item: any, index: number, self: any[]) =>
-            index === self.findIndex((t) => t.nomtar === item.nomtar)
+          const uniqueData = (data || []).filter(
+            (item: any, index: number, self: any[]) =>
+              index === self.findIndex((t) => t.nomtar === item.nomtar),
           );
           this.listaTarifas = [
             { catetar: "ALL", nomtar: "TODOS", codigo: "ALL" },
-            ...uniqueData
+            ...uniqueData,
           ];
           this.selectedTarifa = "ALL";
         },
-        error: (err) => console.error("Error al cargar tarifas:", err)
+        error: (err) => console.error("Error al cargar tarifas:", err),
       });
 
-    if (this.selectedSucursal.codsuc === "ALL" || this.selectedCiclo.codigo === "ALL") {
+    if (
+      this.selectedSucursal.codsuc === "ALL" ||
+      this.selectedCiclo.codigo === "ALL"
+    ) {
       this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
       this.selectedSector = this.listaSectores[0];
       return;
     }
 
     this.sectoresCicloService
-      .drop_sectores_x_ciclo(this.selectedSucursal.codsuc, this.selectedCiclo.codigo)
+      .drop_sectores_x_ciclo(
+        this.selectedSucursal.codsuc,
+        this.selectedCiclo.codigo,
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSectores = [
             { codsector: "ALL", descripcion: "TODOS" },
-            ...(data || [])
+            ...(data || []),
           ];
           this.selectedSector = this.listaSectores[0];
         },
@@ -305,7 +333,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           console.error("Error al cargar sectores:", err);
           this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
           this.selectedSector = this.listaSectores[0];
-        }
+        },
       });
 
     // Urbanizaciones
@@ -316,52 +344,79 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         next: (data) => {
           this.listaUrbanizaciones = [
             { codurbaso: "ALL", descripcionurba: "TODOS" },
-            ...(data || [])
+            ...(data || []),
           ];
           this.selectedUrbanizacion = "ALL";
         },
-        error: (err) => console.error("Error al cargar urbanizaciones:", err)
+        error: (err) => console.error("Error al cargar urbanizaciones:", err),
       });
   }
 
   getDescEstadoServicio(): string {
-    return this.listaEstadoServicio?.find(e => e.codigo === this.selectedEstadoServicio)?.descripcion ?? "TODOS";
+    return (
+      this.listaEstadoServicio?.find(
+        (e) => e.codigo === this.selectedEstadoServicio,
+      )?.descripcion ?? "TODOS"
+    );
   }
 
   getDescTipoUsuario(): string {
-    return this.listaTipoUsuario?.find(e => e.tipousuario === this.selectedTipoUsuario)?.descripcion ?? "TODOS";
+    return (
+      this.listaTipoUsuario?.find(
+        (e) => e.tipousuario === this.selectedTipoUsuario,
+      )?.descripcion ?? "TODOS"
+    );
   }
 
   getDescTipoServicio(): string {
-    return this.listaTipoServicio?.find(e => e.codigo === this.selectedTipoServicio)?.descripcion ?? "TODOS";
+    return (
+      this.listaTipoServicio?.find(
+        (e) => e.codigo === this.selectedTipoServicio,
+      )?.descripcion ?? "TODOS"
+    );
   }
 
   getDescTarifa(): string {
-    return this.listaTarifas?.find(e => e.catetar === this.selectedTarifa)?.nomtar ?? "TODOS";
+    return (
+      this.listaTarifas?.find((e) => e.catetar === this.selectedTarifa)
+        ?.nomtar ?? "TODOS"
+    );
   }
 
   getTarifaName(catetar: string): string {
-    if (!catetar) return '';
-    const tarifa = this.listaTarifas?.find(t => t.catetar === catetar);
-    return tarifa ? tarifa.nomtar : '';
+    if (!catetar) return "";
+    const tarifa = this.listaTarifas?.find((t) => t.catetar === catetar);
+    return tarifa ? tarifa.nomtar : "";
   }
 
   getDescUrbanizacion(): string {
-    return this.listaUrbanizaciones?.find(e => e.codurbaso === this.selectedUrbanizacion)?.descripcionurba ?? "TODOS";
+    return (
+      this.listaUrbanizaciones?.find(
+        (e) => e.codurbaso === this.selectedUrbanizacion,
+      )?.descripcionurba ?? "TODOS"
+    );
   }
 
   getDescActividad(): string {
-    return this.listaActividades?.find(e => e.codigo === this.selectedActividad)?.descripcion ?? "TODOS";
+    return (
+      this.listaActividades?.find((e) => e.codigo === this.selectedActividad)
+        ?.descripcion ?? "TODOS"
+    );
   }
 
   procesar(): void {
     if (!this.selectedCiclo || !this.selectedSucursal) {
-      this.avisar("warn", "Aviso de usuario", "Debe seleccionar Ciclo y Sucursal");
+      this.avisar(
+        "warn",
+        "Aviso de usuario",
+        "Debe seleccionar Ciclo y Sucursal",
+      );
       return;
     }
 
     this.cargando = true;
-    const toNull = (val: any, key?: string) => (!val || val === "ALL") ? null : val;
+    const toNull = (val: any, key?: string) =>
+      !val || val === "ALL" ? null : val;
 
     const filtro: FiltroPadronClientesTipoActividadRequest = {
       codciclo: toNull(this.selectedCiclo.codigo),
@@ -375,7 +430,8 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       actividad: toNull(this.selectedActividad),
     };
 
-    this.catastroService.listarPadronActividad(filtro)
+    this.catastroService
+      .listarPadronActividad(filtro)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -387,7 +443,11 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           } else {
             this.resultadoBusquedaJson = [];
             this.limpiarCapas();
-            this.avisar("info", "Resultados", "No se encontraron registros con los filtros seleccionados");
+            this.avisar(
+              "info",
+              "Resultados",
+              "No se encontraron registros con los filtros seleccionados",
+            );
           }
         },
         error: (err) => {
@@ -395,8 +455,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           this.cargando = false;
           this.limpiarCapas();
           this.resultadoBusquedaJson = [];
-          this.avisar("error", "Error", "Ocurrió un error al cargar el padrón de clientes");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Ocurrió un error al cargar el padrón de clientes",
+          );
+        },
       });
   }
 
@@ -517,10 +581,15 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       return;
     }
 
-    const feature = this.usuariosLayer?.getSource()?.getFeatures().find((f) => {
-      const fc = String(f.get("codcliente") || f.get("nroSuministro") || "").trim();
-      return fc === query;
-    });
+    const feature = this.usuariosLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => {
+        const fc = String(
+          f.get("codcliente") || f.get("nroSuministro") || "",
+        ).trim();
+        return fc === query;
+      });
 
     if (feature) {
       if (!this.isBusquedaClienteActiva) {
@@ -529,16 +598,23 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       }
 
       const userFeature = this.resultadoBusquedaOriginalJson?.find(
-        (r: any) => String(r.codcliente || r.nroSuministro || "").trim() === query
+        (r: any) =>
+          String(r.codcliente || r.nroSuministro || "").trim() === query,
       );
 
       if (userFeature) {
         this.resultadoBusquedaJson = [userFeature];
         this.actualizarCapasComerciales(false);
 
-        const refound = this.usuariosLayer?.getSource()?.getFeatures().find(
-          (f) => String(f.get("codcliente") || f.get("nroSuministro") || "").trim() === query
-        );
+        const refound = this.usuariosLayer
+          ?.getSource()
+          ?.getFeatures()
+          .find(
+            (f) =>
+              String(
+                f.get("codcliente") || f.get("nroSuministro") || "",
+              ).trim() === query,
+          );
 
         if (refound) {
           const geom = refound.getGeometry();
@@ -558,10 +634,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     if (!this.selectedSucursal) return;
 
     this.cargando = true;
-    this.catastroService.buscarClienteActividad({
-      codsuc: this.selectedSucursal.codsuc,
-      codcliente: Number(query)
-    }).pipe(takeUntilDestroyed(this.destroyRef))
+    this.catastroService
+      .buscarClienteActividad({
+        codsuc: this.selectedSucursal.codsuc,
+        codcliente: Number(query),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
           this.cargando = false;
@@ -574,28 +652,46 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
             this.searchCodCliente = "";
             this.actualizarCapasComerciales(false);
 
-            const coord = extraerCoordenada(response.data, ORIGENES_COORDENADA["usuario"]);
+            const coord = extraerCoordenada(
+              response.data,
+              ORIGENES_COORDENADA["usuario"],
+            );
             if (coord) {
-              this.map.getView().animate({ center: coord, zoom: 21, duration: 600 });
+              this.map
+                .getView()
+                .animate({ center: coord, zoom: 21, duration: 600 });
             }
 
-            const refound = this.usuariosLayer?.getSource()?.getFeatures().find(
-              (f) => String(f.get("codcliente") || f.get("nroSuministro") || "").trim() === query
-            );
+            const refound = this.usuariosLayer
+              ?.getSource()
+              ?.getFeatures()
+              .find(
+                (f) =>
+                  String(
+                    f.get("codcliente") || f.get("nroSuministro") || "",
+                  ).trim() === query,
+              );
             if (refound) {
               this.seleccionarFeature(refound);
             }
           } else {
-            this.avisar("warn", "Aviso", "No se encontró un usuario con ese código.");
+            this.avisar(
+              "warn",
+              "Aviso",
+              "No se encontró un usuario con ese código.",
+            );
           }
         },
         error: (err) => {
           this.cargando = false;
-          this.avisar("error", "Error", "Ocurrió un error al buscar el cliente.");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Ocurrió un error al buscar el cliente.",
+          );
+        },
       });
   }
-
 
   // MAPA
   private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
@@ -662,7 +758,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         this.lotesLayer,
         this.sectoresComercialesLayer,
         this.callesLayer,
-        this.usuariosLayer
+        this.usuariosLayer,
       ],
       view: new View({
         projection: this.gis.proyeccionMapa,
@@ -673,7 +769,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     });
 
     MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
-      if (geometry && geometry.getType() === 'Circle') {
+      if (geometry && geometry.getType() === "Circle") {
         this.contarElementosEnRadio(geometry);
       }
     });
@@ -704,13 +800,15 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
+      const isDrawing = this.map
+        .getInteractions()
+        .getArray()
+        .some((i) => i.get("isDrawInteraction"));
       if (isDrawing) return;
-      const feature = this.map.forEachFeatureAtPixel(
-        evt.pixel,
-        (f) => f,
-        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
-      ) as Feature | undefined;
+      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
+        hitTolerance: 5,
+        layerFilter: (layer: any) => !layer.get("isDrawLayer"),
+      }) as Feature | undefined;
 
       if (feature) {
         this.seleccionarFeature(feature);
@@ -772,7 +870,8 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       maximizable: true,
       data: {
         codcliente,
-        codsuc: this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
+        codsuc:
+          this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
         operacion: "Vektors",
       },
     });
@@ -792,7 +891,10 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       if (source) {
         source.forEachFeatureIntersectingExtent(extent, (feature) => {
           const geom = feature.getGeometry();
-          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
+          if (
+            geom &&
+            polygon.intersectsCoordinate((geom as any).getCoordinates())
+          ) {
             count++;
           }
         });
@@ -800,9 +902,9 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     }
 
     this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} clientes en el área seleccionada.`
+      severity: "info",
+      summary: "Selección de Radio",
+      detail: `Se encontraron ${count} clientes en el área seleccionada.`,
     });
   }
 }

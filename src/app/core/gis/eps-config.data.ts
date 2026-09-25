@@ -13,7 +13,6 @@ export const PROYECCIONES_POR_DEFECTO: GisProyeccionesConfig = {
   utm: PROYECCION_UTM_DEFECTO,
 };
 
-
 export const CONFIG_EPS: Record<string, GisEpsConfig> = {
   "004": {
     ccodeps: "004",
@@ -23,15 +22,15 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       workspace: "eps_yurimaguas",
     },
     capas: {
-      lotes: "emapa_sig_lotes",
-      lotesPorSector: "emapa_sig_lotes_sector_{sector}",
-      sectoresComerciales: "emapa_sig_sectores_comerciales",
-      calles: "emapa_sig_calles",
+      lotes: "yurimaguas_sig_lotes",
+      lotesPorSector: "yurimaguas_sig_lotes_sector_{sector}",
+      sectoresComerciales: "yurimaguas_sig_sectores_comerciales",
+      calles: "yurimaguas_sig_calles",
       usuarios: "usuarios",
       acometidaAgua: "acometida_agua",
       acometidaAlcantarillado: "acometida_alcantarillado",
-      fichaAgua: "emapa_ficha_agua",
-      fichaAlcantarillado: "emapa_ficha_alcantarillado",
+      fichaAgua: "yurimaguas_ficha_agua",
+      fichaAlcantarillado: "yurimaguas_ficha_alcantarillado",
     },
     vista: {
       centro: [-76.1223, -5.9018],

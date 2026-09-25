@@ -89,6 +89,28 @@ export function colorPorEstadoLectura(estado: string | undefined): string {
 export const COLOR_FICHA_AGUA = "#00bfff"; // celeste
 export const COLOR_FICHA_ALC = "#8b4513"; // marrón
 
+// ============================================================
+// DESTELLO DE LECTURA EN TIEMPO REAL
+// ============================================================
+
+/** Milisegundos que el marcador de "lectura recién tomada" queda visible. */
+export const DESTELLO_MS_VISIBLE = 3200;
+
+/** Duración del fundido de salida; debe coincidir con la animación del SCSS. */
+export const DESTELLO_MS_SALIDA = 420;
+
+/**
+ * Tope de destellos a la vez. Una sincronización masiva de la APK puede traer
+ * decenas de lecturas de golpe y taparían el mapa.
+ */
+export const DESTELLO_MAX_SIMULTANEOS = 12;
+
+/**
+ * Milisegundos que el rótulo superior ("X tomó lectura de Y") queda en
+ * pantalla. Se reinicia con cada lectura nueva.
+ */
+export const ROTULO_ENVIVO_MS = 4000;
+
 export const LISTA_MESES = [
   { mes: "ENERO", numero: "01" },
   { mes: "FEBRERO", numero: "02" },

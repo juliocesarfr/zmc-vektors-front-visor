@@ -6,6 +6,7 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   HostListener,
   DestroyRef,
+  NgZone,
   ViewChild,
   ElementRef,
   inject,
@@ -28,6 +29,7 @@ import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature from "ol/Feature";
+import Point from "ol/geom/Point";
 import { transform } from "ol/proj";
 import { extend, getCenter } from "ol/extent";
 
@@ -63,12 +65,19 @@ import {
   RegistroLectura,
   Sector,
   SECTOR_TODOS,
+  ROTULO_ENVIVO_MS,
 } from "../../../config/Controldigitacion.config";
 import {
   crearFeaturePunto,
   crearFeatureLinea,
   extraerCoordenada,
 } from "../.././../util/Geo.utils";
+import { DestelloLecturas } from "../.././../util/Destellolectura.util";
+import {
+  ContextoTiempoReal,
+  LecturaEnVivo,
+  LecturasEnVivoService,
+} from "../../../core/tiempo-real";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
@@ -98,6 +107,9 @@ import { GisConfigService } from "../../../core/gis";
     ValidacionSistemaService,
     MessageService,
     DialogService,
+    // Por componente: al destruirse la pantalla se da de baja del socket sin
+    // cerrarlo para las demás que estén escuchando.
+    LecturasEnVivoService,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
@@ -108,6 +120,19 @@ export class ControldigitacionComponent
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
+
+  /** Lecturas que llegan por WebSocket mientras la pantalla está abierta. */
+  private readonly enVivo = inject(LecturasEnVivoService);
+  private destellos?: DestelloLecturas;
+  private readonly zone = inject(NgZone);
+
+  /** Contador de lecturas repintadas en vivo, para el indicador del header. */
+  totalEnVivo = 0;
+  /** Última lectura recibida; alimenta el rótulo "tomando ahora". */
+  ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
+  /** Estado del socket: si cae, el mapa deja de reflejar el campo. */
+  conectadoEnVivo = false;
+  private timeoutRotulo?: number;
 
   /** Referencia directa al <div #mapContainer> real montado por Angular. */
   @ViewChild("mapContainer", { static: false })
@@ -254,6 +279,11 @@ export class ControldigitacionComponent
       .getconsultaService("TEL", "ALL", "ALL", "ALL")
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => (this.lista_estadolec = data));
+
+    // Aquí y no en el requestAnimationFrame del ngAfterViewInit: si se navega
+    // antes de que dispare, el DestroyRef ya estaría destruido y
+    // `takeUntilDestroyed` lanzaría. No necesita el mapa montado.
+    this.iniciarTiempoReal();
   }
 
   ngAfterViewInit(): void {
@@ -275,13 +305,119 @@ export class ControldigitacionComponent
       this.map.setTarget(el);
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
+
+      // El destello necesita el mapa ya montado para posicionar sus overlays;
+      // hasta que exista, `aplicarLecturaEnVivo` simplemente no lo dibuja.
+      this.destellos = new DestelloLecturas(this.map, this.zone);
     });
   }
 
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
+    this.destellos?.limpiar();
+    clearTimeout(this.timeoutRotulo);
     this.map?.setTarget(undefined);
     this.ref?.close();
+  }
+
+  // ============================================================
+  // TIEMPO REAL
+  // ============================================================
+
+  /**
+   * Se suscribe a las lecturas que llegan por socket (APK del lecturista y
+   * digitación web) y repinta el punto correspondiente sin recargar nada.
+   */
+  private iniciarTiempoReal(): void {
+    this.enVivo.lecturas$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((lectura) => this.aplicarLecturaEnVivo(lectura));
+
+    this.enVivo.conectado$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((activo) => (this.conectadoEnVivo = activo));
+
+    this.enVivo.conectar(this.contextoTiempoReal());
+  }
+
+  /** Contexto vigente de la pantalla, para descartar lecturas de otro ciclo. */
+  private contextoTiempoReal(): ContextoTiempoReal {
+    return {
+      codsuc: this.selectedSucursal?.codsuc ?? null,
+      codciclo: this.selectedCiclo?.codciclo ?? null,
+      anio: this.selectedAnio ?? null,
+      mes: this.selectedMes ?? null,
+    };
+  }
+
+  /**
+   * Repinta el punto de una lectura recién tomada:
+   *
+   * 1. El color permanece: basta con cambiar `estadolectura` en el feature,
+   *    porque la style function de `lecturasLayer` deriva el color de esa
+   *    propiedad y OpenLayers redibuja solo al mutarla.
+   * 2. El destello es efímero: marca dónde está tomando el inspector y
+   *    desaparece a los pocos segundos.
+   *
+   * Si el cliente no está en el mapa (no vino en la búsqueda actual) se ignora:
+   * así el mapa sigue coincidiendo exactamente con el filtro aplicado.
+   */
+  private aplicarLecturaEnVivo(lectura: LecturaEnVivo): void {
+    const feature = this.lecturasLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find(
+        (f) =>
+          String(f.get("codcliente") ?? f.get("nroSuministro") ?? "").trim() ===
+          lectura.codcliente,
+      );
+
+    if (!feature) return;
+
+    if (lectura.estadolectura) {
+      feature.set("estadolectura", lectura.estadolectura);
+    }
+    if (lectura.tipoestlectura) {
+      feature.set("tipoestlectura", lectura.tipoestlectura);
+    }
+    if (lectura.codinspector) {
+      feature.set("codinspector", lectura.codinspector);
+    }
+
+    this.totalEnVivo++;
+    this.mostrarRotulo(lectura);
+
+    // El destello se ancla al punto del predio ya pintado: es la posición que
+    // el supervisor está mirando, y siempre existe.
+    const geometria = feature.getGeometry();
+    const coordenada =
+      geometria?.getType() === "Point"
+        ? (geometria as Point).getCoordinates()
+        : null;
+
+    if (coordenada) {
+      this.destellos?.mostrar(lectura.codcliente, coordenada, {
+        color: colorPorEstadoLectura(lectura.estadolectura),
+        inspector: lectura.codinspector,
+        detalle: lectura.inspector || lectura.codcliente,
+      });
+    }
+  }
+
+  /**
+   * Muestra el rótulo superior unos segundos. Cada lectura nueva reinicia el
+   * contador, así que en una ráfaga el rótulo se mantiene y se va actualizando.
+   */
+  private mostrarRotulo(lectura: LecturaEnVivo): void {
+    this.ultimaEnVivo = {
+      inspector: lectura.inspector || lectura.codinspector || "—",
+      codcliente: lectura.codcliente,
+    };
+
+    clearTimeout(this.timeoutRotulo);
+    this.timeoutRotulo = window.setTimeout(() => {
+      this.ultimaEnVivo = null;
+    }, ROTULO_ENVIVO_MS);
   }
 
   // ============================================================
@@ -399,6 +535,9 @@ export class ControldigitacionComponent
       );
       return;
     }
+
+    // El filtro acaba de cambiar: el tiempo real debe seguir al nuevo ciclo.
+    this.enVivo.actualizarContexto(this.contextoTiempoReal());
 
     this.ejecutarBusqueda(this.construirFiltro(), (registros) => {
       this.resultadoBusquedaJson = registros;
@@ -535,10 +674,14 @@ export class ControldigitacionComponent
 
   private limpiarCapas(): void {
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
+    this.destellos?.limpiar();
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
+    this.totalEnVivo = 0;
+    this.ultimaEnVivo = null;
+    clearTimeout(this.timeoutRotulo);
   }
 
   /** Fuerza re-render de todas las capas vectoriales (p.ej. al cambiar selección). */
@@ -817,6 +960,75 @@ export class ControldigitacionComponent
     if (!codigo) return "-";
     const estado = this.lista_estadolec.find((e) => e.codigo === codigo);
     return estado ? estado.descripcion : codigo;
+  }
+
+  /**
+   * Etiqueta del último movimiento del medidor, según `situacionmed`:
+   * 1 = instalado, 2 = retirado, 3 = reinstalado.
+   *
+   * `situacionmed` llega como STRING ("3"), por eso se compara como texto y no
+   * con ===  numérico.
+   */
+  getEtiquetaMovimientoMedidor(): string {
+    switch (this.situacionMedidor()) {
+      case "2":
+        return "F. Retiro";
+      case "3":
+        return "F. Reinstalación";
+      default:
+        return "F. Instalación";
+    }
+  }
+
+  /**
+   * Fecha que corresponde a esa situación.
+   *
+   * Ojo con el caso "instalado": en los registros consultados `fechainst`
+   * llega SIEMPRE null y la fecha real vive en `fechainsmed`, así que se usa
+   * como respaldo. Las situaciones no contempladas (se ve "0" en medidores sin
+   * movimientos posteriores) caen también aquí: son medidores instalados y sin
+   * retiro ni reinstalación, y esa es su fecha válida.
+   */
+  getFechaMovimientoMedidor(): string {
+    const medidor: any = this.datosClientePopup?._medidor;
+
+    switch (this.situacionMedidor()) {
+      case "2":
+        return this.formatoFechaCorta(medidor?.fecharetiro);
+      case "3":
+        return this.formatoFechaCorta(medidor?.fechareinst);
+      default:
+        return this.formatoFechaCorta(
+          medidor?.fechainst || medidor?.fechainsmed,
+        );
+    }
+  }
+
+  private situacionMedidor(): string {
+    return String(this.datosClientePopup?._medidor?.situacionmed ?? "").trim();
+  }
+
+  /**
+   * El backend manda las fechas como "2026-06-18 08:47:00.0" (formato SQL
+   * Server, con espacio y décimas), que NO es ISO 8601: pasárselo al DatePipe
+   * funciona en Chrome pero es un parseo dependiente del navegador. Por eso se
+   * recortan los 10 primeros caracteres cuando ya vienen como YYYY-MM-DD, y
+   * solo se recurre a `Date` en otros formatos.
+   */
+  private formatoFechaCorta(valor: unknown): string {
+    if (!valor) return "-";
+
+    const texto = String(valor).trim();
+    if (!texto) return "-";
+
+    const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+
+    const fecha = new Date(texto);
+    if (isNaN(fecha.getTime())) return "-";
+
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(fecha.getDate())}/${pad(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
   }
 
   private cargarDatosPopup(lectura: RegistroLectura): void {
