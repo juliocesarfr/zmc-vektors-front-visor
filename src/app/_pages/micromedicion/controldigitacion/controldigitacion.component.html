@@ -6,6 +6,27 @@
     <div class="cd-title">
       <img src="assets/images/img-medicion/writing.png" alt="control" />
       <h3>CONTROL DIGITACIÓN <span>| Mapa</span></h3>
+
+      <!-- Estado del socket + última lectura recibida, dentro de la barra. -->
+      <span
+        class="cd-envivo"
+        [class.offline]="!conectadoEnVivo"
+        [title]="
+          ultimaEnVivo
+            ? ultimaEnVivo.inspector + ' tomó lectura de ' + ultimaEnVivo.codcliente
+            : (conectadoEnVivo ? 'Recibiendo lecturas en tiempo real' : 'Sin conexión en tiempo real')
+        "
+      >
+        <span class="cd-envivo__pulso"></span>
+        <span class="cd-envivo__texto" *ngIf="ultimaEnVivo; else cdSinActividad">
+          <strong>{{ ultimaEnVivo.inspector }}</strong> · {{ ultimaEnVivo.codcliente }}
+        </span>
+        <ng-template #cdSinActividad>
+          <span class="cd-envivo__texto">
+            {{ conectadoEnVivo ? "En vivo" : "Sin conexión" }}
+          </span>
+        </ng-template>
+      </span>
     </div>
 
     <div class="cd-toolbar-actions">
@@ -189,6 +210,10 @@
         <span class="numero">{{ totalSinCoordenadas }}</span>
         <span class="titulo">Sin Coord.</span>
       </div>
+      <div class="card-resumen vivo" *ngIf="totalEnVivo > 0">
+        <span class="numero">{{ totalEnVivo }}</span>
+        <span class="titulo">En Vivo</span>
+      </div>
     </div>
 
     <div class="cd-leyenda" *ngIf="mostrarLeyenda">
@@ -327,6 +352,11 @@
                 {{ lecturaSeleccionada.estadomedidor || '-' }}
               </span>
             </div>
+            <div class="up-cell full">
+              <span class="uc-label">{{ getEtiquetaMovimientoMedidor() }}</span>
+              <span class="uc-val">{{ getFechaMovimientoMedidor() }}</span>
+            </div>
+
             <div class="up-cell full">
               <span class="uc-label">Inspector</span>
               <span class="uc-val inspector-name">

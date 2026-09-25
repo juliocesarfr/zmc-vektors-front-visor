@@ -7,6 +7,27 @@
     <div class="sl-title">
       <img src="assets/images/img-medicion/writing.png" alt="seguimiento" />
       <h3>SEGUIMIENTO DE LECTURA <span>| Por Inspector</span></h3>
+
+      <!-- Estado del socket + última toma recibida, dentro de la barra. -->
+      <span
+        class="sl-envivo"
+        [class.offline]="!conectadoEnVivo"
+        [title]="
+          ultimaEnVivo
+            ? ultimaEnVivo.inspector + ' tomó lectura de ' + ultimaEnVivo.codcliente
+            : (conectadoEnVivo ? 'Recibiendo lecturas en tiempo real' : 'Sin conexión en tiempo real')
+        "
+      >
+        <span class="sl-envivo__pulso"></span>
+        <span class="sl-envivo__texto" *ngIf="ultimaEnVivo; else slSinActividad">
+          <strong>{{ ultimaEnVivo.inspector }}</strong> · {{ ultimaEnVivo.codcliente }}
+        </span>
+        <ng-template #slSinActividad>
+          <span class="sl-envivo__texto">
+            {{ conectadoEnVivo ? "En vivo" : "Sin conexión" }}
+          </span>
+        </ng-template>
+      </span>
     </div>
 
     <div class="sl-toolbar-actions">
@@ -160,6 +181,10 @@
       <div class="card-resumen warn">
         <span class="numero">{{ totalLejos }}</span>
         <span class="titulo">Tomadas lejos</span>
+      </div>
+      <div class="card-resumen vivo" *ngIf="totalEnVivo > 0">
+        <span class="numero">{{ totalEnVivo }}</span>
+        <span class="titulo">En vivo</span>
       </div>
     </div>
 
