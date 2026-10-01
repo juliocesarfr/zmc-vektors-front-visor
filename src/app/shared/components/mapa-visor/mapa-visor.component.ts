@@ -30,7 +30,7 @@ import { Feature } from 'ol';
 
 import { observarTamanoMapa } from '../../../util/Mapinit.util';
 import { GisConfigService } from '../../../core/gis';
-import { MapEstilosFactory } from '../../../util/Mapaestilos.factory';
+import { CapasSidebarComponent } from '../capas-sidebar/capas-sidebar.component';
 
 export interface BaseLayerConfig {
   id: string;
@@ -47,7 +47,7 @@ export interface CommercialLayerConfig {
 @Component({
   selector: 'app-mapa-visor',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule],
+  imports: [CapasSidebarComponent, CommonModule, FormsModule, ButtonModule, InputTextModule],
   templateUrl: './mapa-visor.component.html',
   styleUrl: './mapa-visor.component.scss',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -68,11 +68,6 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     { id: "satelital", label: "Satelital", iconUrl: "assets/images/img-georeferencia/satellital-icon.gif" },
   ];
 
-  /**
-   * Switches de capas comerciales. No se recibe por parámetro: se arma con las
-   * capas que declara la EPS logueada, así que cada EPS ve exactamente las
-   * suyas (incluidas las que ninguna otra publica) sin tocar este componente.
-   */
   commercialLayers: CommercialLayerConfig[] = [];
 
   @Input() customVectorLayers: VectorLayer<VectorSource>[] = [];
@@ -82,15 +77,14 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   @Output() search = new EventEmitter<string>();
   @Output() clearSearch = new EventEmitter<void>();
   @Output() mapReady = new EventEmitter<OlMap>();
-
+
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild('mapContainer', { static: false }) mapContainer!: ElementRef;
 
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
 
   map!: OlMap;
   private detenerObservadorMapa?: () => void;
-  sidebarOpen = false;
   baseActive = "osm";
   mostrarSearchPanel = false;
   searchQuery = "";
@@ -99,16 +93,12 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   private osmLayer!: TileLayer<OSM>;
   private satelitalLayer!: TileLayer<XYZ>;
 
-  /** Rol de capa -> capa WMS creada para esta EPS. */
   private readonly capasWms = new Map<string, TileLayer<TileWMS>>();
 
-  /** Id del switch que agrupa las capas vectoriales que aporta el padre. */
   private static readonly SWITCH_VECTORIAL = "usuarios";
 
   ngOnInit(): void {
-    // Las capas WMS salen del catálogo de la EPS logueada, en su orden de
-    // declaración. La primera arranca visible (es la capa base catastral de esa
-    // EPS); el resto queda apagada.
+    // La primera capa (la catastral) arranca visible; el resto apagadas.
     const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
 
     const switchVectorial: CommercialLayerConfig[] = this.customVectorLayers.length
@@ -133,6 +123,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
 
     requestAnimationFrame(() => {
       const el = this.mapContainer?.nativeElement ?? document.getElementById("map");
@@ -153,7 +144,6 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  /** Capa WMS del workspace de la EPS. */
   private crearWms(capa: string, visible: boolean, opacity = 1): TileLayer<TileWMS> {
     return new TileLayer({
       visible,
@@ -180,9 +170,6 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
       visible: this.baseActive === "satelital",
     });
 
-    // Una capa WMS por cada capa que declara la EPS, en el mismo orden que los
-    // switches. La capa base catastral va semitransparente para dejar ver el
-    // mapa de fondo.
     this.capasWms.clear();
     const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
     capasEps.forEach((capa, i) => {
@@ -229,10 +216,6 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
         this.mapClick.emit();
       }
     });
-  }
-
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
   }
 
   setBaseLayer(id: string): void {

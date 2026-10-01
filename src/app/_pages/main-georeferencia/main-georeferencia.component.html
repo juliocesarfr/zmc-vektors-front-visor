@@ -1,1 +1,13 @@
-<h1>COMPONENTE PRINCIPAL</h1>
+<div class="main-geo">
+  <div #mapa class="main-geo-mapa"></div>
+
+  <div class="main-geo-titulo">
+    <span class="main-geo-modulo">GEORREFERENCIA</span>
+    <span class="main-geo-eps">{{ gis.config.descripcion }}</span>
+  </div>
+
+  <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
+    [commercialLayers]="commercialLayers"
+    (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleLayer($event)">
+  </app-capas-sidebar>
+</div>

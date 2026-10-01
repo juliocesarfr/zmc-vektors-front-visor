@@ -9,7 +9,7 @@ import Overlay from 'ol/Overlay';
 import { getArea, getLength } from 'ol/sphere';
 import { unByKey } from 'ol/Observable';
 import OlMap from 'ol/Map';
-import Polygon, { fromCircle } from 'ol/geom/Polygon';
+import { fromCircle } from 'ol/geom/Polygon';
 import Point from 'ol/geom/Point';
 import CircleGeom from 'ol/geom/Circle';
 import { getPointResolution } from 'ol/proj';

@@ -11,15 +11,14 @@ import { TooltipModule } from "primeng/tooltip";
 import { MessageService } from "primeng/api";
 import { DialogService } from "primeng/dynamicdialog";
 
-import {
-  EstadoCorte,
-  SeguimientoCortesconProgramaComponent,
-} from "../seguimiento-cortescon-programa/seguimiento-cortescon-programa.component";
+import { SeguimientoCortesconProgramaComponent } from "../seguimiento-cortescon-programa/seguimiento-cortescon-programa.component";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 
 @Component({
   selector: "app-seguimiento-reaperturacon-programa",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
     CommonModule,
     FormsModule,
     DropdownModule,

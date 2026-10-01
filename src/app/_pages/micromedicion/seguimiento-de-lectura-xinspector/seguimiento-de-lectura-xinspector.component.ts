@@ -77,31 +77,18 @@ import {
   LecturasEnVivoService,
 } from "../../../core/tiempo-real";
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 
-// ============================================================
-// Config propia de este módulo
-// ============================================================
-
-/** Coordenada donde el inspector registró la toma (viene como string del backend). */
 const ORIGEN_TOMA_INSPECTOR: ConfigOrigenCoordenada = {
   lonField: "longitud",
   latField: "latitud",
   proyeccion: "EPSG:4326",
 };
 
-/**
- * Umbral en metros entre el predio y el punto de toma a partir del cual la
- * lectura se considera "tomada lejos" (posible lectura sin visitar el predio).
- * TODO: confirmar el valor con el área comercial.
- */
+// Metros predio→toma desde los que la lectura cuenta como "tomada lejos". TODO: confirmar con el área comercial.
 const DISTANCIA_SOSPECHOSA_M = 30;
 
-/**
- * Más allá de esta distancia, la coordenada de toma es casi seguro un GPS por
- * defecto/erróneo (no una toma real lejana). No se dibuja la toma ni la línea
- * para no ensuciar el mapa con trazos que lo cruzan; el registro se cuenta
- * como sospechoso. TODO: confirmar el valor con campo.
- */
+// Más allá de esto la coordenada es un GPS erróneo: no se dibuja y cuenta como sospechosa. TODO: confirmar con campo.
 const DISTANCIA_MAX_TOMA_VALIDA_M = 1000;
 
 interface Inspector {
@@ -131,11 +118,7 @@ interface RegistroDetalle {
   [key: string]: unknown;
 }
 
-/**
- * Misma regla del SP de resumen: una lectura está TOMADA (enviada) cuando
- * web = 1 y recibido = 1. La presencia de coordenada de toma NO define el
- * estado; solo sirve para ubicar el punto GPS y medir la distancia al predio.
- */
+// Igual que el SP de resumen: TOMADA = web 1 y recibido 1; la coordenada no define el estado.
 function esLecturaTomada(registro: RegistroDetalle): boolean {
   return Number(registro.web) === 1 && Number(registro.recibido) === 1;
 }
@@ -144,6 +127,7 @@ function esLecturaTomada(registro: RegistroDetalle): boolean {
   selector: "app-seguimiento-de-lectura-xinspector",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -158,8 +142,7 @@ function esLecturaTomada(registro: RegistroDetalle): boolean {
   providers: [
     MessageService,
     DialogService,
-    // Por componente: al destruirse la pantalla se da de baja del socket sin
-    // cerrarlo para las demás que estén escuchando.
+    // Al destruirse se da de baja del socket sin cerrarlo para las demás pantallas.
     LecturasEnVivoService,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -168,32 +151,25 @@ export class SeguimientoDeLecturaXinspectorComponent
   implements OnInit, AfterViewInit, OnDestroy
 {
   private readonly destroyRef = inject(DestroyRef);
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
-  /** Lecturas que llegan por WebSocket mientras la pantalla está abierta. */
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
 
-  /** Lecturas repintadas en vivo desde que se cargó el mapa. */
   totalEnVivo = 0;
-  /** Última toma recibida; alimenta el rótulo "tomando ahora". */
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
-  /** Estado del socket: si cae, el mapa deja de reflejar el campo. */
   conectadoEnVivo = false;
   private timeoutRotulo?: number;
 
-  /** Paleta centralizada (config). Expuesta al template para leyenda/tarjetas. */
   readonly COLORES = COLORES_SEGUIMIENTO_LECTURA;
-
-  /** Referencia directa al <div #mapContainer> real montado por Angular. */
+
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: true })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // ---- Mapa y capas ----
   map!: OlMap;
   usuariosLayer!: VectorLayer<VectorSource>;
   tomasLayer!: VectorLayer<VectorSource>;
@@ -205,11 +181,8 @@ export class SeguimientoDeLecturaXinspectorComponent
   satelitalLayer!: TileLayer<XYZ>;
   private capasVector: VectorLayer<VectorSource>[] = [];
   private registroCapas: Record<string, BaseLayer> = {};
+
 
-  // ---- Sesión ----
-  private readonly _codsede = sessionStorage.getItem("codsede");
-
-  // ---- Filtros ----
   dataCiclos: any[] = [];
   fechaCiclos: any;
   listaSucursalesxusr: any[] = [];
@@ -231,10 +204,8 @@ export class SeguimientoDeLecturaXinspectorComponent
     }),
   );
 
-  // ---- Resultados ----
   resumenInspectores: ResumenInspector[] = [];
 
-  // ---- Estadísticas del detalle pintado ----
   totalRegistros = 0;
   totalTomadas = 0;
   totalSinToma = 0;
@@ -242,7 +213,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   totalLejos = 0;
 
   filtrosVisible = true;
-  sidebarOpen = true;
   cargando = false;
   mostrarLeyenda = true;
   mostrarResumen = true;
@@ -285,7 +255,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   ) {}
 
   ngOnInit(): void {
-    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
     this.aperturaservices
@@ -299,18 +268,14 @@ export class SeguimientoDeLecturaXinspectorComponent
         }
       });
 
-    // Aquí y no en el requestAnimationFrame del ngAfterViewInit: si se navega
-    // antes de que dispare, el DestroyRef ya estaría destruido y
-    // `takeUntilDestroyed` lanzaría. No necesita el mapa montado.
     this.iniciarTiempoReal();
   }
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
     this.initClick();
-    // Engancha el mapa al div REAL (no por id string). En microfrontend el
-    // elemento montado al navegar no siempre coincide con getElementById("map").
-    // requestAnimationFrame asegura que el layout del MF ya esté aplicado.
+
     requestAnimationFrame(() => {
       this.map.setTarget(this.mapContainer.nativeElement);
       this.map.updateSize();
@@ -324,8 +289,6 @@ export class SeguimientoDeLecturaXinspectorComponent
         this.mapContainer.nativeElement,
       );
 
-      // El destello necesita el mapa ya montado para posicionar sus overlays;
-      // hasta que exista, `aplicarLecturaEnVivo` simplemente no lo dibuja.
       this.destellos = new DestelloLecturas(this.map, this.zone);
     });
   }
@@ -342,13 +305,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   // TIEMPO REAL
   // ============================================================
 
-  /**
-   * Escucha las lecturas que llegan por socket y refleja la toma en el mapa
-   * sin recargar. A diferencia de Control de Digitación, aquí se pinta la
-   * lectura venga del inspector que venga (mientras el cliente esté en el
-   * mapa): el objetivo es ver el avance del campo en vivo, y el código del
-   * inspector en el destello dice quién fue.
-   */
   private iniciarTiempoReal(): void {
     this.enVivo.lecturas$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -370,19 +326,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     };
   }
 
-  /**
-   * Refleja una toma recién registrada:
-   *
-   * 1. El punto del predio pasa a verde de forma PERMANENTE: la style function
-   *    de `usuariosLayer` deriva el color de `_tomada`, así que basta mutar esa
-   *    propiedad para que OpenLayers lo redibuje.
-   * 2. Se agrega el punto GPS de la toma (rombo azul) si el payload trae
-   *    coordenada válida, igual que hace `agregarRegistroAlMapa`.
-   * 3. Destello efímero con el código del inspector, para ver dónde está.
-   *
-   * Si el cliente no está en el mapa se ignora, para que el mapa siga
-   * coincidiendo con el filtro aplicado.
-   */
   private aplicarLecturaEnVivo(lectura: LecturaEnVivo): void {
     const feature = this.usuariosLayer
       ?.getSource()
@@ -393,8 +336,7 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     if (!feature) return;
 
-    // Solo cuenta como avance la primera vez: una corrección posterior de la
-    // misma lectura no debe volver a sumar en los totales.
+    // Solo la primera vez: una corrección de la misma lectura no vuelve a sumar.
     const yaEstabaTomada = feature.get("_tomada") === true;
 
     if (lectura.tomada && !yaEstabaTomada) {
@@ -433,10 +375,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     }
   }
 
-  /**
-   * Muestra el rótulo superior unos segundos. Cada toma nueva reinicia el
-   * contador, así que en una ráfaga el rótulo se mantiene y se va actualizando.
-   */
   private mostrarRotulo(lectura: LecturaEnVivo): void {
     this.ultimaEnVivo = {
       inspector: lectura.inspector || lectura.codinspector || "—",
@@ -449,11 +387,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     }, ROTULO_ENVIVO_MS);
   }
 
-  /**
-   * Dibuja el punto GPS de la toma y la línea predio→toma, con las mismas
-   * reglas de descarte que la carga inicial (coordenada ausente o absurdamente
-   * lejana = GPS por defecto, no se dibuja). Devuelve la coordenada usada.
-   */
   private agregarPuntoTomaEnVivo(
     lectura: LecturaEnVivo,
     featureUsuario: Feature,
@@ -482,17 +415,11 @@ export class SeguimientoDeLecturaXinspectorComponent
           )
         : null;
 
-    // Mismas reglas que la carga inicial: más allá del tope la coordenada es
-    // GPS por defecto/erróneo, se cuenta como sospechosa y NO se dibuja.
     const sospechosa =
       distancia !== null && distancia > DISTANCIA_MAX_TOMA_VALIDA_M;
     const lejos =
       !sospechosa && distancia !== null && distancia > DISTANCIA_SOSPECHOSA_M;
 
-    // El cliente puede YA haber aportado a los totales (carga inicial o un
-    // mensaje anterior). El feature del usuario guarda esa contribución, así
-    // que se aplica el DELTA en vez de volver a sumar: si no, cada corrección
-    // de la misma lectura inflaría "Tomadas lejos" y las sospechosas.
     this.totalLejos = Math.max(
       0,
       this.totalLejos - (featureUsuario.get("_lejos") === true ? 1 : 0) + (lejos ? 1 : 0),
@@ -517,8 +444,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     featureUsuario.set("_sospechosa", sospechosa);
     featureUsuario.set("_distanciaM", distancia);
 
-    // Se reemplaza lo que hubiera de este cliente en vez de apilar puntos y
-    // líneas encima (la carga inicial también los etiqueta con `codcliente`).
     this.quitarPorCliente(this.tomasLayer, lectura.codcliente);
     this.quitarPorCliente(this.lineasLayer, lectura.codcliente);
 
@@ -539,7 +464,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     return coordToma;
   }
 
-  /** Quita de una capa los features que pertenecen a un cliente. */
   private quitarPorCliente(
     capa: VectorLayer<VectorSource>,
     codcliente: string,
@@ -553,7 +477,6 @@ export class SeguimientoDeLecturaXinspectorComponent
       .forEach((f) => source.removeFeature(f));
   }
 
-  /** Mantiene coherente la fila del resumen del inspector que acaba de tomar. */
   private actualizarAvanceResumen(codinspector?: string): void {
     if (!codinspector) return;
     const fila = this.resumenInspectores.find(
@@ -632,7 +555,6 @@ export class SeguimientoDeLecturaXinspectorComponent
       });
   }
 
-  /** Sectores e inspectores dependen ambos de codsuc: se piden en paralelo. */
   onSucursalChange(): void {
     this.selectedSector = null;
     this.selectedInspector = null;
@@ -699,7 +621,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.cargando = true;
     this.limpiarResultados();
 
-    // El filtro acaba de cambiar: el tiempo real debe seguir al nuevo ciclo.
     this.enVivo.actualizarContexto(this.contextoTiempoReal());
 
     const base = this.filtroBase();
@@ -749,10 +670,6 @@ export class SeguimientoDeLecturaXinspectorComponent
       });
   }
 
-  /**
-   * Clic en una fila del resumen: selecciona ese inspector y recarga su detalle.
-   * Es el flujo natural de un supervisor recorriendo inspector por inspector.
-   */
   seleccionarInspectorDesdeResumen(fila: ResumenInspector): void {
     const inspector = this.inspectoresxSector.find(
       (i) => i.codinspector === fila.codinspector,
@@ -774,10 +691,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     const srcTomas = this.tomasLayer.getSource()!;
     const srcLineas = this.lineasLayer.getSource()!;
 
-    // Una misma coordenada de toma repetida en muchos registros casi siempre es
-    // un valor por defecto (el GPS no capturó y quedó un punto fijo), no tomas
-    // reales lejanas. Se cuenta la frecuencia para descartarlas.
-    const frecuencia = new Map<string, number>();
+     const frecuencia = new Map<string, number>();
     for (const r of registros) {
       const c = extraerCoordenada(r, ORIGEN_TOMA_INSPECTOR);
       if (!c) continue;
@@ -822,15 +736,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     );
   }
 
-  /**
-   * Por cada registro:
-   * - Punto del USUARIO: verde si la lectura fue enviada (web=1 y recibido=1),
-   *   rojo si está pendiente. Misma regla que el SP de resumen.
-   * - Punto de TOMA del inspector, si registró coordenada GPS válida.
-   * - Línea usuario→toma con la distancia; roja si supera el umbral.
-   * Los puntos de toma dudosos (coordenada repetida o demasiado lejana) NO se
-   * dibujan: solo se cuentan, para no llenar el mapa de trazos falsos.
-   */
   private agregarRegistroAlMapa(
     registro: RegistroDetalle,
     srcUsuarios: VectorSource,
@@ -855,8 +760,6 @@ export class SeguimientoDeLecturaXinspectorComponent
           )
         : null;
 
-    // Coordenada de toma dudosa: se repite en 3+ registros (GPS por defecto) o
-    // está a más de DISTANCIA_MAX_TOMA_VALIDA_M (basura que cruza el mapa).
     const claveToma = coordToma
       ? `${coordToma[0].toFixed(5)},${coordToma[1].toFixed(5)}`
       : null;
@@ -865,7 +768,6 @@ export class SeguimientoDeLecturaXinspectorComponent
       distancia !== null && distancia > DISTANCIA_MAX_TOMA_VALIDA_M;
     const sospechosa = repetida || demasiadoLejos;
 
-    // "Lejos" real: pasa el umbral operativo pero NO es una coordenada dudosa.
     const lejos =
       !sospechosa && distancia !== null && distancia > DISTANCIA_SOSPECHOSA_M;
 
@@ -877,21 +779,18 @@ export class SeguimientoDeLecturaXinspectorComponent
       _sospechosa: sospechosa,
     };
 
-    // Estadísticas
     this.totalRegistros++;
     if (tomada) this.totalTomadas++;
     else this.totalSinToma++;
     if (sospechosa) this.totalSospechosas++;
     else if (lejos) this.totalLejos++;
 
-    // Punto del usuario: SIEMPRE (reutiliza crearFeaturePunto).
     const fUsuario = crearFeaturePunto(registro, ORIGENES_COORDENADA.usuario);
     if (fUsuario) {
       fUsuario.setProperties({ ...props, _esToma: false });
       srcUsuarios.addFeature(fUsuario);
     }
 
-    // Punto de toma y línea: solo si la coordenada de toma NO es dudosa.
     if (!sospechosa) {
       const fToma = crearFeaturePunto(registro, ORIGEN_TOMA_INSPECTOR);
       if (fToma) {
@@ -899,8 +798,7 @@ export class SeguimientoDeLecturaXinspectorComponent
         srcTomas.addFeature(fToma);
       }
 
-      // Tope alto: aquí SÍ queremos las líneas largas (para marcarlas rojas);
-      // el descarte de basura ya lo hizo el guard de "sospechosa" de arriba.
+      // Tope alto a propósito: las líneas largas se marcan en rojo; la basura ya se descartó arriba.
       const fLinea = crearFeatureLinea(
         registro,
         ORIGENES_COORDENADA.usuario,
@@ -968,7 +866,6 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    // Punto del usuario/predio: círculo, color según tomada/pendiente (paleta config).
     this.usuariosLayer = new VectorLayer({
       source: new VectorSource(),
       style: (f) =>
@@ -982,7 +879,6 @@ export class SeguimientoDeLecturaXinspectorComponent
         }),
     });
 
-    // Punto GPS de toma del inspector: rombo azul (paleta config).
     this.tomasLayer = new VectorLayer({
       source: new VectorSource(),
       style: (f) =>
@@ -991,12 +887,11 @@ export class SeguimientoDeLecturaXinspectorComponent
           color: this.COLORES.puntoToma,
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
-          etiqueta: undefined, // el codcliente ya lo etiqueta el punto de usuario
+          etiqueta: undefined,
           ...RADIOS_FICHA,
         }),
     });
 
-    // Línea usuario→toma: gris dentro del umbral, roja si el inspector tomó lejos.
     this.lineasLayer = new VectorLayer({
       source: new VectorSource(),
       style: (f, resolution) =>
@@ -1019,9 +914,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     };
 
     this.map = new OlMap({
-      // NO se pasa target aquí: en un microfrontend, resolver el id "map" por
-      // string durante la construcción engancha un div equivocado o inexistente.
-      // Se engancha más abajo con setTarget sobre la referencia real del @ViewChild.
+      // Sin target aquí: en el microfrontend el id "map" engancha otro div. Se asigna más abajo.
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
@@ -1054,7 +947,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     });
   }
 
-  /** Punto único de selección: click en el mapa y buscador reutilizan esto. */
   private seleccionarFeature(feature: Feature): void {
     this.featureSeleccionado = feature;
     this.registroSeleccionado = feature.getProperties() as RegistroDetalle;
@@ -1082,10 +974,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   // SIDEBAR DE CAPAS
   // ============================================================
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
-  }
-
   setBaseLayer(id: string): void {
     this.baseActive = this.baseActive === id ? null : id;
     this.osmLayer?.setVisible(this.baseActive === "osm");
@@ -1110,8 +998,6 @@ export class SeguimientoDeLecturaXinspectorComponent
     const query = String(this.searchCodCliente || "").trim();
     if (!query) return;
 
-    // Se busca solo en la capa de usuarios: es la que siempre tiene codcliente
-    // y su punto es el ancla lógica del registro (la toma cuelga de él).
     const feature = this.usuariosLayer
       ?.getSource()
       ?.getFeatures()

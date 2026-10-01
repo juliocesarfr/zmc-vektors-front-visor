@@ -32,6 +32,13 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       fichaAgua: "yurimaguas_ficha_agua",
       fichaAlcantarillado: "yurimaguas_ficha_alcantarillado",
     },
+    // Completar con el nombre real publicado en GeoServer.
+    capasTecnicas: {
+      // tuberias: "",
+      // fuentes: "",
+      // valvulas: "",
+      // curvasNivel: "",
+    },
     vista: {
       centro: [-76.1223, -5.9018],
       zoom: 18,
@@ -56,8 +63,15 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       usuarios: "v_com_fichas_catastrales",
       acometidaAgua: "sm_sig_acometidas_ap",
       acometidaAlcantarillado: "sm_sig_acometidas_al",
-      fichaAgua: "emapa_ficha_agua",
+      fichaAgua: "v_com_fichas_catastrales",
       fichaAlcantarillado: "emapa_ficha_alcantarillado",
+    },
+    // Completar con el nombre real publicado en GeoServer.
+    capasTecnicas: {
+      fuentes: "sm_sig_fuentes",
+      tuberias: "sm_sig_tuberias",
+      valvulas: "sm_sig_valvulas",
+      curvasNivel: "sm_sig_curvas_de_nivel",
     },
     vista: {
       centro: [-76.3654, -6.4886],
@@ -72,24 +86,20 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
 
 export const ZOOM_POR_DEFECTO = 18;
 
-/**
- * Vista neutra (Perú completo). Solo se usa cuando ni la EPS ni la empresa
- * declaran coordenadas: encuadrar sobre la ciudad de otra EPS sería mentirle
- * al usuario sobre dónde está mirando.
- */
+// Rótulos que no se pueden derivar del rol (tildes, "de").
+export const ETIQUETAS_POR_DEFECTO: Record<string, string> = {
+  tuberias: "Tuberías",
+  valvulas: "Válvulas",
+  curvasNivel: "Curvas de Nivel",
+};
+
+// Solo si ni la EPS ni la empresa declaran coordenadas.
 export const VISTA_POR_DEFECTO: GisVistaConfig = {
   centro: [-75.0152, -9.19],
   zoom: 5,
 };
 
-/**
- * Configuración para una EPS que todavía no tiene entrada en `CONFIG_EPS`.
- *
- * Conserva el GeoServer que reporta el backend (`paramae/URLGIS`) para que las
- * URLs se construyan bien, pero deja el catálogo de capas **vacío**: como los
- * nombres no se pueden deducir, es preferible no dibujar capas a dibujar las de
- * otra EPS.
- */
+// EPS sin entrada en CONFIG_EPS: conserva el GeoServer del backend, sin capas.
 export function configSinCapas(
   ccodeps: string,
   baseUrl: string,
