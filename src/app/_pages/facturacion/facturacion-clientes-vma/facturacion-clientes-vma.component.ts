@@ -16,7 +16,7 @@ import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, of } from "rxjs";
+import { of } from "rxjs";
 import { catchError, finalize } from "rxjs/operators";
 import { DialogService, DynamicDialogModule } from "primeng/dynamicdialog";
 import { TooltipModule } from "primeng/tooltip";
@@ -31,9 +31,8 @@ import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-v
 import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
 import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
 import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
-import { FiltroFacturacionVMARequest } from "@host/_models/vektors/Facturacion/FiltroFacturacionVMARequest";
 import { FacturacionService } from "@host/_servicios/vektors/facturacion.service";
-import { ConfigOrigenCoordenada, ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
+import { ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
 
 @Component({
   selector: "app-facturacion-clientes-vma",

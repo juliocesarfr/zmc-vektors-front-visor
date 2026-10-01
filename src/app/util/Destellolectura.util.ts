@@ -26,25 +26,11 @@ interface DestelloActivo {
   timeoutQuitar: number;
 }
 
-/**
- * Marcador efímero que se dibuja donde acaba de registrarse una lectura.
- *
- * Se implementa con `Overlay` (DOM) y no con un feature de estilo porque las
- * ondas pulsantes y el fundido salen gratis con CSS, mientras que en canvas
- * habría que animar a mano en cada `postrender`. Los estilos viven en
- * `util/mapaestilos.scss`, que ambas pantallas ya importan con `::ng-deep`
- * (los nodos creados por JS no reciben la encapsulación de Angular).
- */
+
 export class DestelloLecturas {
   private activos = new Map<string, DestelloActivo>();
 
-  /**
-   * @param zone opcional. Si se pasa, los temporizadores corren fuera de
-   * Angular: el destello es puro DOM/CSS y su expiración no cambia nada del
-   * template, así que no hace falta pagar un ciclo de detección de cambios por
-   * cada uno (con una sincronización masiva serían decenas).
-   */
-  constructor(
+    constructor(
     private readonly map: OlMap,
     private readonly zone?: NgZone,
   ) {}
@@ -55,10 +41,6 @@ export class DestelloLecturas {
       : window.setTimeout(fn, ms);
   }
 
-  /**
-   * Muestra el destello en `coordenada`. Si `clave` ya tiene uno activo, lo
-   * reemplaza en vez de apilar dos marcadores sobre el mismo punto.
-   */
   mostrar(
     clave: string,
     coordenada: Coordinate,
@@ -74,8 +56,6 @@ export class DestelloLecturas {
       element: elemento,
       position: coordenada,
       positioning: "center-center",
-      // El destello es decorativo: no debe robar clics al popup del mapa
-      // (el `pointer-events: none` del CSS completa esto).
       stopEvent: false,
       insertFirst: false,
       className: "geo-destello-overlay ol-overlay-container",

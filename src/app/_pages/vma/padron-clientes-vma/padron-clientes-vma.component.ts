@@ -35,7 +35,7 @@ import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.fac
 import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
 import { FiltroPadronClientesVMARequest } from "@host/_models/vektors/VMA/FiltroPadronClientesVMARequest";
 import { VmaService } from "@host/_servicios/vektors/vma.service";
-import { ConfigOrigenCoordenada, ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
+import { ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
 import { fromCircle } from "ol/geom/Polygon";
 
 

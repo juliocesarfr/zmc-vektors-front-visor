@@ -35,7 +35,7 @@ import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.fac
 import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
 import { FiltroFacturacionAltosConsumidoresRequest } from "@host/_models/vektors/Facturacion/FiltroFacturacionAltosConsumidoresRequest";
 import { FacturacionService } from "@host/_servicios/vektors/facturacion.service";
-import { ConfigOrigenCoordenada, ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
+import { ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
 
 @Component({
   selector: "app-facturacion-clientes-altos-consumidores",

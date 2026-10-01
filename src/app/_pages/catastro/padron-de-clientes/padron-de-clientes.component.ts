@@ -37,16 +37,13 @@ import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
-import { extend, getCenter } from "ol/extent";
+import { getCenter } from "ol/extent";
 import { transform } from "ol/proj";
 import Zoom from "ol/control/Zoom";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
-import {
-  ORIGENES_COORDENADA,
-  ConfigOrigenCoordenada,
-} from "../../../config/Controldigitacion.config";
+import { ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
 import { GisConfigService } from "../../../core/gis";
 import { fromCircle } from "ol/geom/Polygon";
 import { observarTamanoMapa } from "../../../util/Mapinit.util";
@@ -56,11 +53,13 @@ import {
 } from "../../../util/Mapaestilos.factory";
 import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
 import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/Catastro/FiltroPadronClientesTipoActividadRequest";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 
 @Component({
   selector: "app-padron-de-clientes",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
     CommonModule,
     FormsModule,
     ButtonModule,
@@ -77,15 +76,14 @@ export class PadronDeClientesComponent
   implements OnInit, AfterViewInit, OnDestroy
 {
   private readonly destroyRef = inject(DestroyRef);
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
-
+
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // ---- Mapa y capas ----
   map!: OlMap;
   usuariosLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
@@ -97,9 +95,7 @@ export class PadronDeClientesComponent
   private registroCapas: Record<string, BaseLayer> = {};
   private capasVector: VectorLayer<VectorSource>[] = [];
 
-  // ---- UI ----
   filtrosVisible = false;
-  sidebarOpen = true;
   baseActive: string | null = "osm";
   cargando = false;
 
@@ -107,7 +103,6 @@ export class PadronDeClientesComponent
   totalClientes = 0;
   totalSinCoordenadas = 0;
 
-  // ---- Filtros Data ----
   dataCiclos: any[] = [];
   listaSucursales: any[] = [];
   listaSectores: any[] = [];
@@ -118,7 +113,6 @@ export class PadronDeClientesComponent
   listaActividades: any[] = [];
   listaTipoUsuario: any[] = [];
 
-  // ---- Filtros Seleccionados ----
   selectedCiclo: any = null;
   selectedSucursal: any = null;
   selectedSector: any = null;
@@ -171,7 +165,6 @@ export class PadronDeClientesComponent
   ) {}
 
   ngOnInit(): void {
-    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
     forkJoin({
@@ -200,7 +193,6 @@ export class PadronDeClientesComponent
           actividades,
           tipoUsuario,
         }) => {
-          // Ciclos
           this.dataCiclos = [
             { codigo: "ALL", descripcion: "TODOS", codemp: "ALL", estareg: 1 },
             ...ciclos,
@@ -210,28 +202,24 @@ export class PadronDeClientesComponent
             this.onCicloChange();
           }
 
-          // Estado Servicio
           this.listaEstadoServicio = [
             { codigo: "ALL", descripcion: "TODOS" },
             ...estadoServicio,
           ];
           this.selectedEstadoServicio = "ALL";
 
-          // Tipo Servicio
           this.listaTipoServicio = [
             { codigo: "ALL", descripcion: "TODOS" },
             ...tipoServicio,
           ];
           this.selectedTipoServicio = "ALL";
 
-          // Actividad
           this.listaActividades = [
             { codigo: "ALL", descripcion: "TODOS" },
             ...actividades,
           ];
           this.selectedActividad = "ALL";
 
-          // Tipo Usuario
           this.listaTipoUsuario = [
             { tipousuario: "ALL", descripcion: "TODOS" },
             ...(tipoUsuario || []),
@@ -336,7 +324,6 @@ export class PadronDeClientesComponent
         },
       });
 
-    // Urbanizaciones
     this.urbamaeService
       .drop_x_sucursales(this.selectedSucursal.codsuc)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -529,6 +516,7 @@ export class PadronDeClientesComponent
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
 
     requestAnimationFrame(() => {
       const el =
@@ -791,8 +779,7 @@ export class PadronDeClientesComponent
     }
   }
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
+  onSidebarToggle(): void {
     setTimeout(() => {
       this.map?.updateSize();
     }, 300);

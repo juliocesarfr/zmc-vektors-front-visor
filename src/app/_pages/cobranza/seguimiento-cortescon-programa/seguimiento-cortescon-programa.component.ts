@@ -58,15 +58,7 @@ import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/c
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
 import { BuscarProgramaCorteComponent } from "../buscar-programa-corte/buscar-programa-corte.component";
 
-import {
-  TIPOS_RECEPCION_IMG,
-  TIPOS_RECEPCION_IMGCORE,
-  ORIGENES_COORDENADA,
-  DISTANCIA_MAX_ACOMETIDA_M,
-  COLOR_FICHA_AGUA,
-  COLOR_FICHA_ALC,
-  SECTOR_TODOS,
-} from "../../../config/Controldigitacion.config";
+import { TIPOS_RECEPCION_IMGCORE, ORIGENES_COORDENADA, DISTANCIA_MAX_ACOMETIDA_M, COLOR_FICHA_AGUA, COLOR_FICHA_ALC } from "../../../config/Controldigitacion.config";
 import { fromCircle } from 'ol/geom/Polygon';
 import {
   crearFeaturePunto,
@@ -79,6 +71,7 @@ import {
 } from "../../../util/Mapaestilos.factory";
 import { observarTamanoMapa } from "../.././../util/Mapinit.util";
 import { GisConfigService } from "../../../core/gis";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 
 export type EstadoCorte = "ejecutado" | "pagado" | "pendiente";
 
@@ -117,7 +110,6 @@ export interface RegistroCorte {
   c_destipocoragu?: string;
   c_destipocordes?: string;
   lecturaultima?: number;
-  // georreferencia (viene del core / PostgreSQL)
   lon?: number;
   lat?: number;
   lonpredio?: number;
@@ -148,6 +140,7 @@ interface ResumenInspector {
   selector: "app-seguimiento-cortescon-programa",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -169,27 +162,23 @@ export class SeguimientoCortesconProgramaComponent
   private cobranzaService = inject(CobranzaService);
   private detenerObservadorMapa?: () => void;
 
-
-
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
-
+
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // --- Parametrización corte/reapertura (la subclase de reaperturas hace override) ---
+  // La subclase de reaperturas sobrescribe estos valores.
   protected tipoOperacion = "001"; // reapertura: '002'
   protected campoFechaEjecucion = "fcorte"; // reapertura: 'freapertura'
   protected etiquetaEjecutadoTxt = "CORTADO"; // reapertura: 'REAPERTURADO'
   protected titulo = "Seguimiento de Cortes con Programa";
 
-  /** Expuesto al template. */
   get etiquetaEjecutado(): string {
     return this.etiquetaEjecutadoTxt;
   }
 
-  // ---- Mapa y capas ----
   map!: OlMap;
   cortesLayer!: VectorLayer<VectorSource>;
   lotesUsuarioLayer!: VectorLayer<VectorSource>;
@@ -203,23 +192,20 @@ export class SeguimientoCortesconProgramaComponent
   private registroCapas: Record<string, BaseLayer> = {};
 
   protected COLORES: Record<EstadoCorte, string> = {
-    ejecutado: "#ef4444", // cortado -> ROJO
-    pendiente: "#22c55e", // pendiente -> VERDE
-    pagado: "#3b82f6", // pagó -> AZUL (otro color)
+    ejecutado: "#ef4444",
+    pendiente: "#22c55e",
+    pagado: "#3b82f6",
   };
 
-  // ---- Filtros ----
   dataSucursales: any[] = [];
   selectedSucursal: any = null;
   nroPrecorte: number | null = null;
 
-  // ---- Datos ----
   private registrosOriginal: RegistroCorte[] = [];
   registros: RegistroCorte[] = [];
   filtroInspector: string | null = null;
   filtroEstado: EstadoCorte | null = null;
 
-  // ---- Resumen ----
   total = 0;
   ejecutados = 0;
   pagados = 0;
@@ -228,9 +214,7 @@ export class SeguimientoCortesconProgramaComponent
   totalSinCoordenadas = 0;
   inspectores: ResumenInspector[] = [];
 
-  // ---- UI ----
   filtrosVisible = true;
-  sidebarOpen = true;
   panelInspectores = false;
   mostrarLeyenda = true;
   mostrarSearchPanel = false;
@@ -241,11 +225,9 @@ export class SeguimientoCortesconProgramaComponent
   corteSeleccionado: RegistroCorte | null = null;
   private featureSeleccionado: Feature | null = null;
 
-  // ---- Evidencias (fotos) ----
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
 
-  // ---- Lightbox ----
   imagenAbierta: string | null = null;
   imagenAbiertaIndex = -1;
   imagenZoom = 1;
@@ -299,7 +281,6 @@ export class SeguimientoCortesconProgramaComponent
   // ============================================================
 
   ngOnInit(): void {
-    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
     this.consultaService
@@ -308,8 +289,7 @@ export class SeguimientoCortesconProgramaComponent
       .subscribe((resp) => {
         this.dataSucursales = resp || [];
 
-        // Handoff desde la ventana de resumen: si viene codsuc/nroprecorte, auto-busca.
-        // Si no, se toma la sucursal por defecto del token (sessionStorage.codsuc).
+        // Si viene codsuc/nroprecorte desde el resumen se busca solo; si no, se usa la sucursal del token.
         const codsucIni =
           this.dialogConfig?.data?.codsuc ?? sessionStorage.getItem("codsuc");
         this.selectedSucursal =
@@ -326,6 +306,7 @@ export class SeguimientoCortesconProgramaComponent
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
     this.initClick();
 
     requestAnimationFrame(() => {
@@ -395,7 +376,6 @@ export class SeguimientoCortesconProgramaComponent
     this.ejecutarBusqueda();
   }
 
-  /** Abre el modal para buscar el N° de programa (tipo de operación fijo). */
   abrirBuscarPrograma(): void {
     this.ref = this.dialogService.open(BuscarProgramaCorteComponent, {
       header: "Buscar N° de Programa",
@@ -511,7 +491,7 @@ export class SeguimientoCortesconProgramaComponent
   }
 
   // ============================================================
-  // PLOTEO  (reutiliza crearFeaturePunto / crearFeatureLinea de Geo.utils)
+  // PLOTEO
   // ============================================================
 
   private plotear(fit = false): void {
@@ -527,14 +507,12 @@ export class SeguimientoCortesconProgramaComponent
     for (const r of this.registros ?? []) {
       const estado = this.estadoCorte(r);
 
-      // Punto del usuario (con fallback al predio) — reutiliza tu util.
       const fp =
         crearFeaturePunto(r, ORIGENES_COORDENADA.usuario) ??
         crearFeaturePunto(r, ORIGENES_COORDENADA.predio);
       if (fp) sp.addFeature(fp);
       else sinCoord++;
 
-      // Acometidas (líneas) — reutiliza tu util, con el tope de distancia.
       const la = crearFeatureLinea(
         r,
         ORIGENES_COORDENADA.agua,
@@ -551,7 +529,6 @@ export class SeguimientoCortesconProgramaComponent
       );
       if (ld) sd.addFeature(ld);
 
-      // Polígono del lote (sin util propio: se parsea capaloteslatylog).
       const g = this.geomLote(r.capaloteslatylog);
       if (g) {
         const fl = new Feature({ geometry: g });
@@ -579,12 +556,7 @@ export class SeguimientoCortesconProgramaComponent
     }
   }
 
-  /**
-   * Parsea capaloteslatylog a una geometría en la proyección del mapa.
-   * Soporta GeoJSON, WKT (POLYGON/MULTIPOLYGON) y pares de coordenadas.
-   * OJO: si el origen manda lat,lng en lugar de lng,lat, el polígono sale
-   * volteado. Confirmar con un valor real y, si aplica, invertir aquí.
-   */
+  // OJO: si el origen manda lat,lng en vez de lng,lat, el polígono sale volteado.
   private geomLote(raw?: string): Geometry | null {
     if (!raw) return null;
     let geom: Geometry | null = null;
@@ -716,14 +688,12 @@ export class SeguimientoCortesconProgramaComponent
     this.aplicarFiltros();
   }
 
-  /** Limpia el filtro por inspector y vuelve a pintar todo el precorte. */
   limpiarFiltroInspector(): void {
     if (!this.filtroInspector) return;
     this.filtroInspector = null;
     this.aplicarFiltros();
   }
 
-  /** Limpia AMBOS filtros del mapa (inspector + estado). */
   limpiarFiltrosMapa(): void {
     if (!this.filtroInspector && !this.filtroEstado) return;
     this.filtroInspector = null;
@@ -772,8 +742,6 @@ export class SeguimientoCortesconProgramaComponent
       style: (f) => this.estiloLote(f as Feature),
     });
 
-    // Acometidas: reutiliza lineaAcometida de MapEstilosFactory (doble trazo +
-    // auto-extensión para que las líneas cortas sean clickeables).
     this.acomAguaLayer = new VectorLayer({
       source: new VectorSource(),
       visible: false,
@@ -829,9 +797,6 @@ export class SeguimientoCortesconProgramaComponent
     });
   }
 
-  /** Punto de corte: reutiliza MapEstilosFactory.punto (círculo, radio por
-   *  zoom, cache, y etiqueta de codcliente a zoom >= 17 o seleccionado).
-   *  El color viene de la lógica de estado de cortes. */
   private estiloPunto(feature: Feature): Style {
     const r = feature.getProperties() as RegistroCorte;
     const sel = feature === this.featureSeleccionado;
@@ -875,10 +840,6 @@ export class SeguimientoCortesconProgramaComponent
   // SIDEBAR DE CAPAS
   // ============================================================
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
-  }
-
   setBaseLayer(id: string): void {
     this.baseActive = this.baseActive === id ? null : id;
     this.osmLayer?.setVisible(this.baseActive === "osm");
@@ -897,7 +858,7 @@ export class SeguimientoCortesconProgramaComponent
   private seleccionarFeature(feature: Feature): void {
     this.featureSeleccionado = feature;
     this.corteSeleccionado = feature.getProperties() as RegistroCorte;
-    this.corteSeleccionado.observacion_history = undefined; // Reset
+    this.corteSeleccionado.observacion_history = undefined;
 
     const codsuc = (this.corteSeleccionado.codsuc as string) || this.selectedSucursal?.codsuc || "";
     const codcliente = this.corteSeleccionado.codcliente;

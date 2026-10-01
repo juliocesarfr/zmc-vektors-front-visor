@@ -17,8 +17,6 @@ import VectorSource from 'ol/source/Vector';
 import { Stroke, Style } from 'ol/style';
 
 import { CommonModule } from '@angular/common';
-import Feature from 'ol/Feature';
-import Geometry from 'ol/geom/Geometry';
 import { CapaGisId, GisConfigService } from '../../core/gis';
 
 @Component({

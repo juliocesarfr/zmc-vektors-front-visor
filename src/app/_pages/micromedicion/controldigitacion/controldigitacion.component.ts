@@ -85,11 +85,13 @@ import {
 } from "../../../util/Mapaestilos.factory";
 import { observarTamanoMapa } from "../.././../util/Mapinit.util";
 import { GisConfigService } from "../../../core/gis";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -107,8 +109,7 @@ import { GisConfigService } from "../../../core/gis";
     ValidacionSistemaService,
     MessageService,
     DialogService,
-    // Por componente: al destruirse la pantalla se da de baja del socket sin
-    // cerrarlo para las demás que estén escuchando.
+    // Al destruirse se da de baja del socket sin cerrarlo para las demás pantallas.
     LecturasEnVivoService,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -116,29 +117,23 @@ import { GisConfigService } from "../../../core/gis";
 export class ControldigitacionComponent
   implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
-  /** Lecturas que llegan por WebSocket mientras la pantalla está abierta. */
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
 
-  /** Contador de lecturas repintadas en vivo, para el indicador del header. */
   totalEnVivo = 0;
-  /** Última lectura recibida; alimenta el rótulo "tomando ahora". */
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
-  /** Estado del socket: si cae, el mapa deja de reflejar el campo. */
   conectadoEnVivo = false;
   private timeoutRotulo?: number;
-
-  /** Referencia directa al <div #mapContainer> real montado por Angular. */
+
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // ---- Mapa y capas ----
   map!: OlMap;
   lecturasLayer!: VectorLayer<VectorSource>;
   cajaAguaLayer!: VectorLayer<VectorSource>;
@@ -151,18 +146,13 @@ export class ControldigitacionComponent
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
-  /** id de capa comercial (HTML) → capa de OpenLayers. Evita el if/else gigante. */
   private registroCapas: Record<string, BaseLayer> = {};
-  /** Capas vectoriales que se limpian/refrescan juntas. */
   private capasVector: VectorLayer<VectorSource>[] = [];
 
   tipoPopup: TipoPopup = "lectura";
 
-  // ---- Sesión ----
-  private readonly _codsede = sessionStorage.getItem("codsede");
-  private readonly _codemp = sessionStorage.getItem("codemp");
+  private readonly _codsede = sessionStorage.getItem("codsede");
 
-  // ---- Filtros ----
   dataCiclos: any[] = [];
   fechaCiclos: any;
   listaSucursalesxusr: any[] = [];
@@ -191,9 +181,7 @@ export class ControldigitacionComponent
     }),
   );
 
-  // ---- UI ----
   filtrosVisible = false;
-  sidebarOpen = true;
   baseActive: string | null = "osm";
   cargando = false;
   totalLecturas = 0;
@@ -231,13 +219,12 @@ export class ControldigitacionComponent
     { id: "calles", label: "Calles", active: false },
   ];
 
-  // ---- Popup ----
+
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
   datosClientePopup: any = null;
   ref: DynamicDialogRef | undefined;
 
-  // ---- Lightbox ----
   imagenAbierta: string | null = null;
   imagenAbiertaIndex = -1;
   imagenZoom = 1;
@@ -261,7 +248,6 @@ export class ControldigitacionComponent
   ) { }
 
   ngOnInit(): void {
-    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
     this.aperturaservices
@@ -280,14 +266,13 @@ export class ControldigitacionComponent
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => (this.lista_estadolec = data));
 
-    // Aquí y no en el requestAnimationFrame del ngAfterViewInit: si se navega
-    // antes de que dispare, el DestroyRef ya estaría destruido y
-    // `takeUntilDestroyed` lanzaría. No necesita el mapa montado.
+    // Aquí y no en ngAfterViewInit: si se navega antes, takeUntilDestroyed lanzaría.
     this.iniciarTiempoReal();
   }
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
 
     MapEstilosFactory.setupAdvancedMapTools(this.map);
 
@@ -306,8 +291,6 @@ export class ControldigitacionComponent
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
 
-      // El destello necesita el mapa ya montado para posicionar sus overlays;
-      // hasta que exista, `aplicarLecturaEnVivo` simplemente no lo dibuja.
       this.destellos = new DestelloLecturas(this.map, this.zone);
     });
   }
@@ -324,10 +307,6 @@ export class ControldigitacionComponent
   // TIEMPO REAL
   // ============================================================
 
-  /**
-   * Se suscribe a las lecturas que llegan por socket (APK del lecturista y
-   * digitación web) y repinta el punto correspondiente sin recargar nada.
-   */
   private iniciarTiempoReal(): void {
     this.enVivo.lecturas$
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -340,7 +319,6 @@ export class ControldigitacionComponent
     this.enVivo.conectar(this.contextoTiempoReal());
   }
 
-  /** Contexto vigente de la pantalla, para descartar lecturas de otro ciclo. */
   private contextoTiempoReal(): ContextoTiempoReal {
     return {
       codsuc: this.selectedSucursal?.codsuc ?? null,
@@ -350,18 +328,7 @@ export class ControldigitacionComponent
     };
   }
 
-  /**
-   * Repinta el punto de una lectura recién tomada:
-   *
-   * 1. El color permanece: basta con cambiar `estadolectura` en el feature,
-   *    porque la style function de `lecturasLayer` deriva el color de esa
-   *    propiedad y OpenLayers redibuja solo al mutarla.
-   * 2. El destello es efímero: marca dónde está tomando el inspector y
-   *    desaparece a los pocos segundos.
-   *
-   * Si el cliente no está en el mapa (no vino en la búsqueda actual) se ignora:
-   * así el mapa sigue coincidiendo exactamente con el filtro aplicado.
-   */
+  // Si el cliente no está en el mapa se ignora, para no salirse del filtro aplicado.
   private aplicarLecturaEnVivo(lectura: LecturaEnVivo): void {
     const feature = this.lecturasLayer
       ?.getSource()
@@ -387,8 +354,6 @@ export class ControldigitacionComponent
     this.totalEnVivo++;
     this.mostrarRotulo(lectura);
 
-    // El destello se ancla al punto del predio ya pintado: es la posición que
-    // el supervisor está mirando, y siempre existe.
     const geometria = feature.getGeometry();
     const coordenada =
       geometria?.getType() === "Point"
@@ -404,10 +369,6 @@ export class ControldigitacionComponent
     }
   }
 
-  /**
-   * Muestra el rótulo superior unos segundos. Cada lectura nueva reinicia el
-   * contador, así que en una ráfaga el rótulo se mantiene y se va actualizando.
-   */
   private mostrarRotulo(lectura: LecturaEnVivo): void {
     this.ultimaEnVivo = {
       inspector: lectura.inspector || lectura.codinspector || "—",
@@ -488,7 +449,6 @@ export class ControldigitacionComponent
     );
   }
 
-  /** Construye el filtro a partir del estado actual de la pantalla. */
   private construirFiltro(): FiltroLecturas {
     return {
       codsuc: this.selectedSucursal.codsuc,
@@ -536,7 +496,6 @@ export class ControldigitacionComponent
       return;
     }
 
-    // El filtro acaba de cambiar: el tiempo real debe seguir al nuevo ciclo.
     this.enVivo.actualizarContexto(this.contextoTiempoReal());
 
     this.ejecutarBusqueda(this.construirFiltro(), (registros) => {
@@ -545,7 +504,6 @@ export class ControldigitacionComponent
     });
   }
 
-  /** Petición compartida entre "Buscar" y la búsqueda por código de cliente. */
   private ejecutarBusqueda(
     filtro: FiltroLecturas,
     onData: (registros: RegistroLectura[]) => void,
@@ -579,7 +537,7 @@ export class ControldigitacionComponent
     this.selectedEstados = [];
     this.consumoini = 0;
     this.consumofin = 0;
-    this.selectedTipoPromedio = TIPOS_PROMEDIO[0]; // consistente con el default inicial
+    this.selectedTipoPromedio = TIPOS_PROMEDIO[0];
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
       this.selectedAnio = this.fechaCiclos.year;
@@ -600,8 +558,6 @@ export class ControldigitacionComponent
     this.totalLecturas = registros.length;
     if (registros.length === 0) return;
 
-    // Cada capa vectorial de puntos/líneas se llena con la misma receta:
-    // registro → feature (o null si no hay coordenada) → addFeatures.
     const puntos = (origen: keyof typeof ORIGENES_COORDENADA) =>
       registros
         .map((r) => crearFeaturePunto(r, ORIGENES_COORDENADA[origen]))
@@ -684,7 +640,6 @@ export class ControldigitacionComponent
     clearTimeout(this.timeoutRotulo);
   }
 
-  /** Fuerza re-render de todas las capas vectoriales (p.ej. al cambiar selección). */
   private refrescarCapasVector(): void {
     this.capasVector.forEach((capa) => capa?.changed());
   }
@@ -771,8 +726,6 @@ export class ControldigitacionComponent
       },
     });
 
-    // La resolución llega como 2º parámetro de la style function en cada render:
-    // así la extensión de líneas cortas siempre usa la resolución vigente.
     this.acomAguaLayer = new VectorLayer({
       source: new VectorSource(),
       visible: false,
@@ -817,10 +770,7 @@ export class ControldigitacionComponent
     };
 
     this.map = new OlMap({
-      // NO se pasa target aquí: en un microfrontend, resolver el id "map" por
-      // string durante la construcción engancha un div equivocado o inexistente
-      // (por eso salía en blanco al navegar y bien al recargar). Se engancha
-      // en ngAfterViewInit con setTarget sobre la referencia real del @ViewChild.
+      // Sin target aquí: en el microfrontend el id "map" engancha otro div. Se asigna en ngAfterViewInit.
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
@@ -840,7 +790,6 @@ export class ControldigitacionComponent
     });
   }
 
-  /** Determina el tipo de popup a mostrar según la capa clickeada. */
   private tipoPopupDeCapa(capa: BaseLayer | null): TipoPopup {
     if (capa === this.cajaAguaLayer || capa === this.acomAguaLayer)
       return "agua";
@@ -849,7 +798,6 @@ export class ControldigitacionComponent
     return "lectura";
   }
 
-  /** Punto único de selección: click en el mapa y buscador reutilizan esto. */
   private seleccionarFeature(feature: Feature, tipo: TipoPopup): void {
     this.tipoPopup = tipo;
     this.featureSeleccionado = feature;
@@ -884,10 +832,6 @@ export class ControldigitacionComponent
   // SIDEBAR DE CAPAS
   // ============================================================
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
-  }
-
   setBaseLayer(id: string): void {
     this.baseActive = this.baseActive === id ? null : id;
     this.osmLayer?.setVisible(this.baseActive === "osm");
@@ -899,7 +843,6 @@ export class ControldigitacionComponent
     this.registroCapas[layer.id]?.setVisible(layer.active);
   }
 
-  /** Cambia la capa WMS de lotes según los sectores. */
   seleccionarSectores(sectores: Sector[]): void {
     if (!sectores || sectores.length === 0) return;
     const isTodos = sectores.some((s) => s.codsector === "%");
@@ -917,7 +860,7 @@ export class ControldigitacionComponent
   }
 
   // ============================================================
-  //llama al modulo de consulta
+  // CONSULTA
   // ============================================================
 
   verMasInformacion(codcliente: string | undefined): void {
@@ -962,13 +905,7 @@ export class ControldigitacionComponent
     return estado ? estado.descripcion : codigo;
   }
 
-  /**
-   * Etiqueta del último movimiento del medidor, según `situacionmed`:
-   * 1 = instalado, 2 = retirado, 3 = reinstalado.
-   *
-   * `situacionmed` llega como STRING ("3"), por eso se compara como texto y no
-   * con ===  numérico.
-   */
+  // `situacionmed` llega como string: "1" instalado, "2" retirado, "3" reinstalado.
   getEtiquetaMovimientoMedidor(): string {
     switch (this.situacionMedidor()) {
       case "2":
@@ -980,15 +917,7 @@ export class ControldigitacionComponent
     }
   }
 
-  /**
-   * Fecha que corresponde a esa situación.
-   *
-   * Ojo con el caso "instalado": en los registros consultados `fechainst`
-   * llega SIEMPRE null y la fecha real vive en `fechainsmed`, así que se usa
-   * como respaldo. Las situaciones no contempladas (se ve "0" en medidores sin
-   * movimientos posteriores) caen también aquí: son medidores instalados y sin
-   * retiro ni reinstalación, y esa es su fecha válida.
-   */
+  // En "instalado" `fechainst` llega siempre null: la fecha real está en `fechainsmed`.
   getFechaMovimientoMedidor(): string {
     const medidor: any = this.datosClientePopup?._medidor;
 
@@ -1008,13 +937,7 @@ export class ControldigitacionComponent
     return String(this.datosClientePopup?._medidor?.situacionmed ?? "").trim();
   }
 
-  /**
-   * El backend manda las fechas como "2026-06-18 08:47:00.0" (formato SQL
-   * Server, con espacio y décimas), que NO es ISO 8601: pasárselo al DatePipe
-   * funciona en Chrome pero es un parseo dependiente del navegador. Por eso se
-   * recortan los 10 primeros caracteres cuando ya vienen como YYYY-MM-DD, y
-   * solo se recurre a `Date` en otros formatos.
-   */
+  // El backend manda "2026-06-18 08:47:00.0" (no ISO): se recorta a YYYY-MM-DD.
   private formatoFechaCorta(valor: unknown): string {
     if (!valor) return "-";
 
@@ -1098,7 +1021,6 @@ export class ControldigitacionComponent
   // BUSCADOR POR CÓDIGO
   // ============================================================
 
-  /** Busca un codcliente en los features ya cargados en el mapa. */
   buscarPorCodCliente(): void {
     const query = String(this.searchCodCliente || "").trim();
     if (!query) {
@@ -1108,7 +1030,6 @@ export class ControldigitacionComponent
 
     this.refrescarCapasVector();
 
-    // Primero, si ya tenemos datos cargados, buscamos ahí
     const capas: { layer: VectorLayer<VectorSource>; tipo: TipoPopup }[] = [
       { layer: this.lecturasLayer, tipo: "lectura" },
       { layer: this.cajaAguaLayer, tipo: "agua" },
@@ -1116,8 +1037,7 @@ export class ControldigitacionComponent
       { layer: this.acomAguaLayer, tipo: "agua" },
       { layer: this.acomDesagueLayer, tipo: "alcantarillado" },
     ];
-
-    let foundFeatureLocally = false;
+
     for (const { layer, tipo } of capas) {
       const feature = layer
         ?.getSource()
@@ -1129,18 +1049,15 @@ export class ControldigitacionComponent
           return fc === query;
         });
 
-      if (feature) {
-        foundFeatureLocally = true;
+      if (feature) {
         this.seleccionarFeature(feature, tipo);
         this.activarCapasPorDefectoBusqueda();
 
-        // Si lo encontró localmente y queremos aislarlo, necesitamos filtrar la lista
         if (!this.isBusquedaClienteActiva) {
           this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
           this.isBusquedaClienteActiva = true;
         }
 
-        // Aislamos el usuario encontrado
         const userFeature = this.resultadoBusquedaOriginalJson?.find(
           (r: any) =>
             String(r.codcliente || r.nroSuministro || "").trim() === query,
@@ -1174,7 +1091,6 @@ export class ControldigitacionComponent
       }
     }
 
-    // Si no se encontró localmente, buscar en el backend sin importar el sector
     if (!this.filtrosBasicosValidos()) return;
 
     this.cargando = true;
@@ -1209,7 +1125,6 @@ export class ControldigitacionComponent
             this.isBusquedaClienteActiva = true;
           }
 
-          // Reemplazamos la lista con SOLO el usuario buscado
           this.resultadoBusquedaJson = registros;
 
           this.searchCodCliente = "";
@@ -1291,7 +1206,6 @@ export class ControldigitacionComponent
     this.reiniciarBusqueda();
   }
 
-  /** Evento global: buscar un codcliente consultando al backend. */
   @HostListener("window:buscar-codcliente", ["$event"])
   onBuscarCodCliente(event: CustomEvent): void {
     const codcliente: string = event.detail?.codcliente;
@@ -1382,7 +1296,6 @@ export class ControldigitacionComponent
 
   // ============================================================
   // LIGHTBOX DE IMÁGENES
-  // (candidato a extraerse como <app-lightbox-imagenes> reutilizable)
   // ============================================================
 
   get imagenActual(): any | null {

@@ -14,10 +14,9 @@ import Toggle from 'ol-ext/control/Toggle';
 import Draw from 'ol/interaction/Draw';
 import { getArea, getLength } from 'ol/sphere';
 import { Modify } from 'ol/interaction';
-import { Point, LineString, Polygon } from 'ol/geom';
+import { Point, LineString } from 'ol/geom';
 import { Fill, RegularShape, Stroke, Style, Text } from 'ol/style';
 import CircleStyle from 'ol/style/Circle';
-import { ConsulGenericService } from '@host/_servicios/consultaGeneral/consul-generic.service';
 import { GisConfigService } from '../../core/gis';
 import { CheckboxModule } from 'primeng/checkbox';
 import { FormsModule } from '@angular/forms';
@@ -168,9 +167,7 @@ export class GisComponent implements OnInit {
   modify = new Modify({ source: this.source, style: this.modifyStyle });
   tipPoint;
 
-  constructor(
-    private _consultaService: ConsulGenericService
-  ) {}
+  constructor() {}
 
   ngOnInit(): void {
     this.cargarDatos();
