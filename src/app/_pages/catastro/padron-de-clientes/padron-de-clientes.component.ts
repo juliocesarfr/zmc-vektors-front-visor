@@ -24,8 +24,8 @@ import { TarifasService } from "@host/_servicios/catastro/tarifas.service";
 import { UrbamaeService } from "@host/_servicios/catastro/urbamae.service";
 import { TipousuarioService } from "@host/_servicios/catastro/tipousuario.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, of } from "rxjs";
-import { catchError } from "rxjs/operators";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import TileLayer from "ol/layer/Tile";
@@ -78,6 +78,9 @@ export class PadronDeClientesComponent
   implements OnInit, AfterViewInit, OnDestroy
 {
   private readonly destroyRef = inject(DestroyRef);
+
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
@@ -229,6 +232,8 @@ export class PadronDeClientesComponent
   }
 
   onCicloChange(): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.listaSucursales = [];
@@ -239,7 +244,7 @@ export class PadronDeClientesComponent
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(this.selectedCiclo.codigo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSucursales = data || [];
@@ -256,6 +261,7 @@ export class PadronDeClientesComponent
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedTarifa = null;
     this.selectedUrbanizacion = null;
@@ -269,7 +275,7 @@ export class PadronDeClientesComponent
 
     this.tarifasService
       .drop(sucursalCode)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           const uniqueData = (data || []).filter(
@@ -299,7 +305,7 @@ export class PadronDeClientesComponent
         this.selectedSucursal.codsuc,
         this.selectedCiclo.codigo,
       )
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSectores = [
@@ -317,7 +323,7 @@ export class PadronDeClientesComponent
 
     this.urbamaeService
       .drop_x_sucursales(this.selectedSucursal.codsuc)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaUrbanizaciones = [
@@ -510,11 +516,8 @@ export class PadronDeClientesComponent
     this.capasSidebar?.conectarMapa(this.map);
 
     requestAnimationFrame(() => {
-      const el =
-        this.mapContainer?.nativeElement ?? document.getElementById("map");
-      if (!el) {
-        return;
-      }
+      const el = this.mapContainer?.nativeElement;
+      if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);

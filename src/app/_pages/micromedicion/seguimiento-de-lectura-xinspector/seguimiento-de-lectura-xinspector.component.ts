@@ -12,8 +12,8 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule } from "@angular/common";
-import { forkJoin, of } from "rxjs";
-import { catchError, switchMap, tap } from "rxjs/operators";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, switchMap, tap, takeUntil } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 
 import OlMap from "ol/Map";
@@ -143,6 +143,11 @@ export class SeguimientoDeLecturaXinspectorComponent
   implements OnInit, AfterViewInit, OnDestroy
 {
   private readonly destroyRef = inject(DestroyRef);
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
@@ -177,8 +182,8 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   dataCiclos: any[] = [];
   fechaCiclos: any;
-  listaSucursalesxusr: any[] = [];
-  totalSectores2: Sector[] = [];
+  listaSucursales: any[] = [];
+  listaSectores: Sector[] = [];
   inspectoresxSector: Inspector[] = [];
 
   selectedCiclo: any = null;
@@ -227,8 +232,8 @@ export class SeguimientoDeLecturaXinspectorComponent
   ];
 
   constructor(
-    private aperturaservices: AperturaMicromedicionService,
-    private seguridadService: SucursalesService,
+    private aperturaService: AperturaMicromedicionService,
+    private sucursalesService: SucursalesService,
     private sectoresService: SectoresCicloService,
     private micromedicionService: MicromedicionService,
     private messageService: MessageService,
@@ -238,7 +243,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   ngOnInit(): void {
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
-    this.aperturaservices
+    this.aperturaService
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((response) => {
@@ -490,6 +495,8 @@ export class SeguimientoDeLecturaXinspectorComponent
   }
 
   onCicloChange(autoLoad = false): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.selectedInspector = null;
@@ -497,7 +504,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.limpiarResultados();
     if (!this.selectedCiclo) return;
 
-    this.aperturaservices
+    this.aperturaService
       .getfechaCiclos(this.selectedCiclo.codciclo)
       .pipe(
         tap((response) => {
@@ -506,14 +513,14 @@ export class SeguimientoDeLecturaXinspectorComponent
           this.selectedMes = this.fechaCiclos.month;
         }),
         switchMap(() =>
-          this.seguridadService.drop_sucursales_x_ciclo(
+          this.sucursalesService.drop_sucursales_x_ciclo(
             this.selectedCiclo.codciclo,
           ),
         ),
-        takeUntilDestroyed(this.destroyRef),
+        takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((data) => {
-        this.listaSucursalesxusr = data;
+        this.listaSucursales = data;
         if (autoLoad && data?.length > 0) {
           this.selectedSucursal = data[0];
           this.onSucursalChange();
@@ -522,6 +529,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedInspector = null;
     this.inspectoresxSector = [];
@@ -534,14 +542,14 @@ export class SeguimientoDeLecturaXinspectorComponent
           this.selectedCiclo.codciclo,
         )
         .pipe(catchError(() => of([]))),
-      inspectores: this.aperturaservices
+      inspectores: this.aperturaService
         .getInspectores(this.selectedSucursal.codsuc)
         .pipe(catchError(() => of({ data: [] }))),
     })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe(({ sectores, inspectores }) => {
-        this.totalSectores2 = [SECTOR_TODOS, ...sectores];
-        this.selectedSector = this.totalSectores2[0];
+        this.listaSectores = [SECTOR_TODOS, ...sectores];
+        this.selectedSector = this.listaSectores[0];
         this.inspectoresxSector = inspectores?.data || [];
       });
   }

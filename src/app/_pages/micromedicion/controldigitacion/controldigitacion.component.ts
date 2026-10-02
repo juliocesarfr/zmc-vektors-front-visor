@@ -13,8 +13,8 @@ import {
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule } from "@angular/common";
-import { forkJoin, of } from "rxjs";
-import { catchError, switchMap, tap } from "rxjs/operators";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, switchMap, tap, takeUntil } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 
 import OlMap from "ol/Map";
@@ -108,6 +108,11 @@ import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
 export class ControldigitacionComponent
   implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
@@ -142,13 +147,13 @@ export class ControldigitacionComponent
 
   tipoPopup: TipoPopup = "lectura";
 
-  private readonly _codsede = sessionStorage.getItem("codsede");
+  private readonly codsedeSesion = sessionStorage.getItem("codsede");
 
   dataCiclos: any[] = [];
   fechaCiclos: any;
-  listaSucursalesxusr: any[] = [];
-  totalSectores2: Sector[] = [];
-  lista_estadolec: any[] = [];
+  listaSucursales: any[] = [];
+  listaSectores: Sector[] = [];
+  listaEstadosLectura: any[] = [];
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
@@ -156,15 +161,15 @@ export class ControldigitacionComponent
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
-  consumoini: number | null = 0;
-  consumofin: number | null = 0;
+  consumoInicial: number | null = 0;
+  consumoFinal: number | null = 0;
   selectedTipoPromedio: (typeof TIPOS_PROMEDIO)[number] | null =
     TIPOS_PROMEDIO[0]; // default: MEDIDO
 
   resultadoBusquedaJson: RegistroLectura[] | null = null;
 
   readonly listaMeses = LISTA_MESES;
-  readonly tipopromedio = TIPOS_PROMEDIO;
+  readonly tiposPromedio = TIPOS_PROMEDIO;
   readonly listaYear: { anio: string }[] = Array.from(
     { length: 6 },
     (_, i) => ({
@@ -209,8 +214,8 @@ export class ControldigitacionComponent
   indiceFotoAbierta = -1;
 
   constructor(
-    private aperturaservices: AperturaMicromedicionService,
-    private seguridadService: SucursalesService,
+    private aperturaService: AperturaMicromedicionService,
+    private sucursalesService: SucursalesService,
     private sectoresService: SectoresCicloService,
     private consultaService: ConsulGenericService,
     private micromedicionService: MicromedicionService,
@@ -223,7 +228,7 @@ export class ControldigitacionComponent
   ngOnInit(): void {
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
-    this.aperturaservices
+    this.aperturaService
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((response) => {
@@ -237,7 +242,7 @@ export class ControldigitacionComponent
     this.consultaService
       .getconsultaService("TEL", "ALL", "ALL", "ALL")
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((data) => (this.lista_estadolec = data));
+      .subscribe((data) => (this.listaEstadosLectura = data));
 
     // Aquí y no en ngAfterViewInit: si se navega antes, takeUntilDestroyed lanzaría.
     this.iniciarTiempoReal();
@@ -252,14 +257,8 @@ export class ControldigitacionComponent
     this.initClick();
 
     requestAnimationFrame(() => {
-      const el =
-        this.mapContainer?.nativeElement ?? document.getElementById("map");
-      if (!el) {
-        console.error(
-          "[ControlDigitacion] No se encontró el contenedor del mapa (#map ni #mapContainer).",
-        );
-        return;
-      }
+      const el = this.mapContainer?.nativeElement;
+      if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
@@ -363,12 +362,14 @@ export class ControldigitacionComponent
   }
 
   onCicloChange(autoLoad = false): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.limpiarCapas();
     if (!this.selectedCiclo) return;
 
-    this.aperturaservices
+    this.aperturaService
       .getfechaCiclos(this.selectedCiclo.codciclo)
       .pipe(
         tap((response) => {
@@ -377,14 +378,14 @@ export class ControldigitacionComponent
           this.selectedMes = this.fechaCiclos.month;
         }),
         switchMap(() =>
-          this.seguridadService.drop_sucursales_x_ciclo(
+          this.sucursalesService.drop_sucursales_x_ciclo(
             this.selectedCiclo.codciclo,
           ),
         ),
-        takeUntilDestroyed(this.destroyRef),
+        takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((data) => {
-        this.listaSucursalesxusr = data;
+        this.listaSucursales = data;
         if (autoLoad && data?.length > 0) {
           this.selectedSucursal = data[0];
           this.onSucursalChange();
@@ -393,6 +394,7 @@ export class ControldigitacionComponent
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     if (!this.selectedSucursal) return;
 
@@ -401,23 +403,23 @@ export class ControldigitacionComponent
         this.selectedSucursal.codsuc,
         this.selectedCiclo.codciclo,
       )
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => {
-        this.totalSectores2 = [SECTOR_TODOS, ...data];
+        this.listaSectores = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
         this.selectedSector = def;
-        this.consumoini = 0;
-        this.consumofin = 0;
+        this.consumoInicial = 0;
+        this.consumoFinal = 0;
       });
   }
 
   private sectorPorDefecto(): Sector | null {
     return (
-      this.totalSectores2.find(
+      this.listaSectores.find(
         (s) => s.codsector === "01" || s.codsector === "1",
       ) ??
-      this.totalSectores2[1] ??
-      this.totalSectores2[0] ??
+      this.listaSectores[1] ??
+      this.listaSectores[0] ??
       null
     );
   }
@@ -425,14 +427,14 @@ export class ControldigitacionComponent
   private construirFiltro(): FiltroLecturas {
     return {
       codsuc: this.selectedSucursal.codsuc,
-      codsede: this._codsede ?? "%",
+      codsede: this.codsedeSesion ?? "%",
       codsector: this.selectedSector ? this.selectedSector.codsector : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
       mes: this.selectedMes,
       estadolectura: (this.selectedEstados || []).join(","),
-      consumoini: this.consumoini,
-      consumofin: this.consumofin,
+      consumoini: this.consumoInicial,
+      consumofin: this.consumoFinal,
       tipopromedio: this.selectedTipoPromedio?.codigo ?? "",
     };
   }
@@ -457,9 +459,9 @@ export class ControldigitacionComponent
   procesar(): void {
     if (!this.filtrosBasicosValidos()) return;
     if (
-      this.consumoini != null &&
-      this.consumofin != null &&
-      this.consumoini > this.consumofin
+      this.consumoInicial != null &&
+      this.consumoFinal != null &&
+      this.consumoInicial > this.consumoFinal
     ) {
       this.avisar(
         "warn",
@@ -508,8 +510,8 @@ export class ControldigitacionComponent
     const def = this.sectorPorDefecto();
     this.selectedSector = def;
     this.selectedEstados = [];
-    this.consumoini = 0;
-    this.consumofin = 0;
+    this.consumoInicial = 0;
+    this.consumoFinal = 0;
     this.selectedTipoPromedio = TIPOS_PROMEDIO[0];
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
@@ -844,7 +846,7 @@ export class ControldigitacionComponent
 
   getDescripcionEstadoLectura(codigo: string): string {
     if (!codigo) return "-";
-    const estado = this.lista_estadolec.find((e) => e.codigo === codigo);
+    const estado = this.listaEstadosLectura.find((e) => e.codigo === codigo);
     return estado ? estado.descripcion : codigo;
   }
 

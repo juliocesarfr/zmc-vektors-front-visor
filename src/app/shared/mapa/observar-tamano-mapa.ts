@@ -1,13 +1,11 @@
 import OlMap from "ol/Map";
 
-export function observarTamanoMapa(
-  map: OlMap,
-  target: HTMLElement | string,
-): () => void {
-  const el =
-    typeof target === "string" ? document.getElementById(target) : target;
-  if (!el) return () => {};
-
+/**
+ * Recalcula el tamaño del mapa cada vez que cambia el de su contenedor (paneles
+ * que se abren o cierran, ventana redimensionada). Devuelve la función para dejar
+ * de observar; llamarla en `ngOnDestroy`.
+ */
+export function observarTamanoMapa(map: OlMap, contenedor: HTMLElement): () => void {
   let listo = false;
 
   const refrescar = () => {
@@ -37,7 +35,7 @@ export function observarTamanoMapa(
     }
   });
 
-  observer.observe(el);
+  observer.observe(contenedor);
 
   return () => observer.disconnect();
 }

@@ -124,7 +124,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.capasSidebar?.conectarMapa(this.map);
 
     requestAnimationFrame(() => {
-      const el = this.mapContainer?.nativeElement ?? document.getElementById("map");
+      const el = this.mapContainer?.nativeElement;
       if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();

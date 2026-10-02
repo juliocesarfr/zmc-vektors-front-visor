@@ -73,8 +73,8 @@ import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/st
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
 import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
 import type Circle from "ol/geom/Circle";
-
-export type EstadoCorte = "ejecutado" | "pagado" | "pendiente";
+import { ActivatedRoute } from "@angular/router";
+import { EstadoCorte, MODO_CORTE, ModoSeguimiento } from "./modos-seguimiento";
 
 export interface RegistroCorte {
   codemp?: string;
@@ -138,7 +138,7 @@ interface ResumenInspector {
 }
 
 @Component({
-  selector: "app-seguimiento-cortescon-programa",
+  selector: "app-seguimiento-programa",
   standalone: true,
   imports: [
     CapasSidebarComponent,
@@ -153,12 +153,14 @@ interface ResumenInspector {
     TagModule,
     TooltipModule,
   ],
-  templateUrl: "./seguimiento-cortescon-programa.component.html",
-  styleUrl: "./seguimiento-cortescon-programa.component.scss",
+  templateUrl: "./seguimiento-programa.component.html",
+  styleUrl: "./seguimiento-programa.component.scss",
   providers: [MessageService, DialogService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  host: { "[class.modo-reapertura]": "modo.esReapertura" },
 })
-export class SeguimientoCortesconProgramaComponent
+/** Seguimiento en el mapa de un programa de cortes o de reaperturas (según `modo`). */
+export class SeguimientoProgramaComponent
   implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private cobranzaService = inject(CobranzaService);
@@ -171,15 +173,11 @@ export class SeguimientoCortesconProgramaComponent
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // La subclase de reaperturas sobrescribe estos valores.
-  protected tipoOperacion = "001"; // reapertura: '002'
-  protected campoFechaEjecucion = "fcorte"; // reapertura: 'freapertura'
-  protected etiquetaEjecutadoTxt = "CORTADO"; // reapertura: 'REAPERTURADO'
-  protected titulo = "Seguimiento de Cortes con Programa";
-
-  get etiquetaEjecutado(): string {
-    return this.etiquetaEjecutadoTxt;
-  }
+  /** Corte o reapertura: lo indica la ruta (`data.modo`) o quien abre la pantalla como diálogo. */
+  readonly modo: ModoSeguimiento =
+    inject(DynamicDialogConfig, { optional: true })?.data?.modo ??
+    inject(ActivatedRoute).snapshot.data["modo"] ??
+    MODO_CORTE;
 
   map!: OlMap;
   cortesLayer!: VectorLayer<VectorSource>;
@@ -192,12 +190,6 @@ export class SeguimientoCortesconProgramaComponent
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private registroCapas: Record<string, BaseLayer> = {};
-
-  protected COLORES: Record<EstadoCorte, string> = {
-    ejecutado: "#ef4444",
-    pendiente: "#22c55e",
-    pagado: "#3b82f6",
-  };
 
   dataSucursales: any[] = [];
   selectedSucursal: any = null;
@@ -294,14 +286,8 @@ export class SeguimientoCortesconProgramaComponent
     this.initClick();
 
     requestAnimationFrame(() => {
-      const el =
-        this.mapContainer?.nativeElement ?? document.getElementById("map");
-      if (!el) {
-        console.error(
-          "[SeguimientoCortes] No se encontró el contenedor del mapa.",
-        );
-        return;
-      }
+      const el = this.mapContainer?.nativeElement;
+      if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
@@ -352,7 +338,7 @@ export class SeguimientoCortesconProgramaComponent
       contentStyle: { overflow: "auto" },
       baseZIndex: 10000,
       maximizable: true,
-      data: { tipooperacion: this.tipoOperacion },
+      data: { tipooperacion: this.modo.tipoOperacion },
     });
     this.ref.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -371,7 +357,7 @@ export class SeguimientoCortesconProgramaComponent
     const filtro: FiltrarProgramaPrecorte = {
       codsuc: this.selectedSucursal.codsuc,
       nroprecorte: this.nroPrecorte!,
-      tipooperacion: this.tipoOperacion,
+      tipooperacion: this.modo.tipoOperacion,
     };
 
     this.cargando = true;
@@ -438,17 +424,17 @@ export class SeguimientoCortesconProgramaComponent
 
   etiquetaEstado(r: RegistroCorte): string {
     const e = this.estadoCorte(r);
-    if (e === "ejecutado") return this.etiquetaEjecutadoTxt;
+    if (e === "ejecutado") return this.modo.etiquetaEjecutado;
     if (e === "pagado") return "PAGADO";
     return "PENDIENTE";
   }
 
   colorEstado(r: RegistroCorte): string {
-    return this.COLORES[this.estadoCorte(r)];
+    return this.modo.colores[this.estadoCorte(r)];
   }
 
   fechaEjecucion(r: RegistroCorte): string | undefined {
-    return r?.[this.campoFechaEjecucion];
+    return r?.[this.modo.campoFechaEjecucion];
   }
 
   private rgba(hex: string, alpha: number): string {
@@ -758,7 +744,7 @@ export class SeguimientoCortesconProgramaComponent
     const estado = feature.get("_estado") as EstadoCorte;
     const sel =
       feature.get("_codcliente") === this.corteSeleccionado?.codcliente;
-    const color = this.COLORES[estado] ?? "#64748b";
+    const color = this.modo.colores[estado] ?? "#64748b";
     return new Style({
       fill: new Fill({ color: this.rgba(color, sel ? 0.5 : 0.28) }),
       stroke: new Stroke({ color, width: sel ? 3 : 1.5 }),
@@ -822,7 +808,7 @@ export class SeguimientoCortesconProgramaComponent
               return isNaN(parsed) ? 0 : parsed;
             };
 
-            const fechaRefStr = (this.corteSeleccionado as any)?.[this.campoFechaEjecucion] || this.corteSeleccionado?.fcorte || this.corteSeleccionado?.freapertura;
+            const fechaRefStr = (this.corteSeleccionado as any)?.[this.modo.campoFechaEjecucion] || this.corteSeleccionado?.fcorte || this.corteSeleccionado?.freapertura;
             const fechaRef = parseDate(fechaRefStr as string);
 
             const cortes = res.data;
