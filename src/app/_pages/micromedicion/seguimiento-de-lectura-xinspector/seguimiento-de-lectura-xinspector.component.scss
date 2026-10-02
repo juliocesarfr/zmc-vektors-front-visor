@@ -553,7 +553,7 @@
 // ---------- Tabla de resumen ----------
 .sl-tabla-resumen {
   position: absolute;
-  bottom: 14px;
+  bottom: 64px; // por encima de la barra inferior de la app (51px)
   right: 10px;
   z-index: 10;
   max-width: 580px;

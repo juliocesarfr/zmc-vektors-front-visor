@@ -41,10 +41,6 @@ import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature from "ol/Feature";
-import Polygon from "ol/geom/Polygon";
-import Geometry from "ol/geom/Geometry";
-import GeoJSON from "ol/format/GeoJSON";
-import WKT from "ol/format/WKT";
 import { Style, Fill, Stroke } from "ol/style";
 import { getCenter } from "ol/extent";
 
@@ -75,67 +71,18 @@ import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
 import type Circle from "ol/geom/Circle";
 import { ActivatedRoute } from "@angular/router";
 import { EstadoCorte, MODO_CORTE, ModoSeguimiento } from "./modos-seguimiento";
-
-export interface RegistroCorte {
-  codemp?: string;
-  codsuc?: string;
-  codcliente?: number | string;
-  codsector?: string;
-  codmza?: string;
-  nrolote?: string;
-  nrosublote?: string;
-  propietario?: string;
-  telefono?: string;
-  nromed?: string;
-  descripcioncorta?: string;
-  descripcioncalle?: string;
-  nrocalle?: string;
-  descripcionurba?: string;
-  codinspector?: string;
-  inspector?: string;
-  codestado?: string;
-  estadoservicio2?: string;
-  estadocliente?: string;
-  diapago?: string;
-  fcorte?: string;
-  freapertura?: string;
-  fechavencmto?: string;
-  impdeuda?: number;
-  impmesdeuda?: number;
-  nromesesdeuda?: number;
-  impdeudareclamo?: number;
-  nromesesdeudareclamo?: number;
-  impdeudapagada?: number;
-  catetar?: string;
-  tarifa?: string;
-  c_destipocoragu?: string;
-  c_destipocordes?: string;
-  lecturaultima?: number;
-  lon?: number;
-  lat?: number;
-  lonpredio?: number;
-  latpredio?: number;
-  lonagua?: number;
-  latagua?: number;
-  londesague?: number;
-  latdesague?: number;
-  lonacometidaagua?: number;
-  latacometidaagua?: number;
-  lonacometidadesague?: number;
-  latacometidadesague?: number;
-  capaloteslatylog?: string;
-  [k: string]: any;
-}
-
-interface ResumenInspector {
-  codinspector: string;
-  inspector: string;
-  total: number;
-  ejecutados: number;
-  pagados: number;
-  pendientes: number;
-  rendimiento: number;
-}
+import {
+  ResumenInspectorCorte,
+  codigoInspectorDe,
+  colorConTransparencia,
+  estadoDelCorte,
+  geometriaDelLote,
+  observacionDeLaOperacion,
+  observacionMasRecienteDe,
+  resumenPorInspector,
+  totalesPorEstado,
+} from "./seguimiento-programa.reglas";
+import { RegistroCorte } from "@host/_models/vektors/Cobranza/RegistroCorte";
 
 @Component({
   selector: "app-seguimiento-programa",
@@ -206,7 +153,7 @@ export class SeguimientoProgramaComponent
   pendientes = 0;
   rendimiento = 0;
   totalSinCoordenadas = 0;
-  inspectores: ResumenInspector[] = [];
+  inspectores: ResumenInspectorCorte[] = [];
 
   filtrosVisible = true;
   panelInspectores = false;
@@ -416,33 +363,19 @@ export class SeguimientoProgramaComponent
   // ESTADO / COLOR
   // ============================================================
 
-  protected estadoCorte(r: RegistroCorte): EstadoCorte {
-    if (r?.codestado === "003") return "ejecutado";
-    if (r?.diapago) return "pagado";
-    return "pendiente";
-  }
-
   etiquetaEstado(r: RegistroCorte): string {
-    const e = this.estadoCorte(r);
+    const e = estadoDelCorte(r);
     if (e === "ejecutado") return this.modo.etiquetaEjecutado;
     if (e === "pagado") return "PAGADO";
     return "PENDIENTE";
   }
 
   colorEstado(r: RegistroCorte): string {
-    return this.modo.colores[this.estadoCorte(r)];
+    return this.modo.colores[estadoDelCorte(r)];
   }
 
   fechaEjecucion(r: RegistroCorte): string | undefined {
     return r?.[this.modo.campoFechaEjecucion];
-  }
-
-  private rgba(hex: string, alpha: number): string {
-    const h = hex.replace("#", "");
-    const r = parseInt(h.substring(0, 2), 16);
-    const g = parseInt(h.substring(2, 4), 16);
-    const b = parseInt(h.substring(4, 6), 16);
-    return "rgba(" + r + "," + g + "," + b + "," + alpha + ")";
   }
 
   // ============================================================
@@ -460,7 +393,7 @@ export class SeguimientoProgramaComponent
     let sinCoord = 0;
 
     for (const r of this.registros ?? []) {
-      const estado = this.estadoCorte(r);
+      const estado = estadoDelCorte(r);
 
       const fp =
         crearFeaturePunto(r, ORIGENES_COORDENADA.usuario) ??
@@ -484,7 +417,7 @@ export class SeguimientoProgramaComponent
       );
       if (ld) sd.addFeature(ld);
 
-      const g = this.geomLote(r.capaloteslatylog);
+      const g = geometriaDelLote(r.capaloteslatylog, this.gis.proyeccionMapa, this.gis.proyeccionUtm);
       if (g) {
         const fl = new Feature({ geometry: g });
         fl.setProperties({ _estado: estado, _codcliente: r.codcliente });
@@ -511,128 +444,37 @@ export class SeguimientoProgramaComponent
     }
   }
 
-  // OJO: si el origen manda lat,lng en vez de lng,lat, el polígono sale volteado.
-  private geomLote(raw?: string): Geometry | null {
-    if (!raw) return null;
-    let geom: Geometry | null = null;
-    try {
-      const s = String(raw).trim();
-      if (s.startsWith("{")) {
-        geom = new GeoJSON().readGeometry(s);
-      } else if (/POLYGON|MULTIPOLYGON/i.test(s)) {
-        geom = new WKT().readGeometry(s);
-      } else {
-        const anillo = this.parsearPares(s);
-        if (anillo && anillo.length >= 3) geom = new Polygon([anillo]);
-      }
-    } catch {
-      return null;
-    }
-    if (!geom) return null;
-
-    const flat = (geom as any).getFlatCoordinates?.() ?? [];
-    const x = flat[0];
-    const y = flat[1];
-    if (x == null || y == null) return null;
-    const proyeccionMapa = this.gis.proyeccionMapa;
-    const src =
-      Math.abs(x) > 180 || Math.abs(y) > 90
-        ? this.gis.proyeccionUtm
-        : proyeccionMapa;
-    if (src !== proyeccionMapa) geom.transform(src, proyeccionMapa);
-    return geom;
-  }
-
-  private parsearPares(s: string): number[][] | null {
-    try {
-      if (s.startsWith("[")) {
-        const arr = JSON.parse(s);
-        if (Array.isArray(arr) && Array.isArray(arr[0])) {
-          return arr.map((p: any) => [Number(p[0]), Number(p[1])]);
-        }
-      }
-      const nums = s
-        .split(/[,\s]+/)
-        .map(Number)
-        .filter((n) => !isNaN(n));
-      if (nums.length >= 6 && nums.length % 2 === 0) {
-        const pts: number[][] = [];
-        for (let i = 0; i < nums.length; i += 2)
-          pts.push([nums[i], nums[i + 1]]);
-        return pts;
-      }
-    } catch { }
-    return null;
-  }
-
   // ============================================================
   // RESUMEN / INSPECTORES
   // ============================================================
 
   private calcularResumen(): void {
-    const rs = this.registros ?? [];
-    this.total = rs.length;
-    this.ejecutados = rs.filter(
-      (r) => this.estadoCorte(r) === "ejecutado",
-    ).length;
-    this.pagados = rs.filter((r) => this.estadoCorte(r) === "pagado").length;
-    this.pendientes = rs.filter(
-      (r) => this.estadoCorte(r) === "pendiente",
-    ).length;
-    this.rendimiento = this.total
-      ? Number(((this.ejecutados / this.total) * 100).toFixed(1))
-      : 0;
+    const totales = totalesPorEstado(this.registros ?? []);
+    this.total = totales.total;
+    this.ejecutados = totales.ejecutados;
+    this.pagados = totales.pagados;
+    this.pendientes = totales.pendientes;
+    this.rendimiento = totales.rendimiento;
   }
 
   private calcularInspectores(): void {
-    const mapa = new Map<string, ResumenInspector>();
-    for (const r of this.registrosOriginal ?? []) {
-      const key = r.codinspector || "—";
-      if (!mapa.has(key)) {
-        mapa.set(key, {
-          codinspector: key,
-          inspector: r.inspector || "Sin inspector",
-          total: 0,
-          ejecutados: 0,
-          pagados: 0,
-          pendientes: 0,
-          rendimiento: 0,
-        });
-      }
-      const it = mapa.get(key)!;
-      it.total++;
-      const e = this.estadoCorte(r);
-      if (e === "ejecutado") it.ejecutados++;
-      else if (e === "pagado") it.pagados++;
-      else it.pendientes++;
-    }
-    const arr = [...mapa.values()];
-    arr.forEach(
-      (it) =>
-      (it.rendimiento = it.total
-        ? Number(((it.ejecutados / it.total) * 100).toFixed(1))
-        : 0),
-    );
-    arr.sort((a, b) => b.total - a.total);
-    this.inspectores = arr;
+    this.inspectores = resumenPorInspector(this.registrosOriginal ?? []);
   }
 
   private aplicarFiltros(): void {
     let base = this.registrosOriginal ?? [];
     if (this.filtroInspector) {
-      base = base.filter(
-        (r) => (r.codinspector || "—") === this.filtroInspector,
-      );
+      base = base.filter((r) => codigoInspectorDe(r) === this.filtroInspector);
     }
     if (this.filtroEstado) {
-      base = base.filter((r) => this.estadoCorte(r) === this.filtroEstado);
+      base = base.filter((r) => estadoDelCorte(r) === this.filtroEstado);
     }
     this.registros = base;
     this.cerrarPopup();
     this.plotear(true);
   }
 
-  filtrarPorInspector(insp: ResumenInspector): void {
+  filtrarPorInspector(insp: ResumenInspectorCorte): void {
     this.filtroInspector =
       this.filtroInspector === insp.codinspector ? null : insp.codinspector;
     this.aplicarFiltros();
@@ -652,7 +494,6 @@ export class SeguimientoProgramaComponent
   // ============================================================
   // MAPA
   // ============================================================
-
 
   private crearMapa(): void {
     this.osmLayer = crearCapaOsm(this.baseActive === "osm");
@@ -746,7 +587,7 @@ export class SeguimientoProgramaComponent
       feature.get("_codcliente") === this.corteSeleccionado?.codcliente;
     const color = this.modo.colores[estado] ?? "#64748b";
     return new Style({
-      fill: new Fill({ color: this.rgba(color, sel ? 0.5 : 0.28) }),
+      fill: new Fill({ color: colorConTransparencia(color, sel ? 0.5 : 0.28) }),
       stroke: new Stroke({ color, width: sel ? 3 : 1.5 }),
     });
   }
@@ -794,36 +635,13 @@ export class SeguimientoProgramaComponent
     if (codsuc && codcliente) {
       this.consultaUsuarioService.obtenerCorteReaperturaXcliente(codsuc, codcliente)
         .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe(res => {
-          if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
-            const parseDate = (d: string) => {
-              if (!d) return 0;
-              if (d.includes('/')) {
-                const [datePart] = d.split(' ');
-                const [day, month, year] = datePart.split('/');
-                const y = year.length === 2 ? 2000 + parseInt(year) : parseInt(year);
-                return new Date(y, parseInt(month) - 1, parseInt(day)).getTime();
-              }
-              const parsed = new Date(d).getTime();
-              return isNaN(parsed) ? 0 : parsed;
-            };
-
-            const fechaRefStr = (this.corteSeleccionado as any)?.[this.modo.campoFechaEjecucion] || this.corteSeleccionado?.fcorte || this.corteSeleccionado?.freapertura;
-            const fechaRef = parseDate(fechaRefStr as string);
-
-            const cortes = res.data;
-            const targetRow = cortes.find((c: any) => {
-              if (fechaRef > 0) {
-                const obsDate = parseDate(c.fecha || c.fechareg || c.fecha_registro);
-                if (obsDate > 0 && obsDate < fechaRef) return false;
-              }
-              return true;
-            });
-
-            if (this.corteSeleccionado && targetRow) {
-              this.corteSeleccionado.observacion_history = targetRow.observacion?.trim() || '-';
-            }
-          }
+        .subscribe((res) => {
+          const historial = Array.isArray(res?.data) ? res.data : [];
+          if (!this.corteSeleccionado || historial.length === 0) return;
+          const corte = this.corteSeleccionado;
+          const fechaEjecucion = corte[this.modo.campoFechaEjecucion] || corte.fcorte || corte.freapertura;
+          const observacion = observacionDeLaOperacion(historial, fechaEjecucion);
+          if (observacion !== undefined) corte.observacion_history = observacion;
         });
     }
 
@@ -845,7 +663,6 @@ export class SeguimientoProgramaComponent
     this.cargandoImagenes = true;
     const codsuc = (r.codsuc as string) || this.selectedSucursal?.codsuc || "";
     const codcliente = r.codcliente;
-
 
     this.controlImgService
       .read_x_tipolistar({
@@ -952,39 +769,13 @@ export class SeguimientoProgramaComponent
   }
 
   // ============================================================
-  // LIGHTBOX
+  // POPUP
   // ============================================================
 
   get observacionMasReciente(): string {
-    if (!this.corteSeleccionado) return '-';
-    if (this.corteSeleccionado.observacion_history) {
-      return this.corteSeleccionado.observacion_history;
-    }
-
-    let obs = this.corteSeleccionado.observaciones || this.corteSeleccionado.observacion;
-    if (!obs) return '-';
-
-    try {
-      if (typeof obs === 'string') {
-        const parsed = JSON.parse(obs);
-        if (Array.isArray(parsed)) {
-          obs = parsed;
-        }
-      }
-      if (Array.isArray(obs) && obs.length > 0) {
-        const sorted = [...obs].sort((a, b) => {
-          const dA = new Date(a.fechareg || a.fecha || a.fecha_registro || 0).getTime();
-          const dB = new Date(b.fechareg || b.fecha || b.fecha_registro || 0).getTime();
-          return dB - dA;
-        });
-        return sorted[0].observacion || sorted[0].observaciones || sorted[0].descripcion || '-';
-      }
-    } catch (e) { }
-
-    return typeof obs === 'string' ? obs : '-';
+    if (!this.corteSeleccionado) return "-";
+    return this.corteSeleccionado.observacion_history || observacionMasRecienteDe(this.corteSeleccionado);
   }
-
-
 
   // ============================================================
   // UTIL

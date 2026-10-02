@@ -46,12 +46,12 @@ import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.ser
 import { Filtroresumenxinspector } from "@host/_models/vektors/Filtroresumenxinspector";
 import { Filtrodetalletomalectura_xinspector } from "@host/_models/vektors/Filtrodetalletomalectura_xinspector";
 
-import { ORIGENES_COORDENADA, ConfigOrigenCoordenada } from "../../../shared/constantes/coordenadas";
+import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
 import { COLORES_SEGUIMIENTO_LECTURA } from "../../../shared/constantes/colores-mapa";
-import { LISTA_MESES } from "../../../shared/constantes/lecturas";
-import { Sector, SECTOR_TODOS } from "../../../shared/modelos/sector.model";
+import { LISTA_MESES, SECTOR_TODOS } from "../../../shared/constantes/lecturas";
+import { SectorCiclo } from "@host/_models/vektors/SectorCiclo";
 import { ROTULO_ENVIVO_MS } from "../../../shared/mapa/destello-lecturas";
-import { extraerCoordenada, distanciaHaversineMetros, crearFeaturePunto, crearFeatureLinea, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
+import { extraerCoordenada, crearFeaturePunto, crearFeatureLinea, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
@@ -59,62 +59,29 @@ import {
 } from "../../../shared/mapa/mapa-estilos";
 import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
 import { DestelloLecturas } from "../../../shared/mapa/destello-lecturas";
-import { GisConfigService, WGS84 } from "../../../core/gis";
+import { GisConfigService } from "../../../core/gis";
 import {
-  ContextoTiempoReal,
-  LecturaEnVivo,
   LecturasEnVivoService,
 } from "../../../core/tiempo-real";
+import { ContextoTiempoReal, LecturaEnVivo } from "@host/_models/vektors/LecturaEnVivo";
 import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
 import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
 import type Circle from "ol/geom/Circle";
-
-const ORIGEN_TOMA_INSPECTOR: ConfigOrigenCoordenada = {
-  lonField: "longitud",
-  latField: "latitud",
-  proyeccion: WGS84,
-};
-
-// Metros predio→toma desde los que la lectura cuenta como "tomada lejos". TODO: confirmar con el área comercial.
-const DISTANCIA_SOSPECHOSA_M = 30;
-
-// Más allá de esto la coordenada es un GPS erróneo: no se dibuja y cuenta como sospechosa. TODO: confirmar con campo.
-const DISTANCIA_MAX_TOMA_VALIDA_M = 1000;
-
-interface Inspector {
-  codinspector: string;
-  names: string;
-  [key: string]: unknown;
-}
-
-/** Fila del resumen, según usp_vektors_resumentomalectura_xinspectores. */
-interface ResumenInspector {
-  codinspector: string;
-  inspector: string;
-  asignados: number;
-  enviados: number;
-  pendientes: number;
-  avance: number;
-}
-
-interface RegistroDetalle {
-  codcliente?: string;
-  codsuc?: string;
-  estadolectura?: string;
-  latitud?: string;
-  longitud?: string;
-  web?: number | string;
-  recibido?: number | string;
-  [key: string]: unknown;
-}
-
-// Igual que el SP de resumen: TOMADA = web 1 y recibido 1; la coordenada no define el estado.
-function esLecturaTomada(registro: RegistroDetalle): boolean {
-  return Number(registro.web) === 1 && Number(registro.recibido) === 1;
-}
+import {
+  ORIGEN_TOMA_INSPECTOR,
+  MINIMO_TOMAS_REPETIDAS,
+  clasificarToma,
+  clavePunto,
+  comoLista,
+  distanciaTomaM,
+  esLecturaTomada,
+} from "./seguimiento-lectura.reglas";
+import { InspectorLectura } from "@host/_models/vektors/InspectorLectura";
+import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLecturaInspector";
+import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
 
 @Component({
   selector: "app-seguimiento-de-lectura-xinspector",
@@ -179,17 +146,16 @@ export class SeguimientoDeLecturaXinspectorComponent
   private capasVector: VectorLayer<VectorSource>[] = [];
   private registroCapas: Record<string, BaseLayer> = {};
 
-
   dataCiclos: any[] = [];
   fechaCiclos: any;
   listaSucursales: any[] = [];
-  listaSectores: Sector[] = [];
-  inspectoresxSector: Inspector[] = [];
+  listaSectores: SectorCiclo[] = [];
+  listaInspectores: InspectorLectura[] = [];
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
-  selectedSector: Sector | null = null;
-  selectedInspector: Inspector | null = null;
+  selectedSector: SectorCiclo | null = null;
+  selectedInspector: InspectorLectura | null = null;
   selectedAnio = "";
   selectedMes = "";
 
@@ -201,7 +167,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     }),
   );
 
-  resumenInspectores: ResumenInspector[] = [];
+  resumenInspectores: ResumenTomaLecturaInspector[] = [];
 
   totalRegistros = 0;
   totalTomadas = 0;
@@ -215,7 +181,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   mostrarResumen = true;
   mostrarSearchPanel = false;
   searchCodCliente = "";
-  registroSeleccionado: RegistroDetalle | null = null;
+  registroSeleccionado: DetalleTomaLecturaInspector | null = null;
   featureSeleccionado: Feature | null = null;
   baseActive: string | null = "osm";
   ref: DynamicDialogRef | undefined;
@@ -345,12 +311,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     const coordToma = this.agregarPuntoTomaEnVivo(lectura, feature);
 
     // El destello va sobre el punto GPS real si lo hay; si no, sobre el predio.
-    const geomUsuario = feature.getGeometry();
-    const coordenada =
-      coordToma ??
-      (geomUsuario?.getType() === "Point"
-        ? (geomUsuario as Point).getCoordinates()
-        : null);
+    const coordenada = coordToma ?? this.coordenadaDe(feature);
 
     if (coordenada) {
       this.destellos?.mostrar(lectura.codcliente, coordenada, {
@@ -385,26 +346,9 @@ export class SeguimientoDeLecturaXinspectorComponent
     );
     if (!coordToma) return null;
 
-    const geomUsuario = featureUsuario.getGeometry();
-    const coordUsuario =
-      geomUsuario?.getType() === "Point"
-        ? (geomUsuario as Point).getCoordinates()
-        : null;
-
-    const distancia =
-      coordUsuario && coordToma
-        ? distanciaHaversineMetros(
-            coordUsuario[0],
-            coordUsuario[1],
-            coordToma[0],
-            coordToma[1],
-          )
-        : null;
-
-    const sospechosa =
-      distancia !== null && distancia > DISTANCIA_MAX_TOMA_VALIDA_M;
-    const lejos =
-      !sospechosa && distancia !== null && distancia > DISTANCIA_SOSPECHOSA_M;
+    const coordUsuario = this.coordenadaDe(featureUsuario);
+    const distancia = distanciaTomaM(coordUsuario, coordToma);
+    const { sospechosa, lejos } = clasificarToma(distancia);
 
     this.totalLejos = Math.max(
       0,
@@ -500,7 +444,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.selectedInspector = null;
-    this.inspectoresxSector = [];
+    this.listaInspectores = [];
     this.limpiarResultados();
     if (!this.selectedCiclo) return;
 
@@ -532,7 +476,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedInspector = null;
-    this.inspectoresxSector = [];
+    this.listaInspectores = [];
     if (!this.selectedSucursal) return;
 
     forkJoin({
@@ -550,7 +494,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       .subscribe(({ sectores, inspectores }) => {
         this.listaSectores = [SECTOR_TODOS, ...sectores];
         this.selectedSector = this.listaSectores[0];
-        this.inspectoresxSector = inspectores?.data || [];
+        this.listaInspectores = inspectores?.data || [];
       });
   }
 
@@ -617,21 +561,8 @@ export class SeguimientoDeLecturaXinspectorComponent
           this.cargando = false;
           this.filtrosVisible = false;
 
-          const dataResumen = resumen?.data;
-          this.resumenInspectores = Array.isArray(dataResumen)
-            ? dataResumen
-            : dataResumen
-              ? [dataResumen]
-              : [];
-
-          const dataDetalle = detalle?.data;
-          const registros: RegistroDetalle[] = Array.isArray(dataDetalle)
-            ? dataDetalle
-            : dataDetalle
-              ? [dataDetalle as RegistroDetalle]
-              : [];
-
-          this.pintarDetalle(registros);
+          this.resumenInspectores = comoLista<ResumenTomaLecturaInspector>(resumen?.data);
+          this.pintarDetalle(comoLista<DetalleTomaLecturaInspector>(detalle?.data));
         },
         error: () => {
           this.cargando = false;
@@ -644,8 +575,8 @@ export class SeguimientoDeLecturaXinspectorComponent
       });
   }
 
-  seleccionarInspectorDesdeResumen(fila: ResumenInspector): void {
-    const inspector = this.inspectoresxSector.find(
+  seleccionarInspectorDesdeResumen(fila: ResumenTomaLecturaInspector): void {
+    const inspector = this.listaInspectores.find(
       (i) => i.codinspector === fila.codinspector,
     );
     if (!inspector) {
@@ -660,16 +591,17 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.procesar();
   }
 
-  private pintarDetalle(registros: RegistroDetalle[]): void {
+  private pintarDetalle(registros: DetalleTomaLecturaInspector[]): void {
     const srcUsuarios = this.usuariosLayer.getSource()!;
     const srcTomas = this.tomasLayer.getSource()!;
     const srcLineas = this.lineasLayer.getSource()!;
 
-     const frecuencia = new Map<string, number>();
+    // Cuántas tomas caen en cada punto, para detectar GPS que no se movió.
+    const frecuencia = new Map<string, number>();
     for (const r of registros) {
       const c = extraerCoordenada(r, ORIGEN_TOMA_INSPECTOR);
       if (!c) continue;
-      const clave = `${c[0].toFixed(5)},${c[1].toFixed(5)}`;
+      const clave = clavePunto(c);
       frecuencia.set(clave, (frecuencia.get(clave) ?? 0) + 1);
     }
 
@@ -711,7 +643,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   }
 
   private agregarRegistroAlMapa(
-    registro: RegistroDetalle,
+    registro: DetalleTomaLecturaInspector,
     srcUsuarios: VectorSource,
     srcTomas: VectorSource,
     srcLineas: VectorSource,
@@ -724,26 +656,11 @@ export class SeguimientoDeLecturaXinspectorComponent
     const coordToma = extraerCoordenada(registro, ORIGEN_TOMA_INSPECTOR);
 
     const tomada = esLecturaTomada(registro);
-    const distancia =
-      coordUsuario && coordToma
-        ? distanciaHaversineMetros(
-            coordUsuario[0],
-            coordUsuario[1],
-            coordToma[0],
-            coordToma[1],
-          )
-        : null;
-
-    const claveToma = coordToma
-      ? `${coordToma[0].toFixed(5)},${coordToma[1].toFixed(5)}`
-      : null;
-    const repetida = claveToma ? (frecuencia.get(claveToma) ?? 0) >= 3 : false;
-    const demasiadoLejos =
-      distancia !== null && distancia > DISTANCIA_MAX_TOMA_VALIDA_M;
-    const sospechosa = repetida || demasiadoLejos;
-
-    const lejos =
-      !sospechosa && distancia !== null && distancia > DISTANCIA_SOSPECHOSA_M;
+    const distancia = distanciaTomaM(coordUsuario, coordToma);
+    const repetida = coordToma
+      ? (frecuencia.get(clavePunto(coordToma)) ?? 0) >= MINIMO_TOMAS_REPETIDAS
+      : false;
+    const { sospechosa, lejos } = clasificarToma(distancia, repetida);
 
     const props = {
       _codinspector: this.selectedInspector?.codinspector,
@@ -806,7 +723,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   // ============================================================
   // MAPA
   // ============================================================
-
 
   private crearMapa(): void {
     this.osmLayer = crearCapaOsm(this.baseActive === "osm");
@@ -904,7 +820,7 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   private seleccionarFeature(feature: Feature): void {
     this.featureSeleccionado = feature;
-    this.registroSeleccionado = feature.getProperties() as RegistroDetalle;
+    this.registroSeleccionado = feature.getProperties() as DetalleTomaLecturaInspector;
     this.capasVector.forEach((capa) => capa.changed());
   }
 
@@ -966,14 +882,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     }
 
     this.seleccionarFeature(feature);
-    const geom = feature.getGeometry();
-    if (geom) {
-      this.map.getView().animate({
-        center: getCenter(geom.getExtent()),
-        zoom: 20,
-        duration: 800,
-      });
-    }
+    this.acercarA(feature, 800);
     this.mostrarSearchPanel = false;
   }
 
@@ -996,7 +905,7 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   nombreInspector(codinspector: string | undefined): string {
     if (!codinspector) return "-";
-    const insp = this.inspectoresxSector.find(
+    const insp = this.listaInspectores.find(
       (i) => i.codinspector === codinspector,
     );
     return insp ? `(${insp.codinspector}) ${insp.names}` : codinspector;
@@ -1010,13 +919,19 @@ export class SeguimientoDeLecturaXinspectorComponent
   }
 
   centrarEnSeleccion(): void {
-    const geom = this.featureSeleccionado?.getGeometry();
-    if (!geom) return;
-    this.map.getView().animate({
-      center: getCenter(geom.getExtent()),
-      zoom: 20,
-      duration: 600,
-    });
+    if (this.featureSeleccionado) this.acercarA(this.featureSeleccionado, 600);
+  }
+
+  private acercarA(punto: Feature, duracionMs: number): void {
+    const geometria = punto.getGeometry();
+    if (!geometria) return;
+    this.map.getView().animate({ center: getCenter(geometria.getExtent()), zoom: 20, duration: duracionMs });
+  }
+
+  /** Coordenada de un punto del mapa; `null` si no es un punto. */
+  private coordenadaDe(punto: Feature): number[] | null {
+    const geometria = punto.getGeometry();
+    return geometria instanceof Point ? geometria.getCoordinates() : null;
   }
 
   private avisar(

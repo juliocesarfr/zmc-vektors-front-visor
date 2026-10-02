@@ -101,7 +101,7 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="inspectoresxSector" [(ngModel)]="selectedInspector"
+        <p-dropdown [options]="listaInspectores" [(ngModel)]="selectedInspector"
           optionLabel="names" [filter]="true" filterBy="names" [showClear]="true"
           [style]="{ width: '240px' }" placeholder="Inspector" [appendTo]="'body'">
           <ng-template let-insp pTemplate="item">
