@@ -3,11 +3,23 @@ import OlMap from "ol/Map";
 import Overlay from "ol/Overlay";
 import type { Coordinate } from "ol/coordinate";
 
-import {
-  DESTELLO_MS_SALIDA,
-  DESTELLO_MS_VISIBLE,
-  DESTELLO_MAX_SIMULTANEOS,
-} from "../config/Controldigitacion.config";
+/** Milisegundos que el marcador de "lectura recién tomada" queda visible. */
+const DESTELLO_MS_VISIBLE = 3200;
+
+/** Duración del fundido de salida; debe coincidir con la animación del SCSS. */
+const DESTELLO_MS_SALIDA = 420;
+
+/**
+ * Tope de destellos a la vez. Una sincronización masiva de la APK puede traer
+ * decenas de lecturas de golpe y taparían el mapa.
+ */
+const DESTELLO_MAX_SIMULTANEOS = 12;
+
+/**
+ * Milisegundos que el rótulo superior ("X tomó lectura de Y") queda en
+ * pantalla. Se reinicia con cada lectura nueva.
+ */
+export const ROTULO_ENVIVO_MS = 4000;
 
 export interface OpcionesDestello {
   /** Color permanente que queda en el punto; el destello lo anticipa. */
@@ -26,11 +38,11 @@ interface DestelloActivo {
   timeoutQuitar: number;
 }
 
-
+/** Marcador animado que aparece unos segundos sobre el punto donde se acaba de tomar una lectura. */
 export class DestelloLecturas {
   private activos = new Map<string, DestelloActivo>();
 
-    constructor(
+  constructor(
     private readonly map: OlMap,
     private readonly zone?: NgZone,
   ) {}

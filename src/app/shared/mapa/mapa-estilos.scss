@@ -189,7 +189,7 @@
   // ============================================================
   // DESTELLO DE LECTURA EN TIEMPO REAL
   // Marcador efímero que se dibuja donde acaba de registrarse una lectura.
-  // Lo crea `util/Destellolectura.util.ts` como Overlay de OpenLayers: son
+  // Lo crea `shared/mapa/destello-lecturas.ts` como Overlay de OpenLayers: son
   // nodos hechos por JS, por eso viven aquí bajo ::ng-deep y no en el SCSS
   // del componente (no llevan el atributo de encapsulación de Angular).
   // El color lo inyecta el util como `--geo-destello-color`.

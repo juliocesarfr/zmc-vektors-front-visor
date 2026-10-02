@@ -53,7 +53,7 @@ export class GisConfigService {
         catchError(() => of(configSinCapas("", "", ""))),
         tap((config) => {
           this.actual = config;
-          // Las utilidades puras de `util/Geo.utils` leen la proyección de aquí.
+          // Las utilidades puras de `shared/mapa/geo.utils` leen la proyección de aquí.
           setProyeccionMapa(config.proyecciones.mapa);
         }),
         shareReplay({ bufferSize: 1, refCount: false }),

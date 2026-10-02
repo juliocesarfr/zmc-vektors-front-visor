@@ -1,17 +1,15 @@
 import {
   Component,
   OnInit,
-  OnDestroy,
   CUSTOM_ELEMENTS_SCHEMA,
   DestroyRef,
   inject,
 } from "@angular/core";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
 import { DropdownModule } from "primeng/dropdown";
-import { InputTextModule } from "primeng/inputtext";
 import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
@@ -21,8 +19,6 @@ import { TipousuarioService } from "@host/_servicios/catastro/tipousuario.servic
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { forkJoin, of } from "rxjs";
 import { catchError, finalize } from "rxjs/operators";
-import { DialogService, DynamicDialogModule } from "primeng/dynamicdialog";
-import { TooltipModule } from "primeng/tooltip";
 
 import OlMap from "ol/Map";
 import VectorLayer from "ol/layer/Vector";
@@ -31,12 +27,14 @@ import { Feature } from "ol";
 
 import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-visor.component";
 import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
-import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
-import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
+import { MapEstilosFactory, RADIOS_LECTURA } from "../../../shared/mapa/mapa-estilos";
+import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { crearFeaturePunto, extraerCoordenada, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
 import { FiltroPadronClientesVMARequest } from "@host/_models/vektors/VMA/FiltroPadronClientesVMARequest";
 import { VmaService } from "@host/_servicios/vektors/vma.service";
-import { ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
-import { fromCircle } from "ol/geom/Polygon";
+import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
+import { abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import type Circle from "ol/geom/Circle";
 
 
 @Component({
@@ -48,22 +46,15 @@ import { fromCircle } from "ol/geom/Polygon";
     ButtonModule,
     ToastModule,
     DropdownModule,
-    InputTextModule,
-    DynamicDialogModule,
-    TooltipModule,
     MapaVisorComponent,
     MapaPopupClienteComponent
   ],
   templateUrl: "./padron-clientes-vma.component.html",
   styleUrl: "./padron-clientes-vma.component.scss",
-  providers: [
-    DatePipe,
-    MessageService,
-    DialogService,
-  ],
+  providers: [MessageService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class PadronClientesVmaComponent implements OnInit, OnDestroy {
+export class PadronClientesVmaComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly estilos = new MapEstilosFactory();
 
@@ -124,14 +115,12 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.cargarCombosEstaticos();
+    this.cargarCatalogos();
   }
-
-  ngOnDestroy(): void {}
 
   onMapReady(map: OlMap): void {
     this.map = map;
-    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+    agregarHerramientasMapa(this.map, (geometry) => {
       if (geometry && geometry.getType() === 'Circle') {
         this.contarElementosEnRadio(geometry);
       }
@@ -151,7 +140,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
     this.messageService.add({ severity, summary, detail, life: 3000 });
   }
 
-  private cargarCombosEstaticos(): void {
+  private cargarCatalogos(): void {
     this.cargando = true;
 
     forkJoin({
@@ -388,8 +377,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
     if (!this.clienteSeleccionado) return;
     const coordObj = extraerCoordenada(this.clienteSeleccionado, ORIGENES_COORDENADA["usuario"]);
     if (coordObj) {
-      const svUrl = `http://maps.google.com/maps?q=&layer=c&cbll=${coordObj[1]},${coordObj[0]}&cbp=11,0,0,0,0`;
-      window.open(svUrl, "StreetView", "width=800,height=600");
+      abrirGoogleStreetView(coordObj);
     } else {
       this.avisar("warn", "Aviso", "El cliente no tiene coordenadas válidas.");
     }
@@ -420,7 +408,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
             this.avisar("error", "No encontrado", response?.mensaje || "No existe.");
           }
         },
-        error: (err) => {
+        error: () => {
           this.cargando = false;
           this.avisar("error", "Error", "Problemas de conexión con el servidor");
         }
@@ -433,23 +421,12 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
     this.cerrarPopup();
   }
 
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-    const source = this.usuariosLayer.getSource();
-    if (source) {
-      source.forEachFeatureIntersectingExtent(extent, (feature) => {
-        const geom = feature.getGeometry();
-        if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
-          count++;
-        }
-      });
-    }
+  private contarElementosEnRadio(circulo: Circle): void {
+    const total = contarPuntosEnCirculo(this.usuariosLayer?.getSource(), circulo);
     this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} clientes en el área seleccionada.`
+      severity: "info",
+      summary: "Selección de Radio",
+      detail: `Se encontraron ${total} clientes en el área seleccionada.`,
     });
   }
 }

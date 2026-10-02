@@ -12,23 +12,7 @@ const routes: Routes = conConfigGis([
         (m) => m.MainGeoreferenciaModule,
       ),
   },
-  {
-    path: "maps",
-    loadChildren: () =>
-      import("../_pages/gis/gis.module").then((m) => m.GisModule),
-  },
-  {
-    path: "catastrocomercial",
-    loadChildren: () =>
-      import("../_pages/catastrocomercial/catastrocomercial-routing.module").then(
-        (m) => m.CatastrocomercialRoutingModule,
-      ),
-  },
-  {
-    path: "cortes",
-    loadChildren: () =>
-      import("../_pages/cortes/cortes.module").then((m) => m.CortesModule),
-  },
+ 
   {
     path: "micromedicion/control-digitacion",
     loadComponent: () =>

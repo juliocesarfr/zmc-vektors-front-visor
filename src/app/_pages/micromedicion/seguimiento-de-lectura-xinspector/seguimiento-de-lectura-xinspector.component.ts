@@ -15,7 +15,6 @@ import { CommonModule } from "@angular/common";
 import { forkJoin, of } from "rxjs";
 import { catchError, switchMap, tap } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -37,7 +36,6 @@ import { FormsModule } from "@angular/forms";
 import { DropdownModule } from "primeng/dropdown";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { TagModule } from "primeng/tag";
 import { TableModule } from "primeng/table";
 import { InputTextModule } from "primeng/inputtext";
 
@@ -48,41 +46,36 @@ import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.ser
 import { Filtroresumenxinspector } from "@host/_models/vektors/Filtroresumenxinspector";
 import { Filtrodetalletomalectura_xinspector } from "@host/_models/vektors/Filtrodetalletomalectura_xinspector";
 
-import {
-  ORIGENES_COORDENADA,
-  ConfigOrigenCoordenada,
-  COLORES_SEGUIMIENTO_LECTURA,
-  LISTA_MESES,
-  Sector,
-  SECTOR_TODOS,
-  ROTULO_ENVIVO_MS,
-} from "../../../config/Controldigitacion.config";
-import { fromCircle } from 'ol/geom/Polygon';
-import {
-  extraerCoordenada,
-  distanciaHaversineMetros,
-  crearFeaturePunto,
-  crearFeatureLinea,
-} from "../.././../util/Geo.utils";
+import { ORIGENES_COORDENADA, ConfigOrigenCoordenada } from "../../../shared/constantes/coordenadas";
+import { COLORES_SEGUIMIENTO_LECTURA } from "../../../shared/constantes/colores-mapa";
+import { LISTA_MESES } from "../../../shared/constantes/lecturas";
+import { Sector, SECTOR_TODOS } from "../../../shared/modelos/sector.model";
+import { ROTULO_ENVIVO_MS } from "../../../shared/mapa/destello-lecturas";
+import { extraerCoordenada, distanciaHaversineMetros, crearFeaturePunto, crearFeatureLinea, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
   RADIOS_FICHA,
-} from "../../../util/Mapaestilos.factory";
-import { DestelloLecturas } from "../.././../util/Destellolectura.util";
-import { GisConfigService } from "../../../core/gis";
+} from "../../../shared/mapa/mapa-estilos";
+import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { DestelloLecturas } from "../../../shared/mapa/destello-lecturas";
+import { GisConfigService, WGS84 } from "../../../core/gis";
 import {
   ContextoTiempoReal,
   LecturaEnVivo,
   LecturasEnVivoService,
 } from "../../../core/tiempo-real";
-import { observarTamanoMapa } from "../../../util/Mapinit.util";
+import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
+import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+import type Circle from "ol/geom/Circle";
 
 const ORIGEN_TOMA_INSPECTOR: ConfigOrigenCoordenada = {
   lonField: "longitud",
   latField: "latitud",
-  proyeccion: "EPSG:4326",
+  proyeccion: WGS84,
 };
 
 // Metros predio→toma desde los que la lectura cuenta como "tomada lejos". TODO: confirmar con el área comercial.
@@ -133,7 +126,6 @@ function esLecturaTomada(registro: RegistroDetalle): boolean {
     DropdownModule,
     ButtonModule,
     ToastModule,
-    TagModule,
     TableModule,
     InputTextModule,
   ],
@@ -165,7 +157,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   private timeoutRotulo?: number;
 
   readonly COLORES = COLORES_SEGUIMIENTO_LECTURA;
-
+
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: true })
   private mapContainer!: ElementRef<HTMLDivElement>;
@@ -181,7 +173,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   satelitalLayer!: TileLayer<XYZ>;
   private capasVector: VectorLayer<VectorSource>[] = [];
   private registroCapas: Record<string, BaseLayer> = {};
-
+
 
   dataCiclos: any[] = [];
   fechaCiclos: any;
@@ -223,18 +215,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   baseActive: string | null = "osm";
   ref: DynamicDialogRef | undefined;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
@@ -279,7 +260,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     requestAnimationFrame(() => {
       this.map.setTarget(this.mapContainer.nativeElement);
       this.map.updateSize();
-      MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+      agregarHerramientasMapa(this.map, (geometry) => {
         if (geometry && geometry.getType() === 'Circle') {
           this.contarElementosEnRadio(geometry);
         }
@@ -491,27 +472,12 @@ export class SeguimientoDeLecturaXinspectorComponent
       : 0;
   }
 
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-
-    if (this.usuariosLayer) {
-      const source = this.usuariosLayer.getSource();
-      if (source) {
-        source.forEachFeatureIntersectingExtent(extent, (feature) => {
-          const geom = feature.getGeometry();
-          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
-            count++;
-          }
-        });
-      }
-    }
-
+  private contarElementosEnRadio(circulo: Circle): void {
+    const total = contarPuntosEnCirculo(this.usuariosLayer?.getSource(), circulo);
     this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} usuarios en el área seleccionada.`
+      severity: "info",
+      summary: "Selección de Radio",
+      detail: `Se encontraron ${total} usuarios en el área seleccionada.`,
     });
   }
 
@@ -833,36 +799,17 @@ export class SeguimientoDeLecturaXinspectorComponent
   // MAPA
   // ============================================================
 
-  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: layer, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
-    this.sectoresComercialesLayer = this.crearWms(
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
+    this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -959,15 +906,13 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.capasVector.forEach((capa) => capa.changed());
   }
 
-  abrirStreetView(lon: any, lat: any) {
-    if (lat && lon) {
-      window.open(
-        `https://www.google.com/maps?layer=c&cbll=${lat},${lon}`,
-        "_blank"
-      );
-    } else {
+  abrirStreetView(x: unknown, y: unknown): void {
+    const lonLat = coordenadaLonLat(x, y, this.gis.proyeccionUtm);
+    if (!lonLat) {
       this.avisar("warn", "Aviso", "Coordenadas no disponibles para este predio");
+      return;
     }
+    abrirGoogleStreetView(lonLat);
   }
 
   // ============================================================
@@ -1030,20 +975,11 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc:
-          this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    this.ref = abrirConsultaUsuario(
+      this.dialogService,
+      codcliente,
+      this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
+    );
   }
 
   // ============================================================

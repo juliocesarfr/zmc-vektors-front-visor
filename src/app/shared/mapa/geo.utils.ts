@@ -2,8 +2,11 @@ import { transform } from "ol/proj";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
-import { ConfigOrigenCoordenada } from "../config/Controldigitacion.config";
-import { getProyeccionMapa } from "../core/gis/gis-proyeccion";
+import type Circle from "ol/geom/Circle";
+import { fromCircle } from "ol/geom/Polygon";
+import type VectorSource from "ol/source/Vector";
+import { ConfigOrigenCoordenada } from "../constantes/coordenadas";
+import { getProyeccionMapa } from "../../core/gis/gis-proyeccion";
 
 /** Distancia entre dos puntos WGS84 en metros (fórmula de Haversine). */
 export function distanciaHaversineMetros(
@@ -88,4 +91,21 @@ export function crearFeatureLinea(
     esLinea: true,
     geometry: new LineString([c1, c2]),
   });
+}
+
+/** Cuántos puntos de la capa caen dentro del círculo dibujado con la herramienta de radio. */
+export function contarPuntosEnCirculo(
+  fuente: VectorSource | null | undefined,
+  circulo: Circle,
+): number {
+  if (!fuente) return 0;
+  const poligono = fromCircle(circulo);
+  let total = 0;
+  fuente.forEachFeatureIntersectingExtent(poligono.getExtent(), (feature) => {
+    const geometria = feature.getGeometry();
+    if (geometria instanceof Point && poligono.intersectsCoordinate(geometria.getCoordinates())) {
+      total++;
+    }
+  });
+  return total;
 }

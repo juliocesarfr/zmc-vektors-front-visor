@@ -54,9 +54,8 @@
             clienteSeleccionado.nrocalle : '')) }}</span></div>
 
         <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{
-            clienteSeleccionado.catetar || '-' }} {{ getTarifaName(clienteSeleccionado.catetar) ||
-            clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar || clienteSeleccionado.categoria || clienteSeleccionado.destarifa ? '- ' +
-            (getTarifaName(clienteSeleccionado.catetar) || clienteSeleccionado.desctarifa ||
+            clienteSeleccionado.catetar || '-' }} {{ clienteSeleccionado.desctarifa || clienteSeleccionado.nomtar ||
+            clienteSeleccionado.categoria || clienteSeleccionado.destarifa ? '- ' + (clienteSeleccionado.desctarifa ||
             clienteSeleccionado.nomtar || clienteSeleccionado.categoria || clienteSeleccionado.destarifa) : '' }}</span></div>
         <div class="up-cell"><span class="uc-label">Actividad</span><span class="uc-val">{{
             clienteSeleccionado.actividad || clienteSeleccionado.desactividad || clienteSeleccionado.descactividad || clienteSeleccionado.codactividad || '-' }}</span></div>

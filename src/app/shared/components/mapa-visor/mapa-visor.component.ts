@@ -28,9 +28,10 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { Feature } from 'ol';
 
-import { observarTamanoMapa } from '../../../util/Mapinit.util';
+import { observarTamanoMapa } from "../../mapa/observar-tamano-mapa";
 import { GisConfigService } from '../../../core/gis';
 import { CapasSidebarComponent } from '../capas-sidebar/capas-sidebar.component';
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../mapa/capas";
 
 export interface BaseLayerConfig {
   id: string;
@@ -63,10 +64,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Override opcional; por defecto se usa el zoom de la EPS logueada. */
   @Input() mapZoom?: number;
 
-  @Input() baseLayers: BaseLayerConfig[] = [
-    { id: "osm", label: "OSM", iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif" },
-    { id: "satelital", label: "Satelital", iconUrl: "assets/images/img-georeferencia/satellital-icon.gif" },
-  ];
+  @Input() baseLayers = CAPAS_BASE_UI;
 
   commercialLayers: CommercialLayerConfig[] = [];
 
@@ -144,38 +142,17 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private crearWms(capa: string, visible: boolean, opacity = 1): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      opacity,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: capa, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
     this.capasWms.clear();
     const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
     capasEps.forEach((capa, i) => {
       this.capasWms.set(
         capa.id,
-        this.crearWms(capa.capa, i === 0, i === 0 ? 0.7 : 1),
+        crearCapaWms(this.gis.urlWms(), capa.capa, i === 0, i === 0 ? 0.7 : 1),
       );
     });
 

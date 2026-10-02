@@ -13,12 +13,14 @@ import { DialogService } from "primeng/dynamicdialog";
 
 import { SeguimientoCortesconProgramaComponent } from "../seguimiento-cortescon-programa/seguimiento-cortescon-programa.component";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
 
 @Component({
   selector: "app-seguimiento-reaperturacon-programa",
   standalone: true,
   imports: [
     CapasSidebarComponent,
+    VisorImagenesComponent,
     CommonModule,
     FormsModule,
     DropdownModule,

@@ -296,7 +296,7 @@
           <div class="up-img-scroll" *ngIf="!cargandoImagenes">
             <ng-container *ngIf="imagenesPopup.length > 0; else sinImg">
               <div class="up-thumb" *ngFor="let img of imagenesPopup; let idx = index"
-                (click)="abrirImagenCompleta(idx)">
+                (click)="indiceFotoAbierta = idx">
                 <img [src]="img.src" (error)="$any($event.target).src='assets/images/no-image.png'" alt="Evidencia" />
                 <div class="up-thumb-info">
                   <span class="tn-nombre" [title]="img._nombre">{{ img._nombre }}</span>
@@ -323,38 +323,4 @@
   </div>
 </div>
 
-<!-- ===================== LIGHTBOX DE IMÁGENES ===================== -->
-<div class="img-lightbox" *ngIf="imagenAbierta" (click)="cerrarImagenCompleta()" (wheel)="onWheelZoom($event)">
-  <button class="lightbox-close" (click)="cerrarImagenCompleta()" title="Cerrar"><i class="pi pi-times"></i></button>
-
-  <button class="lightbox-nav prev" *ngIf="imagenesPopup.length > 1" (click)="anteriorImagen($event)"
-    title="Anterior"><i class="pi pi-chevron-left"></i></button>
-
-  <div class="lightbox-content" (click)="$event.stopPropagation()">
-    <div class="img-container">
-      <img [src]="imagenAbierta"
-        [style.transform]="'translate(' + imgOffsetX + 'px, ' + imgOffsetY + 'px) scale(' + imagenZoom + ') rotate(' + imagenRotacion + 'deg)'"
-        [style.cursor]="imagenZoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default'"
-        (mousedown)="onDragStart($event)" (mousemove)="onDragMove($event)" (mouseup)="onDragEnd()"
-        (mouseleave)="onDragEnd()" (error)="$any($event.target).src='assets/images/no-image.png'"
-        alt="Imagen completa" />
-    </div>
-    <div class="lightbox-caption" *ngIf="imagenActual">
-      <span class="lc-nombre" *ngIf="imagenActual.tiporecepcionimages">{{ imagenActual.tiporecepcionimages }}</span>
-      <span class="lc-fecha" *ngIf="imagenActual.fechareg">{{ imagenActual.fechareg | date:'yyyy-MM-dd HH:mm' }}</span>
-    </div>
-    <div class="lightbox-counter" *ngIf="imagenesPopup.length > 1">{{ imagenAbiertaIndex + 1 }} de {{
-      imagenesPopup.length }}</div>
-    <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
-      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda"><i
-          class="pi pi-refresh pi-espejo"></i></button>
-      <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
-      <button class="lz-btn" (click)="zoomOut()" title="Alejar"><i class="pi pi-minus"></i></button>
-      <span class="lz-pct">{{ (imagenZoom * 100) | number:'1.0-0' }}%</span>
-      <button class="lz-btn" (click)="zoomIn()" title="Acercar"><i class="pi pi-plus"></i></button>
-    </div>
-  </div>
-
-  <button class="lightbox-nav next" *ngIf="imagenesPopup.length > 1" (click)="siguienteImagen($event)"
-    title="Siguiente"><i class="pi pi-chevron-right"></i></button>
-</div>
+<app-visor-imagenes [imagenes]="imagenesPopup" [(indice)]="indiceFotoAbierta"></app-visor-imagenes>

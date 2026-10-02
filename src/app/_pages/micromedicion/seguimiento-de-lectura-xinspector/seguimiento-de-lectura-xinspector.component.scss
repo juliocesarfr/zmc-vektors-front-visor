@@ -1,4 +1,4 @@
-@import '../../../util/mapaestilos.scss';
+@import '../../../shared/mapa/mapa-estilos.scss';
 
 :host {
   display: flex;
@@ -51,7 +51,7 @@
       letter-spacing: 0.4px;
       color: #0f172a;
       white-space: nowrap;
-      
+
       span {
         font-weight: 400;
         color: #94a3b8;
@@ -141,26 +141,6 @@
 
       i {
         color: #ea580c;
-      }
-    }
-
-    &.promedio {
-      background: #eef2ff;
-      color: #4338ca;
-      border: 1px solid #c7d2fe;
-
-      i {
-        color: #6366f1;
-      }
-    }
-
-    &.consumo {
-      background: #f0fdf4;
-      color: #15803d;
-      border: 1px solid #bbf7d0;
-
-      i {
-        color: #22c55e;
       }
     }
 
@@ -276,7 +256,6 @@
     width: 100%;
     height: 100%;
   }
-
 }
 
 .map-loading-overlay {
@@ -296,7 +275,6 @@
     font-size: 2rem;
   }
 }
-
 
 // ---------- Cards de resumen ----------
 .sl-resumen {
@@ -603,7 +581,7 @@
       align-items: center;
       gap: 0.5rem;
       letter-spacing: 0.5px;
-      
+
       i {
         color: #38bdf8;
       }
@@ -638,17 +616,17 @@
           text-align: left;
         }
       }
-      
+
       .p-datatable-tbody > tr {
         background: transparent !important;
         transition: all 0.2s ease;
         border-bottom: 1px solid rgba(226, 232, 240, 0.5);
       }
-      
+
       &.p-datatable-striped .p-datatable-tbody > tr:nth-child(even) {
         background: rgba(248, 250, 252, 0.4) !important;
       }
-      
+
       .p-datatable-tbody > tr > td {
         padding: 0.6rem 0.75rem;
         font-size: 0.88rem;
@@ -665,12 +643,12 @@
       border-radius: 0 0 12px 12px;
     }
   }
-  
+
   td.ok {
     color: #16a34a !important;
     font-weight: 700;
   }
-  
+
   td.pend {
     color: #dc2626 !important;
     font-weight: 700;
@@ -682,11 +660,11 @@
     &:hover {
       background: rgba(241, 245, 249, 0.95) !important;
     }
-    
+
     &.activa {
       background: rgba(239, 246, 255, 0.95) !important;
       box-shadow: inset 4px 0 0 #3b82f6;
-      
+
       td {
         color: #1e3a8a;
         font-weight: 600;
@@ -758,7 +736,6 @@
     }
   }
 }
-
 
 // ---------- Popup ----------
 .sl-popup {
