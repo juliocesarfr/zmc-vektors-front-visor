@@ -9,6 +9,7 @@ import TileWMS from "ol/source/TileWMS";
 import XYZ from "ol/source/XYZ";
 
 import { GisConfigService } from "../../../core/gis";
+import { crearCapaWms } from "../../mapa/capas";
 
 export interface CapaBaseUi {
   id: string;
@@ -62,15 +63,7 @@ export class CapasSidebarComponent {
     }
 
     for (const c of this.gis.capasTecnicasParaUi()) {
-      const capa = new TileLayer({
-        visible: false,
-        source: new TileWMS({
-          url: this.gis.urlWms(),
-          params: { LAYERS: c.capa, TILED: false },
-          serverType: "geoserver",
-          transition: 0,
-        }),
-      });
+      const capa = crearCapaWms(this.gis.urlWms(), c.capa, false);
       this.capasTecnicas.set(c.id, capa);
       capas.insertAt(indice++, capa);
     }

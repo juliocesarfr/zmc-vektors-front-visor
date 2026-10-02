@@ -1,0 +1,35 @@
+<div class="img-lightbox" *ngIf="fotoActual as foto" (click)="cerrar()" (wheel)="alGirarRueda($event)">
+  <button class="lightbox-close" (click)="cerrar()" title="Cerrar"><i class="pi pi-times"></i></button>
+
+  <button class="lightbox-nav prev" *ngIf="imagenes.length > 1" (click)="anterior($event)" title="Anterior">
+    <i class="pi pi-chevron-left"></i>
+  </button>
+
+  <div class="lightbox-content" (click)="$event.stopPropagation()">
+    <div class="img-container">
+      <img [src]="foto.src" [style.transform]="transformacion" [style.cursor]="cursor"
+        (mousedown)="iniciarArrastre($event)" (mousemove)="moverArrastre($event)"
+        (mouseup)="terminarArrastre()" (mouseleave)="terminarArrastre()"
+        (error)="$any($event.target).src = 'assets/images/no-image.png'" alt="Imagen completa" />
+    </div>
+
+    <div class="lightbox-caption">
+      <span class="lc-nombre" *ngIf="foto.tiporecepcionimages">{{ foto.tiporecepcionimages }}</span>
+      <span class="lc-fecha" *ngIf="foto.fechareg">{{ foto.fechareg | date: 'dd/MM/yyyy HH:mm' }}</span>
+    </div>
+
+    <div class="lightbox-counter" *ngIf="imagenes.length > 1">{{ indice + 1 }} de {{ imagenes.length }}</div>
+
+    <div class="lightbox-zoom-bar" (click)="$event.stopPropagation()">
+      <button class="lz-btn" (click)="rotarIzquierda()" title="Rotar 90° izquierda"><i class="pi pi-refresh pi-espejo"></i></button>
+      <button class="lz-btn" (click)="rotarDerecha()" title="Rotar 90° derecha"><i class="pi pi-refresh"></i></button>
+      <button class="lz-btn" (click)="alejar()" title="Alejar"><i class="pi pi-minus"></i></button>
+      <span class="lz-pct">{{ zoom * 100 | number: '1.0-0' }}%</span>
+      <button class="lz-btn" (click)="acercar()" title="Acercar"><i class="pi pi-plus"></i></button>
+    </div>
+  </div>
+
+  <button class="lightbox-nav next" *ngIf="imagenes.length > 1" (click)="siguiente($event)" title="Siguiente">
+    <i class="pi pi-chevron-right"></i>
+  </button>
+</div>

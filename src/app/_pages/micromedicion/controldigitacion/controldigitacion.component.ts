@@ -12,11 +12,10 @@ import {
   inject,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { forkJoin, of } from "rxjs";
 import { catchError, switchMap, tap } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -30,7 +29,6 @@ import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
-import { transform } from "ol/proj";
 import { extend, getCenter } from "ol/extent";
 
 import { MessageService } from "primeng/api";
@@ -42,37 +40,26 @@ import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.ser
 import { ControlImgService } from "@host/_servicios/procesar-img/control-img.service";
 import { ClientesService } from "@host/_servicios/catastro/clientes.service";
 import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
-import { ValidacionSistemaService } from "@host/_servicios/validar/validacion-sistema.service";
 import { FormsModule } from "@angular/forms";
 import { DropdownModule } from "primeng/dropdown";
 import { ButtonModule } from "primeng/button";
 import { MultiSelectModule } from "primeng/multiselect";
 import { InputNumberModule } from "primeng/inputnumber";
 import { ToastModule } from "primeng/toast";
-import { TagModule } from "primeng/tag";
 import { InputTextModule } from "primeng/inputtext";
 
-import {
-  DISTANCIA_MAX_ACOMETIDA_M,
-  ORIGENES_COORDENADA,
-  colorPorEstadoLectura,
-  COLOR_FICHA_AGUA,
-  COLOR_FICHA_ALC,
-  LISTA_MESES,
-  TIPOS_PROMEDIO,
-  TIPOS_RECEPCION_IMG,
-  TipoPopup,
-  RegistroLectura,
-  Sector,
-  SECTOR_TODOS,
-  ROTULO_ENVIVO_MS,
-} from "../../../config/Controldigitacion.config";
+import { DISTANCIA_MAX_ACOMETIDA_M, ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
+import { colorPorEstadoLectura, COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from "../../../shared/constantes/colores-mapa";
+import { LISTA_MESES, TIPOS_PROMEDIO, TIPOS_RECEPCION_FOTOS_LECTURA } from "../../../shared/constantes/lecturas";
+import { TipoPopup, RegistroLectura } from "../../../shared/modelos/registro-lectura.model";
+import { Sector, SECTOR_TODOS } from "../../../shared/modelos/sector.model";
+import { ROTULO_ENVIVO_MS } from "../../../shared/mapa/destello-lecturas";
 import {
   crearFeaturePunto,
   crearFeatureLinea,
   extraerCoordenada,
-} from "../.././../util/Geo.utils";
-import { DestelloLecturas } from "../.././../util/Destellolectura.util";
+} from "../../../shared/mapa/geo.utils";
+import { DestelloLecturas } from "../../../shared/mapa/destello-lecturas";
 import {
   ContextoTiempoReal,
   LecturaEnVivo,
@@ -82,16 +69,23 @@ import {
   MapEstilosFactory,
   RADIOS_LECTURA,
   RADIOS_FICHA,
-} from "../../../util/Mapaestilos.factory";
-import { observarTamanoMapa } from "../.././../util/Mapinit.util";
+} from "../../../shared/mapa/mapa-estilos";
+import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import { GisConfigService } from "../../../core/gis";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
+import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
 
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
   imports: [
     CapasSidebarComponent,
+    VisorImagenesComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -99,14 +93,11 @@ import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/
     ButtonModule,
     InputNumberModule,
     ToastModule,
-    TagModule,
     InputTextModule,
   ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
   providers: [
-    DatePipe,
-    ValidacionSistemaService,
     MessageService,
     DialogService,
     // Al destruirse se da de baja del socket sin cerrarlo para las demás pantallas.
@@ -129,7 +120,7 @@ export class ControldigitacionComponent
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
   conectadoEnVivo = false;
   private timeoutRotulo?: number;
-
+
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
@@ -151,7 +142,7 @@ export class ControldigitacionComponent
 
   tipoPopup: TipoPopup = "lectura";
 
-  private readonly _codsede = sessionStorage.getItem("codsede");
+  private readonly _codsede = sessionStorage.getItem("codsede");
 
   dataCiclos: any[] = [];
   fechaCiclos: any;
@@ -195,18 +186,7 @@ export class ControldigitacionComponent
     undefined;
   isBusquedaClienteActiva = false;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
@@ -225,15 +205,8 @@ export class ControldigitacionComponent
   datosClientePopup: any = null;
   ref: DynamicDialogRef | undefined;
 
-  imagenAbierta: string | null = null;
-  imagenAbiertaIndex = -1;
-  imagenZoom = 1;
-  imagenRotacion = 0;
-  isDragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  imgOffsetX = 0;
-  imgOffsetY = 0;
+  /** Foto abierta en el visor; -1 = cerrado. */
+  indiceFotoAbierta = -1;
 
   constructor(
     private aperturaservices: AperturaMicromedicionService,
@@ -274,7 +247,7 @@ export class ControldigitacionComponent
     this.crearMapa();
     this.capasSidebar?.conectarMapa(this.map);
 
-    MapEstilosFactory.setupAdvancedMapTools(this.map);
+    agregarHerramientasMapa(this.map);
 
     this.initClick();
 
@@ -582,10 +555,10 @@ export class ControldigitacionComponent
     this.lecturasLayer.getSource()!.addFeatures(featuresUsr);
     this.cajaAguaLayer.getSource()!.addFeatures(puntos("agua"));
     this.fichaAlcLayer.getSource()!.addFeatures(puntos("desague"));
-    this.acomAguaLayer.getSource()!.addFeatures(lineas("agua", "acomagua"));
+    this.acomAguaLayer.getSource()!.addFeatures(lineas("agua", "acometidaAgua"));
     this.acomDesagueLayer
       .getSource()!
-      .addFeatures(lineas("desague", "acomdesague"));
+      .addFeatures(lineas("desague", "acometidaDesague"));
 
     this.totalSinCoordenadas = registros.length - featuresUsr.length;
 
@@ -648,36 +621,17 @@ export class ControldigitacionComponent
   // MAPA
   // ============================================================
 
-  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: layer, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
-    this.sectoresComercialesLayer = this.crearWms(
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
+    this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -717,7 +671,7 @@ export class ControldigitacionComponent
       style: (f) => {
         return this.estilos.punto({
           forma: "rombo",
-          color: COLOR_FICHA_ALC,
+          color: COLOR_FICHA_ALCANTARILLADO,
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
           etiqueta: f.get("codcliente") || f.get("nroSuministro"),
@@ -743,7 +697,7 @@ export class ControldigitacionComponent
       visible: false,
       style: (f, resolution) => {
         return this.estilos.lineaAcometida(
-          COLOR_FICHA_ALC,
+          COLOR_FICHA_ALCANTARILLADO,
           f === this.featureSeleccionado,
           resolution,
         );
@@ -865,22 +819,11 @@ export class ControldigitacionComponent
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc:
-          this.selectedSucursal?.codsuc ||
-          this.lecturaSeleccionada?.codsuc ||
-          this.datosClientePopup?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    this.ref = abrirConsultaUsuario(
+      this.dialogService,
+      codcliente,
+      this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc,
+    );
   }
 
   cerrarPopup(): void {
@@ -961,22 +904,15 @@ export class ControldigitacionComponent
     const codsuc = lectura.codsuc || this.selectedSucursal?.codsuc || "002";
     const codcliente = lectura.codcliente;
 
-    const hoy = new Date();
-    const fechaFinal = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-    const fechaInicial = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const formatDate = (d: Date) =>
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
     forkJoin({
       imagenes: this.controlImgService
         .read_x_tipolistar({
           codsuc,
           codcliente,
-          fecha_inicial: formatDate(fechaInicial),
-          fecha_final: formatDate(fechaFinal),
+          ...rangoFotosRecientes(),
           tipoarchivo: "IMG",
-          tiporecepcion: TIPOS_RECEPCION_IMG,
+          tiporecepcion: TIPOS_RECEPCION_FOTOS_LECTURA,
         })
         .pipe(catchError(() => of({ mensaje: "ERROR", data: [] }))),
       cliente: this.clientesService
@@ -1037,7 +973,7 @@ export class ControldigitacionComponent
       { layer: this.acomAguaLayer, tipo: "agua" },
       { layer: this.acomDesagueLayer, tipo: "alcantarillado" },
     ];
-
+
     for (const { layer, tipo } of capas) {
       const feature = layer
         ?.getSource()
@@ -1049,7 +985,7 @@ export class ControldigitacionComponent
           return fc === query;
         });
 
-      if (feature) {
+      if (feature) {
         this.seleccionarFeature(feature, tipo);
         this.activarCapasPorDefectoBusqueda();
 
@@ -1298,129 +1234,18 @@ export class ControldigitacionComponent
   // LIGHTBOX DE IMÁGENES
   // ============================================================
 
-  get imagenActual(): any | null {
-    return this.imagenAbiertaIndex >= 0
-      ? this.imagenesPopup[this.imagenAbiertaIndex]
-      : null;
-  }
-  abrirImagenCompleta(index: number): void {
-    if (index < 0 || index >= this.imagenesPopup.length) return;
-    this.imagenAbiertaIndex = index;
-    this.imagenAbierta = this.imagenesPopup[index].src;
-    this.resetZoom();
-  }
-
-  cerrarImagenCompleta(): void {
-    this.imagenAbierta = null;
-    this.imagenAbiertaIndex = -1;
-    this.resetZoom();
-  }
-
-  siguienteImagen(event?: Event): void {
-    event?.stopPropagation();
-    if (this.imagenesPopup.length === 0) return;
-    this.abrirImagenCompleta(
-      (this.imagenAbiertaIndex + 1) % this.imagenesPopup.length,
-    );
-  }
-
-  anteriorImagen(event?: Event): void {
-    event?.stopPropagation();
-    if (this.imagenesPopup.length === 0) return;
-    this.abrirImagenCompleta(
-      (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) %
-      this.imagenesPopup.length,
-    );
-  }
-
-  @HostListener("document:keydown", ["$event"])
-  handleKeyboardEvent(event: KeyboardEvent): void {
-    if (!this.imagenAbierta) return;
-    if (event.key === "ArrowRight") this.siguienteImagen();
-    else if (event.key === "ArrowLeft") this.anteriorImagen();
-    else if (event.key === "Escape") this.cerrarImagenCompleta();
-  }
-
-  zoomIn(): void {
-    this.imagenZoom = Math.min(this.imagenZoom + 0.25, 5);
-  }
-
-  zoomOut(): void {
-    this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25);
-    if (this.imagenZoom <= 1) this.resetOffset();
-  }
-
-  resetZoom(): void {
-    this.imagenZoom = 1;
-    this.imagenRotacion = 0;
-    this.resetOffset();
-  }
-
-  rotarIzquierda(): void {
-    this.imagenRotacion -= 90;
-  }
-
-  rotarDerecha(): void {
-    this.imagenRotacion += 90;
-  }
-
-  onWheelZoom(e: WheelEvent): void {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.15 : -0.15;
-    this.imagenZoom = Math.min(Math.max(this.imagenZoom + delta, 0.25), 5);
-    if (this.imagenZoom <= 1) this.resetOffset();
-  }
-
-  onDragStart(event: MouseEvent): void {
-    if (this.imagenZoom <= 1) return;
-    this.isDragging = true;
-    this.dragStartX = event.clientX - this.imgOffsetX;
-    this.dragStartY = event.clientY - this.imgOffsetY;
-    event.preventDefault();
-  }
-
-  onDragMove(event: MouseEvent): void {
-    if (!this.isDragging || this.imagenZoom <= 1) return;
-    this.imgOffsetX = event.clientX - this.dragStartX;
-    this.imgOffsetY = event.clientY - this.dragStartY;
-  }
-
-  onDragEnd(): void {
-    this.isDragging = false;
-  }
-
-  private resetOffset(): void {
-    this.imgOffsetX = 0;
-    this.imgOffsetY = 0;
-  }
 
   // ============================================================
   // OTROS
   // ============================================================
 
-  abrirStreetView(coordX: unknown, coordY: unknown): void {
-    const x = Number(coordX);
-    const y = Number(coordY);
-
-    if (!x || !y || (x === 0 && y === 0)) {
-      this.avisar(
-        "warn",
-        "Aviso",
-        "No hay coordenadas válidas para abrir Street View.",
-      );
+  abrirStreetView(x: unknown, y: unknown): void {
+    const lonLat = coordenadaLonLat(x, y, this.gis.proyeccionUtm);
+    if (!lonLat) {
+      this.avisar("warn", "Aviso", "No hay coordenadas válidas para abrir Street View.");
       return;
     }
-
-    // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
-    let [lng, lat] = [x, y];
-    if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
-    }
-
-    window.open(
-      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
-      "_blank",
-    );
+    abrirGoogleStreetView(lonLat);
   }
 
   private avisar(

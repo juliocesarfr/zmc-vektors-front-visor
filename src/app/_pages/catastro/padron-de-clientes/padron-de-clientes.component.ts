@@ -9,7 +9,7 @@ import {
   ElementRef,
   inject,
 } from "@angular/core";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
@@ -38,22 +38,24 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { getCenter } from "ol/extent";
-import { transform } from "ol/proj";
 import Zoom from "ol/control/Zoom";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
-import { ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
+import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
 import { GisConfigService } from "../../../core/gis";
-import { fromCircle } from "ol/geom/Polygon";
-import { observarTamanoMapa } from "../../../util/Mapinit.util";
+import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
-} from "../../../util/Mapaestilos.factory";
-import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
+} from "../../../shared/mapa/mapa-estilos";
+import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { crearFeaturePunto, extraerCoordenada, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
 import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/Catastro/FiltroPadronClientesTipoActividadRequest";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
+import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+import type Circle from "ol/geom/Circle";
 
 @Component({
   selector: "app-padron-de-clientes",
@@ -69,7 +71,7 @@ import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/
   ],
   templateUrl: "./padron-de-clientes.component.html",
   styleUrl: "./padron-de-clientes.component.scss",
-  providers: [DatePipe, MessageService, DialogService],
+  providers: [MessageService, DialogService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class PadronDeClientesComponent
@@ -79,7 +81,7 @@ export class PadronDeClientesComponent
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
-
+
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
@@ -132,18 +134,7 @@ export class PadronDeClientesComponent
   featureSeleccionado: Feature | null = null;
   ref: DynamicDialogRef | undefined;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
@@ -682,36 +673,17 @@ export class PadronDeClientesComponent
   }
 
   // MAPA
-  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: layer, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
-    this.sectoresComercialesLayer = this.crearWms(
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
+    this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -756,7 +728,7 @@ export class PadronDeClientesComponent
       controls: [new Zoom()],
     });
 
-    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+    agregarHerramientasMapa(this.map, (geometry) => {
       if (geometry && geometry.getType() === "Circle") {
         this.contarElementosEnRadio(geometry);
       }
@@ -821,77 +793,34 @@ export class PadronDeClientesComponent
     this.usuariosLayer?.changed();
   }
 
-  abrirStreetView(coordX: unknown, coordY: unknown): void {
-    const x = Number(coordX);
-    const y = Number(coordY);
-
-    if (!x || !y || (x === 0 && y === 0)) {
-      this.avisar(
-        "warn",
-        "Aviso",
-        "No hay coordenadas válidas para abrir Street View.",
-      );
+  abrirStreetView(x: unknown, y: unknown): void {
+    const lonLat = coordenadaLonLat(x, y, this.gis.proyeccionUtm);
+    if (!lonLat) {
+      this.avisar("warn", "Aviso", "No hay coordenadas válidas para abrir Street View.");
       return;
     }
-
-    // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
-    let [lng, lat] = [x, y];
-    if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
-    }
-
-    window.open(
-      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
-      "_blank",
-    );
+    abrirGoogleStreetView(lonLat);
   }
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc:
-          this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    this.ref = abrirConsultaUsuario(
+      this.dialogService,
+      codcliente,
+      this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
+    );
   }
 
   private avisar(severity: string, summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail });
   }
 
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-
-    if (this.usuariosLayer) {
-      const source = this.usuariosLayer.getSource();
-      if (source) {
-        source.forEachFeatureIntersectingExtent(extent, (feature) => {
-          const geom = feature.getGeometry();
-          if (
-            geom &&
-            polygon.intersectsCoordinate((geom as any).getCoordinates())
-          ) {
-            count++;
-          }
-        });
-      }
-    }
-
+  private contarElementosEnRadio(circulo: Circle): void {
+    const total = contarPuntosEnCirculo(this.usuariosLayer?.getSource(), circulo);
     this.messageService.add({
       severity: "info",
       summary: "Selección de Radio",
-      detail: `Se encontraron ${count} clientes en el área seleccionada.`,
+      detail: `Se encontraron ${total} clientes en el área seleccionada.`,
     });
   }
 }

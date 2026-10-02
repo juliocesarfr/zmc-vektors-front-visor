@@ -9,16 +9,14 @@ import {
 import OlMap from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
-import OSM from 'ol/source/OSM';
-import TileWMS from 'ol/source/TileWMS';
-import XYZ from 'ol/source/XYZ';
 
 import { GisConfigService } from '../../core/gis';
-import { observarTamanoMapa } from '../../util/Mapinit.util';
+import { observarTamanoMapa } from "../../shared/mapa/observar-tamano-mapa";
 import {
   CapaSwitchUi,
   CapasSidebarComponent,
 } from '../../shared/components/capas-sidebar/capas-sidebar.component';
+import { CAPAS_BASE_UI, crearCapaOsm, crearCapaSatelital, crearCapaWms } from "../../shared/mapa/capas";
 
 @Component({
   selector: 'app-main-georeferencia',
@@ -33,10 +31,7 @@ export class MainGeoreferenciaComponent implements AfterViewInit, OnDestroy {
 
   readonly gis = inject(GisConfigService);
 
-  readonly baseLayers = [
-    { id: 'osm', label: 'OSM', iconUrl: 'assets/images/img-georeferencia/capa-osm-icon.gif' },
-    { id: 'satelital', label: 'Satelital', iconUrl: 'assets/images/img-georeferencia/satellital-icon.gif' },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
   baseActive: string | null = 'osm';
 
   // `usuarios` es vectorial y la arma cada pantalla, no va aquí.
@@ -50,28 +45,11 @@ export class MainGeoreferenciaComponent implements AfterViewInit, OnDestroy {
   private readonly capasWms = new Map<string, TileLayer>();
 
   ngAfterViewInit(): void {
-    this.capasBase.set('osm', new TileLayer({ source: new OSM() }));
-    this.capasBase.set(
-      'satelital',
-      new TileLayer({
-        visible: false,
-        source: new XYZ({ url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}' }),
-      }),
-    );
+    this.capasBase.set("osm", crearCapaOsm());
+    this.capasBase.set("satelital", crearCapaSatelital());
 
     for (const capa of this.commercialLayers) {
-      this.capasWms.set(
-        capa.id,
-        new TileLayer({
-          visible: capa.active,
-          source: new TileWMS({
-            url: this.gis.urlWms(),
-            params: { LAYERS: this.gis.capa(capa.id), TILED: true },
-            serverType: 'geoserver',
-            transition: 0,
-          }),
-        }),
-      );
+      this.capasWms.set(capa.id, crearCapaWms(this.gis.urlWms(), this.gis.capa(capa.id), capa.active));
     }
 
     // Target por referencia, no por id: en el microfrontend el id puede chocar.

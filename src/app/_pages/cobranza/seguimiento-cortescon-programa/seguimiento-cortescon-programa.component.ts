@@ -4,7 +4,6 @@ import {
   AfterViewInit,
   OnDestroy,
   CUSTOM_ELEMENTS_SCHEMA,
-  HostListener,
   DestroyRef,
   ViewChild,
   ElementRef,
@@ -47,31 +46,33 @@ import Geometry from "ol/geom/Geometry";
 import GeoJSON from "ol/format/GeoJSON";
 import WKT from "ol/format/WKT";
 import { Style, Fill, Stroke } from "ol/style";
-import { transform } from "ol/proj";
 import { getCenter } from "ol/extent";
 
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { CobranzaService } from "@host/_servicios/vektors/cobranza.service";
 import { ControlImgService } from "@host/_servicios/procesar-img/control-img.service";
 import { ConsultaUsuarioService } from "@host/_servicios/consulta/consulta-usuario.service";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
 import { BuscarProgramaCorteComponent } from "../buscar-programa-corte/buscar-programa-corte.component";
 
-import { TIPOS_RECEPCION_IMGCORE, ORIGENES_COORDENADA, DISTANCIA_MAX_ACOMETIDA_M, COLOR_FICHA_AGUA, COLOR_FICHA_ALC } from "../../../config/Controldigitacion.config";
-import { fromCircle } from 'ol/geom/Polygon';
-import {
-  crearFeaturePunto,
-  crearFeatureLinea,
-  extraerCoordenada,
-} from "../../../util/Geo.utils";
+import { TIPOS_RECEPCION_FOTOS_CORTE } from "../../../shared/constantes/lecturas";
+import { ORIGENES_COORDENADA, DISTANCIA_MAX_ACOMETIDA_M } from "../../../shared/constantes/coordenadas";
+import { COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from "../../../shared/constantes/colores-mapa";
+import { crearFeaturePunto, crearFeatureLinea, extraerCoordenada, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
-} from "../../../util/Mapaestilos.factory";
-import { observarTamanoMapa } from "../.././../util/Mapinit.util";
+} from "../../../shared/mapa/mapa-estilos";
+import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import { GisConfigService } from "../../../core/gis";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
+import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
+import type Circle from "ol/geom/Circle";
 
 export type EstadoCorte = "ejecutado" | "pagado" | "pendiente";
 
@@ -141,6 +142,7 @@ interface ResumenInspector {
   standalone: true,
   imports: [
     CapasSidebarComponent,
+    VisorImagenesComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -164,7 +166,7 @@ export class SeguimientoCortesconProgramaComponent
 
   private readonly gis = inject(GisConfigService);
   private readonly estilos = new MapEstilosFactory();
-
+
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
@@ -228,28 +230,10 @@ export class SeguimientoCortesconProgramaComponent
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
 
-  imagenAbierta: string | null = null;
-  imagenAbiertaIndex = -1;
-  imagenZoom = 1;
-  imagenRotacion = 0;
-  isDragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  imgOffsetX = 0;
-  imgOffsetY = 0;
+  /** Foto abierta en el visor; -1 = cerrado. */
+  indiceFotoAbierta = -1;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
 
   commercialLayers = [
     { id: "cortes", label: "Cortes / Estados", active: true },
@@ -330,27 +314,12 @@ export class SeguimientoCortesconProgramaComponent
     this.ref?.close();
   }
 
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-
-    if (this.cortesLayer) {
-      const source = this.cortesLayer.getSource();
-      if (source) {
-        source.forEachFeatureIntersectingExtent(extent, (feature) => {
-          const geom = feature.getGeometry();
-          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
-            count++;
-          }
-        });
-      }
-    }
-
+  private contarElementosEnRadio(circulo: Circle): void {
+    const total = contarPuntosEnCirculo(this.cortesLayer?.getSource(), circulo);
     this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} cortes/reaperturas en el área seleccionada.`
+      severity: "info",
+      summary: "Selección de Radio",
+      detail: `Se encontraron ${total} cortes/reaperturas en el área seleccionada.`,
     });
   }
 
@@ -516,7 +485,7 @@ export class SeguimientoCortesconProgramaComponent
       const la = crearFeatureLinea(
         r,
         ORIGENES_COORDENADA.agua,
-        ORIGENES_COORDENADA.acomagua,
+        ORIGENES_COORDENADA.acometidaAgua,
         DISTANCIA_MAX_ACOMETIDA_M,
       );
       if (la) sa.addFeature(la);
@@ -524,7 +493,7 @@ export class SeguimientoCortesconProgramaComponent
       const ld = crearFeatureLinea(
         r,
         ORIGENES_COORDENADA.desague,
-        ORIGENES_COORDENADA.acomdesague,
+        ORIGENES_COORDENADA.acometidaDesague,
         DISTANCIA_MAX_ACOMETIDA_M,
       );
       if (ld) sd.addFeature(ld);
@@ -694,47 +663,21 @@ export class SeguimientoCortesconProgramaComponent
     this.aplicarFiltros();
   }
 
-  limpiarFiltrosMapa(): void {
-    if (!this.filtroInspector && !this.filtroEstado) return;
-    this.filtroInspector = null;
-    this.filtroEstado = null;
-    this.aplicarFiltros();
-  }
-
   // ============================================================
   // MAPA
   // ============================================================
 
-  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: layer, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
-    this.sectoresLayer = this.crearWms(
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
+    this.sectoresLayer = crearCapaWms(this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
 
     this.lotesUsuarioLayer = new VectorLayer({
       source: new VectorSource(),
@@ -753,7 +696,7 @@ export class SeguimientoCortesconProgramaComponent
       source: new VectorSource(),
       visible: false,
       style: (f, resolution) =>
-        this.estilos.lineaAcometida(COLOR_FICHA_ALC, false, resolution),
+        this.estilos.lineaAcometida(COLOR_FICHA_ALCANTARILLADO, false, resolution),
     });
 
     this.cortesLayer = new VectorLayer({
@@ -790,7 +733,7 @@ export class SeguimientoCortesconProgramaComponent
       }),
     });
 
-    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
+    agregarHerramientasMapa(this.map, (geometry) => {
       if (geometry && geometry.getType() === 'Circle') {
         this.contarElementosEnRadio(geometry);
       }
@@ -917,21 +860,14 @@ export class SeguimientoCortesconProgramaComponent
     const codsuc = (r.codsuc as string) || this.selectedSucursal?.codsuc || "";
     const codcliente = r.codcliente;
 
-    const hoy = new Date();
-    const fFin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-    const fIni = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const fmt = (d: Date) =>
-      d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 
     this.controlImgService
       .read_x_tipolistar({
         codsuc,
         codcliente,
-        fecha_inicial: fmt(fIni),
-        fecha_final: fmt(fFin),
+        ...rangoFotosRecientes(),
         tipoarchivo: "IMG",
-        tiporecepcion: TIPOS_RECEPCION_IMGCORE,
+        tiporecepcion: TIPOS_RECEPCION_FOTOS_CORTE,
       })
       .pipe(
         catchError(() => of({ mensaje: "ERROR", data: [] })),
@@ -1010,53 +946,23 @@ export class SeguimientoCortesconProgramaComponent
 
   abrirStreetView(r: RegistroCorte | null): void {
     if (!r) return;
-    const candidatos: [any, any][] = [
-      [r.lon, r.lat],
-      [r.lonpredio, r.latpredio],
-    ];
-    let coord: [number, number] | null = null;
-    for (const [x, y] of candidatos) {
-      if (x != null && y != null && !(Number(x) === 0 && Number(y) === 0)) {
-        coord = [Number(x), Number(y)];
-        break;
-      }
-    }
-    if (!coord) {
-      this.avisar(
-        "warn",
-        "Aviso",
-        "Este predio no tiene coordenadas para Street View",
-      );
+    const lonLat =
+      coordenadaLonLat(r.lon, r.lat, this.gis.proyeccionUtm) ??
+      coordenadaLonLat(r.lonpredio, r.latpredio, this.gis.proyeccionUtm);
+    if (!lonLat) {
+      this.avisar("warn", "Aviso", "Este predio no tiene coordenadas para Street View");
       return;
     }
-    let [lng, lat] = coord;
-
-    if (Math.abs(lng) > 180 || Math.abs(lat) > 90) {
-      [lng, lat] = transform([lng, lat], this.gis.proyeccionUtm, "EPSG:4326") as [
-        number,
-        number,
-      ];
-    }
-    window.open(
-      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
-      "_blank",
-    );
+    abrirGoogleStreetView(lonLat);
   }
 
   verMasInformacion(codcliente: string | number | undefined): void {
     if (!codcliente) return;
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc: this.selectedSucursal?.codsuc || this.corteSeleccionado?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    this.ref = abrirConsultaUsuario(
+      this.dialogService,
+      codcliente,
+      this.selectedSucursal?.codsuc || this.corteSeleccionado?.codsuc,
+    );
   }
 
   // ============================================================
@@ -1092,105 +998,7 @@ export class SeguimientoCortesconProgramaComponent
     return typeof obs === 'string' ? obs : '-';
   }
 
-  get imagenActual(): any | null {
-    return this.imagenAbiertaIndex >= 0
-      ? this.imagenesPopup[this.imagenAbiertaIndex]
-      : null;
-  }
 
-  abrirImagenCompleta(index: number): void {
-    if (index < 0 || index >= this.imagenesPopup.length) return;
-    this.imagenAbiertaIndex = index;
-    this.imagenAbierta = this.imagenesPopup[index].src;
-    this.resetZoom();
-  }
-
-  cerrarImagenCompleta(): void {
-    this.imagenAbierta = null;
-    this.imagenAbiertaIndex = -1;
-    this.resetZoom();
-  }
-
-  siguienteImagen(event?: Event): void {
-    event?.stopPropagation();
-    if (this.imagenesPopup.length === 0) return;
-    this.abrirImagenCompleta(
-      (this.imagenAbiertaIndex + 1) % this.imagenesPopup.length,
-    );
-  }
-
-  anteriorImagen(event?: Event): void {
-    event?.stopPropagation();
-    if (this.imagenesPopup.length === 0) return;
-    this.abrirImagenCompleta(
-      (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) %
-      this.imagenesPopup.length,
-    );
-  }
-
-  zoomIn(): void {
-    this.imagenZoom = Math.min(this.imagenZoom + 0.25, 5);
-  }
-
-  zoomOut(): void {
-    this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25);
-    if (this.imagenZoom <= 1) this.resetOffset();
-  }
-
-  resetZoom(): void {
-    this.imagenZoom = 1;
-    this.imagenRotacion = 0;
-    this.resetOffset();
-  }
-
-  rotarIzquierda(): void {
-    this.imagenRotacion -= 90;
-  }
-
-  rotarDerecha(): void {
-    this.imagenRotacion += 90;
-  }
-
-  onWheelZoom(e: WheelEvent): void {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.15 : -0.15;
-    this.imagenZoom = Math.min(Math.max(this.imagenZoom + delta, 0.25), 5);
-    if (this.imagenZoom <= 1) this.resetOffset();
-  }
-
-  onDragStart(event: MouseEvent): void {
-    if (this.imagenZoom <= 1) return;
-    this.isDragging = true;
-    this.dragStartX = event.clientX - this.imgOffsetX;
-    this.dragStartY = event.clientY - this.imgOffsetY;
-    event.preventDefault();
-  }
-
-  onDragMove(event: MouseEvent): void {
-    if (!this.isDragging || this.imagenZoom <= 1) return;
-    this.imgOffsetX = event.clientX - this.dragStartX;
-    this.imgOffsetY = event.clientY - this.dragStartY;
-  }
-
-  onDragEnd(): void {
-    this.isDragging = false;
-  }
-
-  private resetOffset(): void {
-    this.imgOffsetX = 0;
-    this.imgOffsetY = 0;
-  }
-
-  @HostListener("document:keydown", ["$event"])
-  handleKeyboardEvent(event: KeyboardEvent): void {
-    if (this.imagenAbierta) {
-      if (event.key === "ArrowRight") this.siguienteImagen();
-      else if (event.key === "ArrowLeft") this.anteriorImagen();
-      else if (event.key === "Escape") this.cerrarImagenCompleta();
-      return;
-    }
-    if (event.key === "Escape" && this.corteSeleccionado) this.cerrarPopup();
-  }
 
   // ============================================================
   // UTIL
