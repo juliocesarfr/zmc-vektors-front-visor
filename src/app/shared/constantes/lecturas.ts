@@ -1,3 +1,14 @@
+import { SectorCiclo } from "@host/_models/vektors/SectorCiclo";
+
+/** Opción "TODOS" del combo de sectores; `%` es el comodín que espera el SP. */
+export const SECTOR_TODOS: SectorCiclo = {
+  codemp: null,
+  codsuc: null,
+  codsector: "%",
+  descripcion: "TODOS",
+  estareg: null,
+};
+
 export const LISTA_MESES = [
   { mes: "ENERO", numero: "01" },
   { mes: "FEBRERO", numero: "02" },

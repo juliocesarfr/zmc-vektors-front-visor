@@ -16,8 +16,8 @@ import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service
 import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.service";
 import { TarifasService } from "@host/_servicios/catastro/tarifas.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, of } from "rxjs";
-import { catchError, finalize } from "rxjs/operators";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, finalize, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import VectorLayer from "ol/layer/Vector";
@@ -55,6 +55,11 @@ import type Circle from "ol/geom/Circle";
 })
 export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly estilos = new MapEstilosFactory();
 
   map?: OlMap;
@@ -184,6 +189,8 @@ export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
   }
 
   onCicloChange(): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.selectedTarifa = null;
@@ -195,7 +202,7 @@ export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(codCiclo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => (this.listaSucursales = data || []),
         error: (err) => console.error("Error al cargar sucursales:", err)
@@ -203,6 +210,7 @@ export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedTarifa = null;
     this.listaSectores = [];
@@ -212,7 +220,7 @@ export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
 
     this.tarifasService
       .drop(this.selectedSucursal.codsuc)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaTarifas = [
@@ -228,7 +236,7 @@ export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
 
     this.sectoresCicloService
       .drop_sectores_x_ciclo(this.selectedSucursal.codsuc, codCiclo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSectores = [

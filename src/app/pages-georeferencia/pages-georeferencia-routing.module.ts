@@ -2,6 +2,7 @@ import { NgModule } from "@angular/core";
 import { RouterModule, Routes } from "@angular/router";
 
 import { conConfigGis } from "../core/gis";
+import { MODO_CORTE, MODO_REAPERTURA } from "../_pages/cobranza/seguimiento-programa/modos-seguimiento";
 
 const routes: Routes = conConfigGis([
   {
@@ -30,16 +31,18 @@ const routes: Routes = conConfigGis([
   {
     path: "cobranza/seguimiento_cortes_conprograma",
     loadComponent: () =>
-      import("../_pages/cobranza/seguimiento-cortescon-programa/seguimiento-cortescon-programa.component").then(
-        (m) => m.SeguimientoCortesconProgramaComponent,
+      import("../_pages/cobranza/seguimiento-programa/seguimiento-programa.component").then(
+        (m) => m.SeguimientoProgramaComponent,
       ),
+    data: { modo: MODO_CORTE },
   },
   {
     path: "cobranza/seguimiento_reapertura_conprograma",
     loadComponent: () =>
-      import("../_pages/cobranza/seguimiento-reaperturacon-programa/seguimiento-reaperturacon-programa.component").then(
-        (m) => m.SeguimientoReaperturaconProgramaComponent,
+      import("../_pages/cobranza/seguimiento-programa/seguimiento-programa.component").then(
+        (m) => m.SeguimientoProgramaComponent,
       ),
+    data: { modo: MODO_REAPERTURA },
   },
   {
     path: "catastro/padron_de_clientes",
@@ -69,7 +72,7 @@ const routes: Routes = conConfigGis([
         (m) => m.FacturacionClientesAltosConsumidoresComponent,
       ),
   },
-  { path: "", redirectTo: "/main", pathMatch: "full" },
+  { path: "", redirectTo: "main", pathMatch: "full" },
 ]);
 
 @NgModule({

@@ -54,12 +54,12 @@
         <span class="filtro-chip promedio" *ngIf="selectedTipoPromedio">
           <i class="pi pi-chart-bar"></i> {{ selectedTipoPromedio?.descripcion }}
         </span>
-        <span class="filtro-chip consumo" *ngIf="consumoini != null || consumofin != null">
+        <span class="filtro-chip consumo" *ngIf="consumoInicial != null || consumoFinal != null">
           <i class="pi pi-gauge"></i>
-          <ng-container *ngIf="consumoini != null && consumofin != null">{{ consumoini }}-{{ consumofin
+          <ng-container *ngIf="consumoInicial != null && consumoFinal != null">{{ consumoInicial }}-{{ consumoFinal
             }}</ng-container>
-          <ng-container *ngIf="consumoini != null && consumofin == null">≥{{ consumoini }}</ng-container>
-          <ng-container *ngIf="consumoini == null && consumofin != null">≤{{ consumofin }}</ng-container>
+          <ng-container *ngIf="consumoInicial != null && consumoFinal == null">≥{{ consumoInicial }}</ng-container>
+          <ng-container *ngIf="consumoInicial == null && consumoFinal != null">≤{{ consumoFinal }}</ng-container>
         </span>
       </div>
 
@@ -98,14 +98,14 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedCiclo">
-          <p-dropdown [options]="listaSucursalesxusr" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+          <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
             (ngModelChange)="onSucursalChange()" [style]="{ width: '180px' }" placeholder="Sucursales"
             [appendTo]="'body'"></p-dropdown>
           <label>Sucursal</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector"
+          <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector"
             (onChange)="seleccionarSectores($event.value)" optionLabel="descripcion" [filter]="true"
             filterBy="descripcion" [showClear]="true" [style]="{ width: '220px' }" placeholder="Sectores"
             [appendTo]="'body'">
@@ -120,7 +120,7 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-multiSelect [options]="lista_estadolec" [(ngModel)]="selectedEstados" optionLabel="descripcion"
+          <p-multiSelect [options]="listaEstadosLectura" [(ngModel)]="selectedEstados" optionLabel="descripcion"
             optionValue="codigo" [filter]="true" [showClear]="true" [style]="{ width: '210px' }" placeholder="Estados"
             [appendTo]="'body'" [maxSelectedLabels]="1" selectedItemsLabel="{0} estados">
             <ng-template let-estado pTemplate="item">
@@ -131,20 +131,20 @@
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-dropdown [options]="tipopromedio" [(ngModel)]="selectedTipoPromedio" optionLabel="descripcion"
+          <p-dropdown [options]="tiposPromedio" [(ngModel)]="selectedTipoPromedio" optionLabel="descripcion"
             [showClear]="true" [style]="{ width: '150px' }" placeholder="Tipo Prom." [appendTo]="'body'">
           </p-dropdown>
           <label>Tipo Promedio</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-inputNumber [(ngModel)]="consumoini" [style]="{ width: '100px' }" inputStyleClass="w-full"
+          <p-inputNumber [(ngModel)]="consumoInicial" [style]="{ width: '100px' }" inputStyleClass="w-full"
             [showButtons]="false" [max]="99999"></p-inputNumber>
           <label>Cons. Ini.</label>
         </span>
 
         <span class="p-float-label" *ngIf="selectedSucursal">
-          <p-inputNumber [(ngModel)]="consumofin" [style]="{ width: '100px' }" inputStyleClass="w-full"
+          <p-inputNumber [(ngModel)]="consumoFinal" [style]="{ width: '100px' }" inputStyleClass="w-full"
             [showButtons]="false" [max]="99999"></p-inputNumber>
           <label>Cons. Fin.</label>
         </span>
@@ -164,7 +164,7 @@
       <span>Cargando conexiones...</span>
     </div>
 
-    <div id="map" class="map"></div>
+    <div id="map" #mapContainer class="map"></div>
 
     <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
       [commercialLayers]="commercialLayers"

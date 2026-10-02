@@ -8,7 +8,7 @@ import {
   ContextoTiempoReal,
   LecturaEnVivo,
   OrigenLectura,
-} from "./lectura-en-vivo.model";
+} from "@host/_models/vektors/LecturaEnVivo";
 
 /**
  * El broker de `api-externa` usa `Sinks.many().replay().latest()`: al abrir la

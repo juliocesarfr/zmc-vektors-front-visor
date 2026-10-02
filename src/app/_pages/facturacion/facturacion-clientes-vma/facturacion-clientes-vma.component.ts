@@ -14,8 +14,8 @@ import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { of } from "rxjs";
-import { catchError, finalize } from "rxjs/operators";
+import { of, Subject } from "rxjs";
+import { catchError, finalize, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import VectorLayer from "ol/layer/Vector";
@@ -52,6 +52,10 @@ import type Circle from "ol/geom/Circle";
 })
 export class FacturacionClientesVmaComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
   private readonly estilos = new MapEstilosFactory();
 
   map?: OlMap;
@@ -155,6 +159,7 @@ export class FacturacionClientesVmaComponent implements OnInit {
   }
 
   onCicloChange(): void {
+    this.cicloCambiado.next();
     this.selectedSucursal = null;
     this.listaSucursales = [];
     if (!this.selectedCiclo) return;
@@ -162,7 +167,7 @@ export class FacturacionClientesVmaComponent implements OnInit {
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(codCiclo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => (this.listaSucursales = data || []),
         error: (err) => console.error("Error al cargar sucursales:", err)

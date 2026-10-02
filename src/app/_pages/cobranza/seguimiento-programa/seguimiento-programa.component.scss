@@ -411,18 +411,6 @@
     margin-right: 7px;
     vertical-align: middle;
   }
-
-  .pendiente {
-    background: #ef4444;
-  }
-
-  .ejecutado {
-    background: #22c55e;
-  }
-
-  .pagado {
-    background: #3b82f6;
-  }
 }
 
 .cd-leyenda-toggle,
@@ -802,6 +790,12 @@
           color: #0f172a;
         }
 
+        &.obs {
+          color: #7c3aed;
+          font-style: italic;
+          font-weight: 600;
+        }
+
         &.inspector-name {
           color: #0369a1;
           background: #e0f2fe;
@@ -1085,6 +1079,7 @@
   }
 }
 
+/* --- Tarjetas de resumen: rojo=cortado, verde=pendiente, azul=pagado --- */
 .cd-resumen {
   .card-resumen {
     transition:
@@ -1092,12 +1087,12 @@
       box-shadow 0.12s;
 
     &.exec {
-      border-top-color: #22c55e;
+      border-top-color: #ef4444;
     }
 
-    /* Reapertura  */
+    /* cortado  */
     &.pend {
-      border-top-color: #ef4444;
+      border-top-color: #22c55e;
     }
 
     /* pendiente */
@@ -1229,14 +1224,14 @@
         }
 
         &.exec {
-          background: #dcfce7;
-          color: #15803d;
-        }
-
-        /* Reapertura */
-        &.pend {
           background: #fee2e2;
           color: #b91c1c;
+        }
+
+        /* cortados  */
+        &.pend {
+          background: #dcfce7;
+          color: #15803d;
         }
 
         /* pendientes */
@@ -1378,3 +1373,16 @@
   }
 }
 
+// En reapertura lo "ejecutado" (reaperturado) es lo deseable y lo pendiente lo
+// urgente, al revés que en corte: se invierten los colores de los chips.
+:host(.modo-reapertura) .cd-inspectores .insp-row .insp-stats .chip {
+  &.exec {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &.pend {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+}

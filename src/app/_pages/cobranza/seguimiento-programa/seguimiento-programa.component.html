@@ -6,7 +6,7 @@
   <div class="cd-toolbar">
     <div class="cd-title">
       <img src="assets/images/img-medicion/writing.png" alt="cortes" />
-      <h3>{{ titulo }} <span>| Mapa</span></h3>
+      <h3>{{ modo.titulo }} <span>| Mapa</span></h3>
     </div>
 
     <div class="cd-toolbar-actions">
@@ -15,7 +15,7 @@
           <i class="pi pi-building"></i> {{ selectedSucursal?.descripcion }}
         </span>
         <span class="filtro-chip anio" *ngIf="nroPrecorte">
-          <i class="pi pi-hashtag"></i> N° programa {{ nroPrecorte }}
+          <i class="pi pi-hashtag"></i> N° Programa {{ nroPrecorte }}
         </span>
       </div>
 
@@ -81,17 +81,17 @@
         <span class="titulo">Total</span>
       </div>
       <div class="card-resumen exec" [class.filtro-on]="filtroEstado === 'ejecutado'"
-        (click)="filtrarPorEstado('ejecutado')" style="cursor:pointer">
+        [style.border-top-color]="modo.colores['ejecutado']" (click)="filtrarPorEstado('ejecutado')" style="cursor:pointer">
         <span class="numero">{{ ejecutados }}</span>
-        <span class="titulo">{{ etiquetaEjecutado }}</span>
+        <span class="titulo">{{ modo.etiquetaEjecutado }}</span>
       </div>
       <div class="card-resumen pend" [class.filtro-on]="filtroEstado === 'pendiente'"
-        (click)="filtrarPorEstado('pendiente')" style="cursor:pointer">
+        [style.border-top-color]="modo.colores['pendiente']" (click)="filtrarPorEstado('pendiente')" style="cursor:pointer">
         <span class="numero">{{ pendientes }}</span>
         <span class="titulo">Pend.</span>
       </div>
       <div class="card-resumen pagado" [class.filtro-on]="filtroEstado === 'pagado'"
-        (click)="filtrarPorEstado('pagado')" style="cursor:pointer">
+        [style.border-top-color]="modo.colores['pagado']" (click)="filtrarPorEstado('pagado')" style="cursor:pointer">
         <span class="numero">{{ pagados }}</span>
         <span class="titulo">Pagó</span>
       </div>
@@ -143,11 +143,13 @@
         <i class="pi pi-times cerrar" (click)="mostrarLeyenda = false"></i>
       </div>
       <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'ejecutado'"
-        (click)="filtrarPorEstado('ejecutado')"><span class="punto ejecutado"></span> {{ etiquetaEjecutado }}</div>
+        (click)="filtrarPorEstado('ejecutado')"><span class="punto" [style.background]="modo.colores['ejecutado']"></span> {{ modo.etiquetaEjecutado }}</div>
       <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'pendiente'"
-        (click)="filtrarPorEstado('pendiente')"><span class="punto pendiente"></span> Pendiente</div>
+        (click)="filtrarPorEstado('pendiente')"><span class="punto" [style.background]="modo.colores['pendiente']"></span>
+        Pendiente</div>
       <div class="ley-item" [class.off]="filtroEstado && filtroEstado !== 'pagado'"
-        (click)="filtrarPorEstado('pagado')"><span class="punto pagado"></span> Pagó</div>
+        (click)="filtrarPorEstado('pagado')"><span class="punto" [style.background]="modo.colores['pagado']"></span> Pagó
+      </div>
     </div>
     <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda" (click)="mostrarLeyenda = true">
       <i class="pi pi-map-marker"></i>
@@ -247,7 +249,7 @@
                 corteSeleccionado.estadoservicio2 || '-' }}</span></div>
             <div class="up-cell"><span class="uc-label">Medidor</span><span class="uc-val">{{ corteSeleccionado.nromed
                 || 'SIN MEDIDOR' }}</span></div>
-            <div class="up-cell"><span class="uc-label">F. {{ etiquetaEjecutado | titlecase }}</span><span
+            <div class="up-cell"><span class="uc-label">F. {{ modo.etiquetaEjecutado | titlecase }}</span><span
                 class="uc-val">{{ fechaEjecucion(corteSeleccionado) ? (fechaEjecucion(corteSeleccionado) |
                 date:'dd/MM/yyyy HH:mm') : '-' }}</span></div>
             <div class="up-cell"><span class="uc-label">Día Pago</span><span class="uc-val">{{ corteSeleccionado.diapago

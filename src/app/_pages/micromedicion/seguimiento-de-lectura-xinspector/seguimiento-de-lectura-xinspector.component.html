@@ -83,14 +83,14 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedCiclo">
-        <p-dropdown [options]="listaSucursalesxusr" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+        <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
           (ngModelChange)="onSucursalChange()" [style]="{ width: '180px' }" placeholder="Sucursales"
           [appendTo]="'body'"></p-dropdown>
         <label>Sucursal</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion"
+        <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector" optionLabel="descripcion"
            [filter]="true" filterBy="descripcion"
           [style]="{ width: '180px' }" placeholder="Sector" [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
@@ -101,7 +101,7 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="inspectoresxSector" [(ngModel)]="selectedInspector"
+        <p-dropdown [options]="listaInspectores" [(ngModel)]="selectedInspector"
           optionLabel="names" [filter]="true" filterBy="names" [showClear]="true"
           [style]="{ width: '240px' }" placeholder="Inspector" [appendTo]="'body'">
           <ng-template let-insp pTemplate="item">
