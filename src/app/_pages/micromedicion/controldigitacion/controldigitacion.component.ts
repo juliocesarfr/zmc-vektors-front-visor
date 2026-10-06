@@ -99,10 +99,12 @@ import {
   abrirGoogleStreetView,
 } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+
 import {
   formatoFechaCorta,
   rangoFotosRecientes,
 } from "../../../shared/utils/fechas.utils";
+import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 
 /** Qué ficha muestra el popup según la capa en que se hizo clic. */
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
@@ -148,6 +150,7 @@ export class ControldigitacionComponent
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
+  private readonly factArchService = inject(FactArchService);
 
   totalEnVivo = 0;
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
@@ -404,8 +407,19 @@ export class ControldigitacionComponent
       .pipe(
         tap((response) => {
           this.fechaCiclos = response.data;
-          this.selectedAnio = this.fechaCiclos.year;
-          this.selectedMes = this.fechaCiclos.month;
+          this.factArchService
+            .recuperar_ultimo_periodo_comercial("001")
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((res) => {
+              const aniomes = res?.aniomes || "202609";
+              const anio = aniomes.substring(0, 4);
+              const mes = aniomes.substring(4, 6);
+              if (!this.listaYear.find((y) => y.anio === anio)) {
+                this.listaYear.unshift({ anio: anio });
+              }
+              this.selectedAnio = anio;
+              this.selectedMes = mes;
+            });
         }),
         switchMap(() =>
           this.sucursalesService.drop_sucursales_x_ciclo(
@@ -549,8 +563,19 @@ export class ControldigitacionComponent
     this.selectedTipoPromedio = TIPOS_PROMEDIO[0];
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
-      this.selectedAnio = this.fechaCiclos.year;
-      this.selectedMes = this.fechaCiclos.month;
+      this.factArchService
+        .recuperar_ultimo_periodo_comercial("001")
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((res) => {
+          const aniomes = res?.aniomes || "202609";
+          const anio = aniomes.substring(0, 4);
+          const mes = aniomes.substring(4, 6);
+          if (!this.listaYear.find((y) => y.anio === anio)) {
+            this.listaYear.unshift({ anio: anio });
+          }
+          this.selectedAnio = anio;
+          this.selectedMes = mes;
+        });
     }
     this.limpiarCapas();
   }
@@ -567,10 +592,21 @@ export class ControldigitacionComponent
     this.totalLecturas = registros.length;
     if (registros.length === 0) return;
 
-    const puntos = (origen: keyof typeof ORIGENES_COORDENADA) =>
-      registros
+    const puntos = (origen: keyof typeof ORIGENES_COORDENADA) => {
+      const coords = new Set<string>();
+      return registros
         .map((r) => crearFeaturePunto(r, ORIGENES_COORDENADA[origen]))
-        .filter((f): f is Feature => f !== null);
+        .filter((f): f is Feature => {
+          if (!f) return false;
+          const geom = f.getGeometry();
+          if (!geom || geom.getType() !== "Point") return false;
+          const [lon, lat] = (geom as any).getCoordinates();
+          const key = `${lon.toFixed(6)}_${lat.toFixed(6)}`;
+          if (coords.has(key)) return false;
+          coords.add(key);
+          return true;
+        });
+    };
 
     const lineas = (
       origen: keyof typeof ORIGENES_COORDENADA,

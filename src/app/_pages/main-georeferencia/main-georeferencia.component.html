@@ -1,9 +1,160 @@
+<p-toast></p-toast>
 <div class="main-geo">
   <div #mapa class="main-geo-mapa"></div>
 
   <div class="main-geo-titulo">
     <span class="main-geo-modulo">GEORREFERENCIA</span>
     <span class="main-geo-eps">{{ gis.config.descripcion }}</span>
+  </div>
+
+  <div class="main-geo-filtros">
+    <span class="p-float-label">
+      <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+        [style]="{ width: '180px' }" placeholder="Sucursal" [appendTo]="'body'"></p-dropdown>
+      <label>Sucursal</label>
+    </span>
+    <span class="p-float-label">
+      <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
+        [style]="{ width: '100px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
+      <label>Año</label>
+    </span>
+    <span class="p-float-label">
+      <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
+        [style]="{ width: '120px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
+      <label>Mes</label>
+    </span>
+  </div>
+
+  <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
+    <div class="search-header">
+      <span><i class="pi pi-search"></i> Buscar Cliente</span>
+      <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+    </div>
+    <div class="search-actions" *ngIf="searchCodCliente">
+      <span class="limpiar-link" (click)="reiniciarBusqueda()">
+        <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+      </span>
+    </div>
+    <div class="search-body p-inputgroup mt-2">
+      <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
+        (keyup.enter)="buscarPorCodCliente()">
+      <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"
+        title="Buscar"></button>
+    </div>
+  </div>
+  <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
+    <i class="pi pi-search"></i>
+  </button>
+
+  <div class="user-popup" *ngIf="lecturaSeleccionada">
+    <div class="up-header">
+      <div class="up-header-left">
+        <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
+        <div class="up-header-info">
+          <span class="up-label">TITULAR DEL PREDIO</span>
+          <strong class="up-name">{{ lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
+        </div>
+      </div>
+      <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+    </div>
+
+    <div class="up-suministro">
+      <div class="up-sum-item primary">
+        <i class="pi pi-bolt"></i>
+        <span class="up-sum-label">SUMINISTRO</span>
+        <span class="up-sum-value">{{ lecturaSeleccionada.codcliente || '-' }}</span>
+      </div>
+      <div class="up-sum-sep"></div>
+      <div class="up-sum-item">
+        <i class="pi pi-id-card"></i>
+        <span class="up-sum-label">DNI</span>
+        <span class="up-sum-value">{{ datosClientePopup?.nrodocident || '-' }}</span>
+      </div>
+    </div>
+
+    <div class="up-body">
+      <div class="up-section">
+        <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO
+          </div>
+          <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+            title="Ver en Google Street View"
+            (click)="abrirStreetView(lecturaSeleccionada.lon ?? lecturaSeleccionada.lonpredio, lecturaSeleccionada.lat ?? lecturaSeleccionada.latpredio)"
+            style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
+              alt="Street View">
+            <span style="font-weight: 900;">Ver en Maps</span>
+          </button>
+        </div>
+        <div class="up-grid grid-3">
+          <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ lecturaSeleccionada.codsector || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ lecturaSeleccionada.codmza || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Lote</span><span class="uc-val">{{ lecturaSeleccionada.nrolote || '-' }}</span></div>
+
+          <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ ((lecturaSeleccionada.descripcioncorta || '') + ' ' + (lecturaSeleccionada.descripcioncalle || '') + ' ' + (lecturaSeleccionada.nrocalle || '')) }}</span></div>
+
+          <div class="up-cell"><span class="uc-label">Piso</span><span class="uc-val">{{ datosClientePopup?.unidaddom ?? '1' }}</span></div>
+          <div class="up-cell span-2"><span class="uc-label">Tipo de Servicio</span>
+            <span class="uc-val">{{datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA') }}</span>
+          </div>
+
+          <div class="up-cell span-2">
+            <span class="uc-label">Tarifa / Inmueble</span>
+            <span class="uc-val">
+              {{ lecturaSeleccionada.tarifas || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}
+            </span>
+          </div>
+          <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{ datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
+        </div>
+      </div>
+
+      <div class="up-section">
+        <div class="up-section-title medidor">
+          <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Medidor"> NRO. MEDIDOR: {{
+          datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR' }}
+        </div>
+
+        <div class="up-lecturas-row">
+          <div class="up-lec-badge prev"><span class="ulb-label">LECT ANT.</span><span class="ulb-val">{{
+              lecturaSeleccionada.lecturaanterior ?? datosClientePopup?._medidor?.lecturaanterior ?? '-' }}</span>
+          </div>
+          <i class="pi pi-arrow-right up-lec-arrow"></i>
+          <div class="up-lec-badge curr"><span class="ulb-label"> LECT ACT.</span><span class="ulb-val">{{
+              lecturaSeleccionada.lecturaultima ?? lecturaSeleccionada.lectura ?? lecturaSeleccionada.lecturaactual ?? '-' }}</span></div>
+        </div>
+
+        <div class="up-grid grid-2">
+          <div class="up-cell"><span class="uc-label">Est. Lect.</span><span class="uc-val badge-est">{{ lecturaSeleccionada.estadolectura ?? datosClientePopup?._medidor?.estadolectura ?? '-' }}</span></div>
+          <div class="up-cell">
+            <span class="uc-label">Est. Med.</span>
+            <span class="uc-val badge-est">
+              {{ lecturaSeleccionada.estadomedidor || '-' }}
+            </span>
+          </div>
+
+          <div class="up-cell full">
+            <span class="uc-label">{{ getEtiquetaMovimientoMedidor() }}</span>
+            <span class="uc-val">{{ getFechaMovimientoMedidor() }}</span>
+          </div>
+
+          <div class="up-cell full"
+            *ngIf="lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion">
+            <span class="uc-label">Obs.</span>
+            <span class="uc-val obs">{{ lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura ||
+              datosClientePopup?._medidor?.observacion }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
+        <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
+          class="p-button-sm w-full btn-ver-mas"
+          (click)="verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)"></button>
+      </div>
+
+      
+    </div>
   </div>
 
   <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
