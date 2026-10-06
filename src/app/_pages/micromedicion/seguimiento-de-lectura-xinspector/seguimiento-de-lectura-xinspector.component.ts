@@ -82,6 +82,7 @@ import {
 import { InspectorLectura } from "@host/_models/vektors/InspectorLectura";
 import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLecturaInspector";
 import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
+import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 
 @Component({
   selector: "app-seguimiento-de-lectura-xinspector",
@@ -122,6 +123,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
+  private readonly factArchService = inject(FactArchService);
 
   totalEnVivo = 0;
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
@@ -453,8 +455,16 @@ export class SeguimientoDeLecturaXinspectorComponent
       .pipe(
         tap((response) => {
           this.fechaCiclos = response.data;
-          this.selectedAnio = this.fechaCiclos.year;
-          this.selectedMes = this.fechaCiclos.month;
+          this.factArchService.recuperar_ultimo_periodo_comercial('001').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
+            const aniomes = res?.aniomes || '202609';
+            const anio = aniomes.substring(0, 4);
+            const mes = aniomes.substring(4, 6);
+            if (!this.listaYear.find(y => y.anio === anio)) {
+              this.listaYear.unshift({ anio: anio });
+            }
+            this.selectedAnio = anio;
+            this.selectedMes = mes;
+          });
         }),
         switchMap(() =>
           this.sucursalesService.drop_sucursales_x_ciclo(
