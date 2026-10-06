@@ -54,6 +54,7 @@ import { abrirConsultaUsuario } from '../../shared/dialogos/consulta-usuario.dia
 import { formatoFechaCorta, rangoFotosRecientes } from '../../shared/utils/fechas.utils';
 import { ControlImgService } from '@host/_servicios/procesar-img/control-img.service';
 import { ClientesService } from '@host/_servicios/catastro/clientes.service';
+import { CatastroService } from '@host/_servicios/vektors/catastro.service';
 
 @Component({
   selector: 'app-main-georeferencia',
@@ -77,6 +78,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private readonly controlImgService = inject(ControlImgService);
   private readonly clientesService = inject(ClientesService);
   private readonly dialogService = inject(DialogService);
+  private readonly catastroService = inject(CatastroService);
 
   readonly baseLayers = CAPAS_BASE_UI;
   baseActive: string | null = 'osm';
@@ -221,7 +223,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.markerLayer?.getSource()?.clear();
     this.lecturaSeleccionada = null;
 
-    this.consultarSuministro(codigo).subscribe({
+    this.consultarClienteCatastro(codigo).subscribe({
       next: (registros) => {
         this.cargando = false;
         if (registros.length === 0) {
@@ -230,21 +232,46 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         }
 
         const registro = registros[0];
-        this.lecturaSeleccionada = registro;
-        this.cargarDatosPopup(registro);
+        
+        this.lecturaSeleccionada = {
+           ...registro,
+           tarifas: registro.nomtar,
+           servicio: registro.destiposervicio,
+           estadolectura: registro.estadoservicio, 
+           estadomedidor: registro.desestadomed
+        };
+        
+        this.datosClientePopup = {
+           ...registro,
+           _medidor: {
+              situacionmed: registro.situacionmed,
+              nromed: registro.nromed,
+              lecturaanterior: registro.lecturaanterior,
+              fecharetiro: registro.fecharetiro,
+              fechareinst: registro.fechareinst,
+              fechainsmed: registro.fechainsmed,
+              obslectura: registro.obs
+           },
+           _predio: {
+              tipopredio: registro.descripcionestservicio,
+              codalmacenaje: registro.pileta == 1 ? 'PILETA' : 'SIN ALMACENAMIENTO'
+           },
+           _conexionAgua: registro.tipocon_a
+        };
+
         const coord = extraerCoordenada(registro, ORIGENES_COORDENADA.usuario);
         
         if (coord) {
           const feature = new Feature({ geometry: new Point(coord) });
-          feature.setProperties(registro); // Save properties in feature for label
+          feature.setProperties(registro);
           
           feature.setStyle(
             this.estilos.punto({
               forma: 'circulo',
-              color: colorPorEstadoLectura(registro.estadolectura) || '#2563eb', // Default blue if no status
+              color: colorPorEstadoLectura(registro.estadoservicio) || '#2563eb',
               zoom: 19,
               seleccionado: true,
-              etiqueta: registro.codcliente,
+              etiqueta: registro.codcliente?.toString(),
               ...RADIOS_LECTURA
             })
           );
@@ -358,13 +385,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     abrirGoogleStreetView(lonLat);
   }
 
-  private consultarSuministro(codigo: string): Observable<RegistroLectura[]> {
-    return this.micromedicionService
-      .buscarLecturasPorSuministro({
+  private consultarClienteCatastro(codigo: string): Observable<any[]> {
+    return this.catastroService
+      .buscarClienteCatastro({
         codsuc: this.selectedSucursal.codsuc,
-        anio: this.selectedAnio,
-        mes: this.selectedMes,
-        nroSuministro: Number(codigo),
+        codcliente: Number(codigo)
       })
       .pipe(
         map((respuesta) => {

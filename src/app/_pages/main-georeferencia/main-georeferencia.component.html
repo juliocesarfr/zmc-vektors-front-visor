@@ -13,16 +13,6 @@
         [style]="{ width: '180px' }" placeholder="Sucursal" [appendTo]="'body'"></p-dropdown>
       <label>Sucursal</label>
     </span>
-    <span class="p-float-label">
-      <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
-        [style]="{ width: '100px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
-      <label>Año</label>
-    </span>
-    <span class="p-float-label">
-      <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
-        [style]="{ width: '120px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
-      <label>Mes</label>
-    </span>
   </div>
 
   <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
@@ -51,7 +41,7 @@
       <div class="up-header-left">
         <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
         <div class="up-header-info">
-          <span class="up-label">TITULAR DEL PREDIO</span>
+          <span class="up-label">TITULAR </span>
           <strong class="up-name">{{ lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
         </div>
       </div>
@@ -76,11 +66,11 @@
       <div class="up-section">
         <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN Y PREDIO
+            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> DETALLES DE LA CONEXIÓN
           </div>
           <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
             title="Ver en Google Street View"
-            (click)="abrirStreetView(lecturaSeleccionada.lon ?? lecturaSeleccionada.lonpredio, lecturaSeleccionada.lat ?? lecturaSeleccionada.latpredio)"
+            (click)="abrirStreetView(lecturaSeleccionada.longitud, lecturaSeleccionada.latitud)"
             style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
             <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
               alt="Street View">
@@ -106,6 +96,16 @@
             </span>
           </div>
           <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{ datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
+
+          <div class="up-cell full"><span class="uc-label">Actividad Económica</span><span class="uc-val">{{ lecturaSeleccionada.tipoactividad || '-' }}</span></div>
+          
+          <div class="up-cell"><span class="uc-label">Diam. Agua</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_a || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Diam. Desagüe</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_d || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Est. VMA</span><span class="uc-val">{{ lecturaSeleccionada.estadovma == '1' ? 'ACTIVO' : 'INACTIVO' }}</span></div>
+          
+          <div class="up-cell full"><span class="uc-label">Unidades de Uso</span><span class="uc-val">Doméstico: {{ lecturaSeleccionada.unidaddom || '0' }} | Comercial: {{ lecturaSeleccionada.unidadcom || '0' }} | Industrial: {{ lecturaSeleccionada.unidadind || '0' }}</span></div>
+          
+          <div class="up-cell full"><span class="uc-label">Fecha de Contrato</span><span class="uc-val">{{ lecturaSeleccionada.fechacontrato || '-' }}</span></div>
         </div>
       </div>
 
@@ -145,6 +145,37 @@
               datosClientePopup?._medidor?.observacion }}</span>
           </div>
         </div>
+      </div>
+
+      <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
+      <!-- NUEVA SECCION: CONTACTO E INFORMACIÓN -->
+      <div class="up-section">
+        <div class="up-section-title contacto">
+          <i class="pi pi-id-card" style="font-size: 1.1rem; margin-right: 5px;"></i> CONTACTO E INFORMACIÓN
+        </div>
+        <div class="up-grid grid-2">
+          <div class="up-cell"><span class="uc-label">Teléfono</span><span class="uc-val">{{ lecturaSeleccionada.telefono || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Email</span><span class="uc-val" style="text-transform: lowercase;">{{ lecturaSeleccionada.email || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Inquilino</span><span class="uc-val">{{ lecturaSeleccionada.inquilino || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">RUC</span><span class="uc-val">{{ lecturaSeleccionada.ruc || '-' }}</span></div>
+        </div>
+      </div>
+
+      <!-- NUEVA SECCION: FACTURACIÓN Y ESTADO DE CUENTA -->
+      <div class="up-section">
+        <div class="up-section-title facturacion">
+          <i class="pi pi-wallet" style="font-size: 1.1rem; margin-right: 5px;"></i> FACTURACIÓN Y DEUDA
+        </div>
+        <div class="up-grid grid-3">
+          <div class="up-cell"><span class="uc-label">Meses Deuda</span><span class="uc-val" style="color: #dc2626; font-weight: bold;">{{ lecturaSeleccionada.mesesdeuda || '0' }}</span></div>
+          <div class="up-cell span-2"><span class="uc-label">Total a Pagar</span><span class="uc-val" style="color: #dc2626; font-weight: bold; font-size: 1.1em;">S/ {{ (lecturaSeleccionada.impmestotal | number:'1.2-2') || '0.00' }}</span></div>
+          
+          <div class="up-cell"><span class="uc-label">Intereses</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impintereses | number:'1.2-2') || '0.00' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Cuota Refin.</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impsaldorefin | number:'1.2-2') || '0.00' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Deuda Total</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impdeudatotal | number:'1.2-2') || '0.00' }}</span></div>
+        </div>
+      </div>
+
       </div>
 
       <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
