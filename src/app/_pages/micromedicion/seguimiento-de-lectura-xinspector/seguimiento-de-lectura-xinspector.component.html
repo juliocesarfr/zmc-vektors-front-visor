@@ -294,5 +294,9 @@
           (click)="verMasInformacion($any(registroSeleccionado['codcliente']))"></button>
       </div>
     </div>
+
+    <app-paneles-mapa-gis [controlador]="controladorGis"
+      [hayPanelDerecho]="!!registroSeleccionado || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
   </div>
 </div>

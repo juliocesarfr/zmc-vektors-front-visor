@@ -6,6 +6,7 @@ import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-ge
 import {
   CapaGisId,
   CapasTecnicasGis,
+  ConsultaCapaGis,
   GisEpsConfig,
   GisVistaConfig,
 } from "./gis-config.model";
@@ -121,7 +122,11 @@ export class GisConfigService {
     return `${baseUrl}/${workspace}/ows`;
   }
 
-  urlGetFeature(id: CapaGisId, cqlFilter?: string): string | null {
+  urlGetFeature(
+    id: CapaGisId,
+    cqlFilter?: string,
+    parametrosExtra: Record<string, string> = {},
+  ): string | null {
     const typeName = this.capa(id);
     if (!typeName) return null;
 
@@ -131,6 +136,7 @@ export class GisConfigService {
       request: "GetFeature",
       typeName,
       outputFormat: "application/json",
+      ...parametrosExtra,
     });
     if (cqlFilter) params.set("CQL_FILTER", cqlFilter);
 
@@ -189,6 +195,7 @@ export class GisConfigService {
     lotes: "lotes",
     sectores: "sectoresComerciales",
     calles: "calles",
+    rutaLectura: "rutaLectura",
   };
 
   // Los switches vectoriales (sin rol WMS) se conservan siempre.
@@ -207,6 +214,10 @@ export class GisConfigService {
       .replace(/[_-]+/g, " ")
       .trim();
     return palabras.charAt(0).toUpperCase() + palabras.slice(1);
+  }
+
+  consultaCapa(id: CapaGisId): ConsultaCapaGis {
+    return this.actual.consultaCapas?.[id] ?? {};
   }
 
   calificarCapa(nombre: string | undefined): string {

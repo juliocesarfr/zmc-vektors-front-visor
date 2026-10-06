@@ -8,7 +8,7 @@ import OSM from "ol/source/OSM";
 import TileWMS from "ol/source/TileWMS";
 import XYZ from "ol/source/XYZ";
 
-import { GisConfigService } from "../../../core/gis";
+import { CapaConsultable, GisConfigService } from "../../../core/gis";
 import { crearCapaWms } from "../../mapa/capas";
 
 export interface CapaBaseUi {
@@ -67,6 +67,10 @@ export class CapasSidebarComponent {
       this.capasTecnicas.set(c.id, capa);
       capas.insertAt(indice++, capa);
     }
+  }
+
+  capasTecnicasConsultables(): CapaConsultable[] {
+    return Array.from(this.capasTecnicas, ([rol, capa]) => ({ rol, capa }));
   }
 
   toggleTecnica(capa: CapaSwitchUi): void {

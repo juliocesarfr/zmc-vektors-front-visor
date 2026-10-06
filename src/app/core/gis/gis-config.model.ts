@@ -10,7 +10,9 @@ export type CapaGisConocida =
   | "acometidaAlcantarillado"
   | "fichaAgua"
   | "fichaAlcantarillado"
-  | "tuberias"
+  | "rutaLectura"
+  | "tuberiasAgua"
+  | "tuberiasAlcantarillado"
   | "fuentes"
   | "valvulas"
   | "curvasNivel";
@@ -32,12 +34,14 @@ export interface CapasGis {
   acometidaAlcantarillado?: string;
   fichaAgua?: string;
   fichaAlcantarillado?: string;
+  rutaLectura?: string;
 }
 
 export interface CapasTecnicasGis {
   [rol: string]: string | undefined;
 
-  tuberias?: string;
+  tuberiasAgua?: string;
+  tuberiasAlcantarillado?: string;
   fuentes?: string;
   valvulas?: string;
   curvasNivel?: string;
@@ -67,4 +71,15 @@ export interface GisEpsConfig {
   vista?: GisVistaConfig;
   proyecciones: GisProyeccionesConfig;
   etiquetas?: Record<string, string>;
+  /** Rol -> qué se muestra al hacer clic sobre un elemento de esa capa. */
+  consultaCapas?: Record<string, ConsultaCapaGis>;
+}
+
+export interface ConsultaCapaGis {
+  /** Columna que identifica al elemento; da el título del popup y de sus pestañas. */
+  campoTitulo?: string;
+  /** Columna de GeoServer -> rótulo, en el orden en que se muestran. Sin ella se muestran todas. */
+  atributos?: Record<string, string>;
+  /** Columna con el código de cliente; permite ubicar el predio de un usuario buscado. */
+  campoCliente?: string;
 }

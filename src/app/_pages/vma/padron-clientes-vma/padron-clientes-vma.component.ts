@@ -1,5 +1,6 @@
 import {
   Component,
+  ViewChild,
   OnInit,
   CUSTOM_ELEMENTS_SCHEMA,
   DestroyRef,
@@ -28,14 +29,28 @@ import { Feature } from "ol";
 import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-visor.component";
 import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
 import { MapEstilosFactory, RADIOS_LECTURA } from "../../../shared/mapa/mapa-estilos";
-import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
-import { crearFeaturePunto, extraerCoordenada, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
+import { ListadoMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { ColumnaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { crearFeaturePunto, extraerCoordenada } from "../../../shared/mapa/geo.utils";
 import { FiltroPadronClientesVMARequest } from "@host/_models/vektors/VMA/FiltroPadronClientesVMARequest";
 import { VmaService } from "@host/_servicios/vektors/vma.service";
 import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
 import { abrirGoogleStreetView } from "../../../shared/mapa/street-view";
-import type Circle from "ol/geom/Circle";
 
+
+const COLUMNAS_TABLA_PADRON_VMA: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "catetar", titulo: "Categoría", anchoExcel: 10 },
+  { campo: "descripactividad", titulo: "Actividad", anchoExcel: 28 },
+  { campo: "estadoservicio", titulo: "Estado del servicio", anchoExcel: 16 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+];
 
 @Component({
   selector: "app-padron-clientes-vma",
@@ -123,13 +138,28 @@ export class PadronClientesVmaComponent implements OnInit {
     this.cargarCatalogos();
   }
 
+  @ViewChild(MapaVisorComponent) private visor?: MapaVisorComponent;
+
+  readonly listadoMapa: Omit<ListadoMapaGis, "excelService"> = {
+    columnas: COLUMNAS_TABLA_PADRON_VMA,
+    tituloReporte: "PADRÓN DE CLIENTES VMA",
+    nombreArchivo: "padron_vma_area_",
+    origen: ORIGENES_COORDENADA.usuario,
+    registros: () => this.resultadoBusquedaJson ?? [],
+    aFila: (registro) => ({ ...registro, direccion: direccionDe(registro) }),
+    subcabecera: () => [
+      `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+      `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+      `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+    ],
+  };
+
   onMapReady(map: OlMap): void {
     this.map = map;
-    agregarHerramientasMapa(this.map, (geometry) => {
-      if (geometry && geometry.getType() === 'Circle') {
-        this.contarElementosEnRadio(geometry);
-      }
-    });
+  }
+
+  mostrarAvisoMapa(detalle: string): void {
+    this.avisar("info", "Aviso", detalle);
   }
 
 
@@ -357,6 +387,7 @@ export class PadronClientesVmaComponent implements OnInit {
 
   private limpiarCapas(): void {
     this.usuariosLayer.getSource()?.clear();
+    this.visor?.descartarListado();
     this.totalClientes = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -410,6 +441,7 @@ export class PadronClientesVmaComponent implements OnInit {
             if (features && features.length > 0) {
               this.onFeatureClick(features[0]);
             }
+            this.visor?.marcarPredio(query);
             
             this.avisar("success", "Encontrado", `Cliente ${query} encontrado.`);
           } else {
@@ -427,14 +459,5 @@ export class PadronClientesVmaComponent implements OnInit {
     this.resultadoBusquedaJson = null;
     this.limpiarCapas();
     this.cerrarPopup();
-  }
-
-  private contarElementosEnRadio(circulo: Circle): void {
-    const total = contarPuntosEnCirculo(this.usuariosLayer?.getSource(), circulo);
-    this.messageService.add({
-      severity: "info",
-      summary: "Selección de Radio",
-      detail: `Se encontraron ${total} clientes en el área seleccionada.`,
-    });
   }
 }

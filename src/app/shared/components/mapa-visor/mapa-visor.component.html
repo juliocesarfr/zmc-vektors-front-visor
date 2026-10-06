@@ -49,5 +49,9 @@
     </app-capas-sidebar>
 
     <ng-content select="[map-popup]"></ng-content>
+
+    <app-paneles-mapa-gis [controlador]="controladorGis"
+      [hayPanelDerecho]="hayPopupAbierto || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
   </div>
 </div>

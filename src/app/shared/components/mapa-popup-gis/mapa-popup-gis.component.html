@@ -1,0 +1,30 @@
+<div class="popup-gis" (click)="$event.stopPropagation()">
+  <div class="pg-header">
+    <div class="pg-icono"><i class="pi pi-map-marker"></i></div>
+    <div class="pg-header-info">
+      <span class="pg-label">{{ elementoActivo?.capa }}</span>
+      <strong class="pg-titulo" [title]="elementoActivo?.titulo">{{ elementoActivo?.titulo }}</strong>
+    </div>
+    <button class="pg-cerrar" (click)="cerrar.emit()" title="Cerrar"><i class="pi pi-times"></i></button>
+  </div>
+
+  <div class="pg-pestanas" *ngIf="elementos.length > 1">
+    <span class="pg-pestanas-ayuda">{{ elementos.length }} elementos en este punto</span>
+    <button *ngFor="let elemento of elementos; let indice = index" [class.activa]="indice === indiceActivo"
+      [title]="elemento.capa" (click)="seleccionarElemento(indice)">
+      <small>{{ elemento.capa }}</small> {{ elemento.titulo === elemento.capa ? '' : elemento.titulo }}
+    </button>
+  </div>
+
+  <div class="pg-cuerpo" *ngIf="elementoActivo?.atributos?.length; else sinAtributos">
+    <div class="pg-celda" *ngFor="let atributo of elementoActivo!.atributos"
+      [class.completa]="ocupaFilaCompleta(atributo.valor)">
+      <span class="pg-celda-etiqueta">{{ atributo.etiqueta }}</span>
+      <span class="pg-celda-valor">{{ atributo.valor }}</span>
+    </div>
+  </div>
+
+  <ng-template #sinAtributos>
+    <div class="pg-vacio">Este elemento no tiene datos registrados.</div>
+  </ng-template>
+</div>

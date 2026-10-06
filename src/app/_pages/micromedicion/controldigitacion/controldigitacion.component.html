@@ -515,6 +515,10 @@
         </div>
       </div>
     </div>
+
+    <app-paneles-mapa-gis [controlador]="controladorGis"
+      [hayPanelDerecho]="!!lecturaSeleccionada || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
   </div>
 </div>
 
