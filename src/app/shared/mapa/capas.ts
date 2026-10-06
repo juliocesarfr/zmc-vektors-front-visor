@@ -7,6 +7,13 @@ import type { CapaBaseUi } from "../components/capas-sidebar/capas-sidebar.compo
 
 const URL_GOOGLE_SATELITAL = "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}";
 
+// GeoServer se queda a ratos sin conexiones a PostGIS ("Timeout waiting for idle object") y responde
+// con error; OpenLayers no vuelve a pedir una tesela fallida, así que quedarían huecos en la capa.
+const MS_ESPERA_REINTENTO = 4000;
+const MAXIMO_REINTENTOS = 4;
+// Pasado este tiempo sin errores, una falla nueva vuelve a tener todos sus reintentos.
+const MS_OLVIDAR_REINTENTOS = 60000;
+
 /** Botones de mapa base que muestra el panel de capas. */
 export const CAPAS_BASE_UI: CapaBaseUi[] = [
   { id: "osm", label: "OSM", iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif" },
@@ -32,14 +39,39 @@ export function crearCapaWms(
   visible: boolean,
   opacidad = 1,
 ): TileLayer<TileWMS> {
-  return new TileLayer({
-    visible,
-    opacity: opacidad,
-    source: new TileWMS({
-      url: urlWms,
-      params: { LAYERS: nombreCapa, TILED: false },
-      serverType: "geoserver",
-      transition: 0,
-    }),
+  const fuente = new TileWMS({
+    url: urlWms,
+    // TILED permite que GeoWebCache sirva la tesela desde caché en vez de renderizarla de nuevo.
+    params: { LAYERS: nombreCapa, TILED: true },
+    serverType: "geoserver",
+    // Permite leer el píxel (`getData`) para saber si el cursor está sobre algo; GeoServer responde con CORS abierto.
+    crossOrigin: "anonymous",
+    transition: 0,
+  });
+  reintentarTeselasFallidas(fuente);
+  return new TileLayer({ visible, opacity: opacidad, source: fuente });
+}
+
+/**
+ * Vuelve a pedir la capa cuando fallan teselas, con espera creciente y un tope de intentos.
+ * Se cambia un parámetro que GeoServer ignora: así OpenLayers pide de nuevo todas las teselas
+ * sin borrar las que ya se ven, en vez de `refresh()`, que dejaría la capa en blanco un momento.
+ */
+function reintentarTeselasFallidas(fuente: TileWMS): void {
+  let reintentos = 0;
+  let ultimaFalla = 0;
+  let temporizador: number | undefined;
+
+  fuente.on("tileloaderror", () => {
+    const ahora = Date.now();
+    if (ahora - ultimaFalla > MS_OLVIDAR_REINTENTOS) reintentos = 0;
+    ultimaFalla = ahora;
+    if (temporizador !== undefined || reintentos >= MAXIMO_REINTENTOS) return;
+
+    reintentos++;
+    temporizador = window.setTimeout(() => {
+      temporizador = undefined;
+      fuente.updateParams({ REINTENTO: reintentos });
+    }, MS_ESPERA_REINTENTO * reintentos);
   });
 }

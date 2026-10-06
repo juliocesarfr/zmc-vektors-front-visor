@@ -24,12 +24,11 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import Feature from 'ol/Feature';
 import Point from 'ol/geom/Point';
-import Style from 'ol/style/Style';
-import Circle from 'ol/style/Circle';
-import Fill from 'ol/style/Fill';
-import Stroke from 'ol/style/Stroke';
 
-import { GisConfigService } from '../../core/gis';
+import { CapaConsultable, ConsultaCapasGisService, GisConfigService } from '../../core/gis';
+import { ControladorMapaGis } from '../../shared/mapa/controlador-mapa-gis';
+import { MARCA_CAPA_RESALTADO } from '../../shared/mapa/interaccion-gis';
+import { PanelesMapaGisComponent } from '../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component';
 import { MapEstilosFactory, RADIOS_LECTURA } from '../../shared/mapa/mapa-estilos';
 import { colorPorEstadoLectura } from '../../shared/constantes/colores-mapa';
 import { observarTamanoMapa } from "../../shared/mapa/observar-tamano-mapa";
@@ -61,7 +60,7 @@ import { CatastroService } from '@host/_servicios/vektors/catastro.service';
   templateUrl: './main-georeferencia.component.html',
   styleUrl: './main-georeferencia.component.scss',
   standalone: true,
-  imports: [CapasSidebarComponent, CommonModule, FormsModule, DropdownModule, ButtonModule, InputTextModule, ToastModule],
+  imports: [CapasSidebarComponent, PanelesMapaGisComponent, CommonModule, FormsModule, DropdownModule, ButtonModule, InputTextModule, ToastModule],
   providers: [MessageService, DialogService]
 })
 export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -69,6 +68,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
 
   readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  controladorGis?: ControladorMapaGis;
   private readonly destroyRef = inject(DestroyRef);
   private readonly estilos = new MapEstilosFactory();
   private readonly micromedicionService = inject(MicromedicionService);
@@ -168,6 +169,23 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       }),
     });
     this.capasSidebar?.conectarMapa(this.map);
+    // Sin listado: esta pantalla no tiene herramientas de dibujo ni registros cargados.
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () => this.capasComercialesConsultables(),
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: (detalle) => this.avisar('info', 'Aviso', detalle),
+    });
+    this.map.on('singleclick', (evento) => {
+      const tocoMarcador = this.map!.hasFeatureAtPixel(evento.pixel, {
+        hitTolerance: 5,
+        layerFilter: (capa) => capa === this.markerLayer && !capa.get(MARCA_CAPA_RESALTADO),
+      });
+      if (tocoMarcador) return;
+      this.cerrarPopup();
+      this.controladorGis?.consultarPunto(evento.coordinate);
+    });
     this.detenerObservadorMapa = observarTamanoMapa(
       this.map,
       this.mapaEl.nativeElement,
@@ -176,12 +194,17 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
+    this.controladorGis?.destruir();
     this.map?.setTarget(undefined);
   }
 
   setBaseLayer(id: string): void {
     this.baseActive = id;
     this.capasBase.forEach((capa, clave) => capa.setVisible(clave === id));
+  }
+
+  private capasComercialesConsultables(): CapaConsultable[] {
+    return Array.from(this.capasWms, ([rol, capa]) => ({ rol, capa: capa as CapaConsultable['capa'] }));
   }
 
   toggleLayer(capa: CapaSwitchUi): void {
@@ -203,6 +226,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   reiniciarBusqueda(): void {
     this.searchCodCliente = "";
+    this.controladorGis?.quitarPredio();
     this.markerLayer?.getSource()?.clear();
     this.lecturaSeleccionada = null;
   }
@@ -232,6 +256,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         }
 
         const registro = registros[0];
+        this.controladorGis?.cerrarPopupGis();
+        this.controladorGis?.marcarPredio(codigo);
         
         this.lecturaSeleccionada = {
            ...registro,

@@ -54,21 +54,24 @@ import { BuscarProgramaCorteComponent } from "../buscar-programa-corte/buscar-pr
 import { TIPOS_RECEPCION_FOTOS_CORTE } from "../../../shared/constantes/lecturas";
 import { ORIGENES_COORDENADA, DISTANCIA_MAX_ACOMETIDA_M } from "../../../shared/constantes/coordenadas";
 import { COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from "../../../shared/constantes/colores-mapa";
-import { crearFeaturePunto, crearFeatureLinea, extraerCoordenada, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
+import { crearFeaturePunto, crearFeatureLinea, extraerCoordenada } from "../../../shared/mapa/geo.utils";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
 } from "../../../shared/mapa/mapa-estilos";
-import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
+import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
+import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { ExcelService } from "@host/_servicios/reportes/excel.service";
 import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
-import { GisConfigService } from "../../../core/gis";
+import { ConsultaCapasGisService, GisConfigService } from "../../../core/gis";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
 import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
 import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
-import type Circle from "ol/geom/Circle";
 import { ActivatedRoute } from "@angular/router";
 import { EstadoCorte, MODO_CORTE, ModoSeguimiento } from "./modos-seguimiento";
 import {
@@ -84,12 +87,26 @@ import {
 } from "./seguimiento-programa.reglas";
 import { RegistroCorte } from "@host/_models/vektors/Cobranza/RegistroCorte";
 
+const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "estadoOperacion", titulo: "Estado", anchoExcel: 16 },
+  { campo: "fechaOperacion", titulo: "Fecha de ejecución", anchoExcel: 18 },
+  { campo: "nromesesdeuda", titulo: "Meses de deuda", anchoExcel: 10 },
+  { campo: "impdeuda", titulo: "Deuda (S/)", anchoExcel: 12 },
+  { campo: "inspector", titulo: "Inspector", anchoExcel: 30 },
+];
+
 @Component({
   selector: "app-seguimiento-programa",
   standalone: true,
   imports: [
     CapasSidebarComponent,
     VisorImagenesComponent,
+    PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -114,6 +131,9 @@ export class SeguimientoProgramaComponent
   private detenerObservadorMapa?: () => void;
 
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly excelService = inject(ExcelService);
+  controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
 
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
@@ -243,17 +263,9 @@ export class SeguimientoProgramaComponent
 
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
+    this.controladorGis?.destruir();
     this.map?.setTarget(undefined);
     this.ref?.close();
-  }
-
-  private contarElementosEnRadio(circulo: Circle): void {
-    const total = contarPuntosEnCirculo(this.cortesLayer?.getSource(), circulo);
-    this.messageService.add({
-      severity: "info",
-      summary: "Selección de Radio",
-      detail: `Se encontraron ${total} cortes/reaperturas en el área seleccionada.`,
-    });
   }
 
   // ============================================================
@@ -351,6 +363,7 @@ export class SeguimientoProgramaComponent
   }
 
   private limpiarCapasVector(): void {
+    this.controladorGis?.descartarListado();
     [
       this.cortesLayer,
       this.lotesUsuarioLayer,
@@ -560,11 +573,54 @@ export class SeguimientoProgramaComponent
       }),
     });
 
-    agregarHerramientasMapa(this.map, (geometry) => {
-      if (geometry && geometry.getType() === 'Circle') {
-        this.contarElementosEnRadio(geometry);
-      }
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () => [
+        { rol: "lotes", capa: this.lotesLayer },
+        { rol: "calles", capa: this.callesLayer },
+        { rol: "sectoresComerciales", capa: this.sectoresLayer },
+      ],
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: (detalle) => this.avisar("info", "Aviso", detalle),
+      listado: {
+        columnas: COLUMNAS_TABLA_PROGRAMA,
+        tituloReporte: this.modo.titulo.toUpperCase(),
+        nombreArchivo: this.modo.esReapertura ? "reaperturas_area_" : "cortes_area_",
+        origen: ORIGENES_COORDENADA.usuario,
+        registros: () => this.registros ?? [],
+        aFila: (registro) => this.aFilaTabla(registro as RegistroCorte),
+        subcabecera: () => [
+          `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+          `Programa: ${this.nroPrecorte ?? "-"}`,
+        ],
+        excelService: this.excelService,
+      },
     });
+  }
+
+  private aFilaTabla(registro: RegistroCorte): FilaListado {
+    const direccion = direccionDe(registro);
+    return {
+      ...registro,
+      direccion,
+      estadoOperacion: this.etiquetaEstado(registro),
+      fechaOperacion: this.fechaEjecucion(registro) ?? "",
+    };
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = String(fila["codcliente"] ?? "").trim();
+    const punto = this.cortesLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => String(f.get("codcliente") ?? "").trim() === codigo);
+    if (!punto) {
+      this.avisar("warn", "Aviso", `El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto);
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
   }
 
   private estiloPunto(feature: Feature): Style {
@@ -594,15 +650,18 @@ export class SeguimientoProgramaComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
-      if (isDrawing) return;
+      if (estaUsandoHerramientas(this.map)) return;
       const f = this.map.forEachFeatureAtPixel(
         evt.pixel,
         (ft, layer) => (layer === this.cortesLayer ? ft : undefined),
         { hitTolerance: 6 },
       ) as Feature | undefined;
-      if (f) this.seleccionarFeature(f);
-      else this.cerrarPopup();
+      if (f) {
+        this.seleccionarFeature(f);
+      } else {
+        this.cerrarPopup();
+        this.controladorGis?.consultarPunto(evt.coordinate);
+      }
     });
   }
 
@@ -625,7 +684,9 @@ export class SeguimientoProgramaComponent
   // SELECCIÓN / POPUP / BÚSQUEDA
   // ============================================================
 
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
   private seleccionarFeature(feature: Feature): void {
+    this.controladorGis?.cerrarPopupGis();
     this.featureSeleccionado = feature;
     this.corteSeleccionado = feature.getProperties() as RegistroCorte;
     this.corteSeleccionado.observacion_history = undefined;
@@ -711,6 +772,7 @@ export class SeguimientoProgramaComponent
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         if (res?.success && res.data) {
+          this.controladorGis?.marcarPredio(q);
           const src = this.cortesLayer.getSource()!;
           const f = src.getFeatures().find((ft) => String(ft.get("codcliente") ?? "").trim() === q);
 
@@ -745,6 +807,7 @@ export class SeguimientoProgramaComponent
   cerrarBusqueda(): void {
     this.mostrarSearchPanel = false;
     this.searchCodCliente = "";
+    this.controladorGis?.quitarPredio();
   }
 
   abrirStreetView(r: RegistroCorte | null): void {

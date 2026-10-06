@@ -8,7 +8,10 @@
   (mapClick)="onMapClick()"
   (search)="buscarCliente($event)"
   (clearSearch)="limpiarBusquedaCliente()"
-  (mapReady)="onMapReady($event)">
+  (mapReady)="onMapReady($event)"
+  [listado]="listadoMapa"
+  [hayPopupAbierto]="!!clienteSeleccionado"
+  (aviso)="mostrarAvisoMapa($event)">
   
   <ng-container toolbar-actions>
     <div class="cd-filtros-summary" *ngIf="!filtrosVisible">

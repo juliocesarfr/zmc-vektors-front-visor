@@ -29,7 +29,13 @@ import VectorSource from 'ol/source/Vector';
 import { Feature } from 'ol';
 
 import { observarTamanoMapa } from "../../mapa/observar-tamano-mapa";
-import { GisConfigService } from '../../../core/gis';
+import { ConsultaCapasGisService, GisConfigService } from '../../../core/gis';
+import { ExcelService } from '@host/_servicios/reportes/excel.service';
+import { ControladorMapaGis, ListadoMapaGis } from '../../mapa/controlador-mapa-gis';
+import { estaUsandoHerramientas } from '../../mapa/herramientas-medicion';
+import { MARCA_CAPA_RESALTADO } from '../../mapa/interaccion-gis';
+import { FilaListado } from '../../utils/listado-excel';
+import { PanelesMapaGisComponent } from '../paneles-mapa-gis/paneles-mapa-gis.component';
 import { CapasSidebarComponent } from '../capas-sidebar/capas-sidebar.component';
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../mapa/capas";
 
@@ -48,7 +54,7 @@ export interface CommercialLayerConfig {
 @Component({
   selector: 'app-mapa-visor',
   standalone: true,
-  imports: [CapasSidebarComponent, CommonModule, FormsModule, ButtonModule, InputTextModule],
+  imports: [CapasSidebarComponent, PanelesMapaGisComponent, CommonModule, FormsModule, ButtonModule, InputTextModule],
   templateUrl: './mapa-visor.component.html',
   styleUrl: './mapa-visor.component.scss',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -70,16 +76,30 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @Input() customVectorLayers: VectorLayer<VectorSource>[] = [];
 
+  /**
+   * Con listado, el visor agrega las herramientas de dibujo y lista en tabla o Excel los
+   * clientes del área dibujada; sin él, el mapa no tiene herramientas.
+   */
+  @Input() listado?: Omit<ListadoMapaGis, 'excelService'>;
+  /** La pantalla tiene abierto su popup del cliente: la tabla del área se corre para no taparlo. */
+  @Input() hayPopupAbierto = false;
+
   @Output() featureClick = new EventEmitter<Feature>();
   @Output() mapClick = new EventEmitter<void>();
   @Output() search = new EventEmitter<string>();
   @Output() clearSearch = new EventEmitter<void>();
   @Output() mapReady = new EventEmitter<OlMap>();
-
+  /** Mensaje para el usuario (por ejemplo, que primero cargue los datos); la pantalla lo muestra en su toast. */
+  @Output() aviso = new EventEmitter<string>();
+
+
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild('mapContainer', { static: false }) mapContainer!: ElementRef;
 
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly excelService = inject(ExcelService);
+  controladorGis?: ControladorMapaGis;
 
   map!: OlMap;
   private detenerObservadorMapa?: () => void;
@@ -122,6 +142,15 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.crearMapa();
     this.capasSidebar?.conectarMapa(this.map);
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () =>
+        Array.from(this.capasWms, ([rol, capa]) => ({ rol, capa })),
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: this.avisar,
+      listado: this.listado && { ...this.listado, excelService: this.excelService },
+    });
 
     requestAnimationFrame(() => {
       const el = this.mapContainer?.nativeElement;
@@ -137,6 +166,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.detenerObservadorMapa) {
       this.detenerObservadorMapa();
     }
+    this.controladorGis?.destruir();
     if (this.map) {
       this.map.setTarget(undefined);
     }
@@ -175,8 +205,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
-      if (isDrawing) return;
+      if (estaUsandoHerramientas(this.map)) return;
 
       let f: Feature | undefined;
       this.map.forEachFeatureAtPixel(
@@ -184,15 +213,48 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
         (feature) => {
           if (!f) f = feature as Feature;
         },
-        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
+        {
+          hitTolerance: 5,
+          layerFilter: (layer: any) => !layer.get('isDrawLayer') && !layer.get(MARCA_CAPA_RESALTADO),
+        }
       );
 
       if (f) {
-        this.featureClick.emit(f);
+        this.seleccionarFeature(f);
       } else {
         this.mapClick.emit();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
+  }
+
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
+  private seleccionarFeature(feature: Feature): void {
+    this.controladorGis?.cerrarPopupGis();
+    this.featureClick.emit(feature);
+  }
+
+  /** La pantalla encontró al cliente buscado: se marca su lote en el mapa. */
+  marcarPredio(codcliente: string | number): void {
+    this.controladorGis?.marcarPredio(String(codcliente));
+  }
+
+  /** La pantalla volvió a pintar sus datos: el listado del área anterior ya no corresponde. */
+  descartarListado(): void {
+    this.controladorGis?.descartarListado();
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = String(fila['codcliente'] ?? '').trim();
+    const punto = this.customVectorLayers
+      .flatMap((capa) => capa.getSource()?.getFeatures() ?? [])
+      .find((f) => String(f.get('codcliente') ?? '').trim() === codigo);
+    if (!punto) {
+      this.avisar(`El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto);
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
   }
 
   setBaseLayer(id: string): void {
@@ -233,7 +295,10 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   limpiarBusqueda(): void {
     this.searchQuery = "";
+    this.controladorGis?.quitarPredio();
     this.isBusquedaActiva = false;
     this.clearSearch.emit();
   }
+
+  private readonly avisar = (detalle: string): void => this.aviso.emit(detalle);
 }

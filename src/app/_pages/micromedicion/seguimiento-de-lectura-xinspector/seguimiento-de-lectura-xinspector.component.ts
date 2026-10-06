@@ -51,15 +51,20 @@ import { COLORES_SEGUIMIENTO_LECTURA } from "../../../shared/constantes/colores-
 import { LISTA_MESES, SECTOR_TODOS } from "../../../shared/constantes/lecturas";
 import { SectorCiclo } from "@host/_models/vektors/SectorCiclo";
 import { ROTULO_ENVIVO_MS } from "../../../shared/mapa/destello-lecturas";
-import { extraerCoordenada, crearFeaturePunto, crearFeatureLinea, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
+import { extraerCoordenada, crearFeaturePunto, crearFeatureLinea } from "../../../shared/mapa/geo.utils";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
   RADIOS_FICHA,
 } from "../../../shared/mapa/mapa-estilos";
-import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
+import { MARCA_CAPA_RESALTADO } from "../../../shared/mapa/interaccion-gis";
+import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
+import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { ExcelService } from "@host/_servicios/reportes/excel.service";
 import { DestelloLecturas } from "../../../shared/mapa/destello-lecturas";
-import { GisConfigService } from "../../../core/gis";
+import { CapaConsultable, ConsultaCapasGisService, GisConfigService } from "../../../core/gis";
 import {
   LecturasEnVivoService,
 } from "../../../core/tiempo-real";
@@ -69,7 +74,6 @@ import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
 import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
-import type Circle from "ol/geom/Circle";
 import {
   ORIGEN_TOMA_INSPECTOR,
   MINIMO_TOMAS_REPETIDAS,
@@ -84,11 +88,27 @@ import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLe
 import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
 import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 
+const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "lecturaultima", titulo: "Lect. actual", anchoExcel: 12 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+  { campo: "situacionToma", titulo: "Lectura", anchoExcel: 12 },
+  { campo: "distanciaToma", titulo: "Distancia de la toma", anchoExcel: 14 },
+  { campo: "fechamovil", titulo: "Fecha de toma", anchoExcel: 20 },
+  { campo: "inspector", titulo: "Inspector", anchoExcel: 30 },
+];
+
 @Component({
   selector: "app-seguimiento-de-lectura-xinspector",
   standalone: true,
   imports: [
     CapasSidebarComponent,
+    PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -117,6 +137,11 @@ export class SeguimientoDeLecturaXinspectorComponent
   private readonly cicloCambiado = new Subject<void>();
   private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly excelService = inject(ExcelService);
+  controladorGis?: ControladorMapaGis;
+  /** Detalle del inspector pintado en el mapa; con él se arma el listado del área dibujada. */
+  private registrosDetalle: DetalleTomaLecturaInspector[] = [];
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -233,10 +258,28 @@ export class SeguimientoDeLecturaXinspectorComponent
     requestAnimationFrame(() => {
       this.map.setTarget(this.mapContainer.nativeElement);
       this.map.updateSize();
-      agregarHerramientasMapa(this.map, (geometry) => {
-        if (geometry && geometry.getType() === 'Circle') {
-          this.contarElementosEnRadio(geometry);
-        }
+      this.controladorGis = new ControladorMapaGis(this.map, {
+        consulta: this.consultaCapasGis,
+        gis: this.gis,
+        capasComerciales: () => this.capasComercialesConsultables(),
+        capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+        avisar: (detalle) => this.avisar("info", "Aviso", detalle),
+        listado: {
+          columnas: COLUMNAS_TABLA_SEGUIMIENTO,
+          tituloReporte: "SEGUIMIENTO DE LECTURA POR INSPECTOR",
+          nombreArchivo: "seguimiento_inspector_area_",
+          origen: ORIGENES_COORDENADA.usuario,
+          registros: () => this.registrosDetalle,
+          aFila: (registro) => this.aFilaTabla(registro),
+          subcabecera: () => [
+            `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+            `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+            `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+            `Inspector: ${this.nombreInspector(this.selectedInspector?.codinspector)}`,
+            `Periodo: ${this.selectedMes}/${this.selectedAnio}`,
+          ],
+          excelService: this.excelService,
+        },
       });
       this.detenerObservadorMapa = observarTamanoMapa(
         this.map,
@@ -250,6 +293,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
     this.destellos?.limpiar();
+    this.controladorGis?.destruir();
     clearTimeout(this.timeoutRotulo);
     this.map?.setTarget(undefined);
     this.ref?.close();
@@ -423,15 +467,6 @@ export class SeguimientoDeLecturaXinspectorComponent
       : 0;
   }
 
-  private contarElementosEnRadio(circulo: Circle): void {
-    const total = contarPuntosEnCirculo(this.usuariosLayer?.getSource(), circulo);
-    this.messageService.add({
-      severity: "info",
-      summary: "Selección de Radio",
-      detail: `Se encontraron ${total} usuarios en el área seleccionada.`,
-    });
-  }
-
   // ============================================================
   // FILTROS
   // ============================================================
@@ -602,6 +637,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   }
 
   private pintarDetalle(registros: DetalleTomaLecturaInspector[]): void {
+    this.registrosDetalle = registros;
     const srcUsuarios = this.usuariosLayer.getSource()!;
     const srcTomas = this.tomasLayer.getSource()!;
     const srcLineas = this.lineasLayer.getSource()!;
@@ -717,6 +753,9 @@ export class SeguimientoDeLecturaXinspectorComponent
     this.estilos.limpiar();
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
     this.destellos?.limpiar();
+    this.registrosDetalle = [];
+    this.controladorGis?.descartarListado();
+    this.controladorGis?.quitarPredio();
     this.resumenInspectores = [];
     this.totalRegistros = 0;
     this.totalTomadas = 0;
@@ -815,20 +854,61 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
+      if (estaUsandoHerramientas(this.map)) return;
       const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
         hitTolerance: 5,
-        layerFilter: (layer: any) => !layer.get('isDrawLayer')
+        layerFilter: (layer: any) =>
+          !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
       }) as Feature | undefined;
 
       if (feature) {
         this.seleccionarFeature(feature);
       } else {
         this.cerrarPopup();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
   }
 
+  private capasComercialesConsultables(): CapaConsultable[] {
+    return [
+      { rol: "lotes", capa: this.lotesLayer },
+      { rol: "calles", capa: this.callesLayer },
+      { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+    ];
+  }
+
+  private aFilaTabla(registro: Record<string, unknown>): FilaListado {
+    const direccion = direccionDe(registro);
+    const distancia = distanciaTomaM(
+      extraerCoordenada(registro, ORIGENES_COORDENADA.usuario),
+      extraerCoordenada(registro, ORIGEN_TOMA_INSPECTOR),
+    );
+    return {
+      ...registro,
+      direccion,
+      situacionToma: esLecturaTomada(registro) ? "Enviada" : "Pendiente",
+      distanciaToma: this.formatoDistancia(distancia),
+    };
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = String(fila["codcliente"] ?? "").trim();
+    const punto = this.usuariosLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => String(f.get("codcliente") ?? "").trim() === codigo);
+    if (!punto) {
+      this.avisar("warn", "Aviso", `El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto);
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
+  }
+
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
   private seleccionarFeature(feature: Feature): void {
+    this.controladorGis?.cerrarPopupGis();
     this.featureSeleccionado = feature;
     this.registroSeleccionado = feature.getProperties() as DetalleTomaLecturaInspector;
     this.capasVector.forEach((capa) => capa.changed());
@@ -871,6 +951,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   abrirBusqueda(): void {
     this.mostrarSearchPanel = true;
     this.searchCodCliente = "";
+    this.controladorGis?.quitarPredio();
   }
 
   buscarPorCodCliente(): void {
@@ -893,6 +974,7 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     this.seleccionarFeature(feature);
     this.acercarA(feature, 800);
+    this.controladorGis?.marcarPredio(query);
     this.mostrarSearchPanel = false;
   }
 

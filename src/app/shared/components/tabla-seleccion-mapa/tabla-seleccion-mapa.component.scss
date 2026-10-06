@@ -1,0 +1,232 @@
+.tabla-seleccion {
+  position: absolute;
+  // A la derecha del panel de capas, que mide unos 350 px.
+  left: 360px;
+  right: 70px;
+  // Por encima del pie de página de la aplicación, que tapa la franja inferior del mapa.
+  bottom: 56px;
+  height: 38%;
+  min-height: 220px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  font-family: "Segoe UI", Arial, sans-serif;
+
+  &.minimizada {
+    height: auto;
+    min-height: 0;
+  }
+
+  // Deja libre el popup del cliente (360 px) o el buscador (280 px), que van a la derecha.
+  &.con-panel-derecho {
+    right: 380px;
+  }
+
+  @media (max-width: 1100px) {
+    left: 10px;
+    right: 10px;
+  }
+}
+
+.ts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #0f172a;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.ts-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.ts-total {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #0f172a;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.ts-acciones {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ts-filtro input {
+  height: 28px;
+  width: 200px;
+  font-size: 12px;
+}
+
+.ts-excel {
+  height: 28px;
+}
+
+.ts-icono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  &.ts-cerrar:hover {
+    background: #ff0044;
+  }
+}
+
+.ts-cuerpo {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+
+  // Cada eslabón entre el panel y las filas necesita `min-height: 0`; si uno crece con su
+  // contenido (el `<p-table>` es un bloque normal), las filas se cortan y no aparece el scroll.
+  ::ng-deep {
+    p-table {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .p-datatable {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      font-size: 11px;
+    }
+
+    .p-datatable-wrapper {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .p-datatable-thead > tr > th {
+      padding: 5px 8px;
+      background: #eaedf2;
+      font-size: 10.5px;
+      white-space: nowrap;
+    }
+
+    // Una línea por fila: con la tabla angosta los nombres se partían en tres y cabían pocas filas.
+    .p-datatable-tbody > tr > td {
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+  }
+}
+
+.ts-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.ts-fila {
+  cursor: pointer;
+}
+
+.ts-vacio {
+  padding: 16px;
+  text-align: center;
+  color: #64748b;
+}
+
+.tabla-pastilla {
+  position: absolute;
+  left: 360px;
+  bottom: 56px;
+  z-index: 900;
+  display: flex;
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.3);
+  font-family: "Segoe UI", Arial, sans-serif;
+  animation: tabla-pastilla-entrada 200ms ease-out both;
+
+  @media (max-width: 1100px) {
+    left: 10px;
+  }
+
+  button {
+    border: none;
+    cursor: pointer;
+  }
+}
+
+.tp-abrir {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12px;
+
+  &:hover {
+    background: #1e293b;
+  }
+}
+
+.tp-ver {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #0f172a;
+  font-weight: 800;
+  font-size: 11px;
+}
+
+.tp-descartar {
+  padding: 0 12px;
+  background: #334155;
+  color: #f8fafc;
+  font-size: 10px;
+
+  &:hover {
+    background: #ff0044;
+  }
+}
+
+@keyframes tabla-pastilla-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

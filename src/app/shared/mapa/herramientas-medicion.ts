@@ -5,6 +5,7 @@ import CircleGeom from "ol/geom/Circle";
 import Point from "ol/geom/Point";
 import { fromCircle } from "ol/geom/Polygon";
 import Draw from "ol/interaction/Draw";
+import DoubleClickZoom from "ol/interaction/DoubleClickZoom";
 import VectorLayer from "ol/layer/Vector";
 import { unByKey } from "ol/Observable";
 import { getPointResolution } from "ol/proj";
@@ -12,17 +13,50 @@ import VectorSource from "ol/source/Vector";
 import { getArea, getLength } from "ol/sphere";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 
+const MARCA_DIBUJO_EN_CURSO = "dibujoEnCurso";
+
+/** Cada dibujo guarda aquí su rótulo de medida ("Área: …", "Radio: …") para borrarlo con él. */
+export const PROPIEDAD_ROTULO_MEDIDA = "rotuloMedida";
+
+// OpenLayers dispara `singleclick` unos 250 ms después del clic que cerró el dibujo,
+// cuando la interacción ya se quitó: sin este margen ese clic consultaría el mapa.
+const MS_MARGEN_TRAS_DIBUJO = 400;
+
+/** `true` mientras se dibuja, se escribe el radio o acaba de terminarse un dibujo: el clic no es para el mapa. */
+export function estaUsandoHerramientas(map: OlMap): boolean {
+  return (
+    !!map.get(MARCA_DIBUJO_EN_CURSO) ||
+    map.getInteractions().getArray().some((interaccion) => interaccion.get("isDrawInteraction"))
+  );
+}
+
+// El doble clic que cierra una línea o un polígono también acercaba el mapa y movía el dibujo de lugar.
+function activarZoomDobleClic(map: OlMap, activo: boolean): void {
+  map.getInteractions().forEach((interaccion) => {
+    if (interaccion instanceof DoubleClickZoom) interaccion.setActive(activo);
+  });
+}
+
+function liberarClicTrasDibujo(map: OlMap): void {
+  window.setTimeout(() => {
+    map.set(MARCA_DIBUJO_EN_CURSO, false);
+    activarZoomDobleClic(map, true);
+  }, MS_MARGEN_TRAS_DIBUJO);
+}
+
 /**
  * Agrega al mapa los controles de zoom, pantalla completa, escala y el menú
  * de medición/dibujo (línea, área y radio).
  *
  * @param alTerminarDibujo se llama con la geometría al terminar cada dibujo
  *        (por ejemplo, para contar los clientes dentro de un radio).
+ * @param alLimpiarDibujos se llama al borrar los dibujos con el botón de la papelera.
  */
 export function agregarHerramientasMapa(
   map: OlMap,
   alTerminarDibujo?: (geometry: any) => void,
   fuentePantallaCompleta?: string | HTMLElement,
+  alLimpiarDibujos?: () => void,
 ): void {
 
 
@@ -170,6 +204,7 @@ export function agregarHerramientasMapa(
   };
 
   const addDrawInteraction = (type: string) => {
+    activarZoomDobleClic(map, false);
     if (currentDrawInteraction) {
       map.removeInteraction(currentDrawInteraction);
     }
@@ -284,6 +319,8 @@ export function agregarHerramientasMapa(
 
     currentDrawInteraction.on('drawend', (evt: any) => {
       let finalGeometry = evt.feature.getGeometry();
+      map.set(MARCA_DIBUJO_EN_CURSO, true);
+      evt.feature.set(PROPIEDAD_ROTULO_MEDIDA, measureTooltip);
       
       const cleanupInteraction = () => {
         unByKey(listener);
@@ -366,6 +403,7 @@ export function agregarHerramientasMapa(
          
          const finishCircle = (radiusStr: string) => {
             map.removeOverlay(inputOverlay);
+            liberarClicTrasDibujo(map);
             const r = Number(radiusStr);
             if (radiusStr && radiusStr.trim() !== '' && !isNaN(r) && r > 0) {
                const mapRadius = r / pointRes;
@@ -429,6 +467,7 @@ export function agregarHerramientasMapa(
       }
 
       cleanupInteraction();
+      liberarClicTrasDibujo(map);
     });
 
     map.addInteraction(currentDrawInteraction);
@@ -477,6 +516,9 @@ export function agregarHerramientasMapa(
       helpTooltip = null;
     }
     menu.classList.remove('open');
+    map.set(MARCA_DIBUJO_EN_CURSO, false);
+    activarZoomDobleClic(map, true);
+    alLimpiarDibujos?.();
   };
 
   menu.appendChild(btnLine);
@@ -489,6 +531,7 @@ export function agregarHerramientasMapa(
     if (!menu.classList.contains('open') && currentDrawInteraction) {
       map.removeInteraction(currentDrawInteraction);
       currentDrawInteraction = null;
+      activarZoomDobleClic(map, true);
       if (pointerMoveListener) {
         unByKey(pointerMoveListener);
         pointerMoveListener = null;

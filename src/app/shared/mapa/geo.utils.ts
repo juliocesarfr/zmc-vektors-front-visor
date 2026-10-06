@@ -2,9 +2,8 @@ import { transform } from "ol/proj";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
-import type Circle from "ol/geom/Circle";
-import { fromCircle } from "ol/geom/Polygon";
-import type VectorSource from "ol/source/Vector";
+import Circle from "ol/geom/Circle";
+import Polygon, { fromCircle } from "ol/geom/Polygon";
 import { ConfigOrigenCoordenada } from "../constantes/coordenadas";
 import { getProyeccionMapa } from "../../core/gis/gis-proyeccion";
 
@@ -93,19 +92,19 @@ export function crearFeatureLinea(
   });
 }
 
-/** Cuántos puntos de la capa caen dentro del círculo dibujado con la herramienta de radio. */
-export function contarPuntosEnCirculo(
-  fuente: VectorSource | null | undefined,
-  circulo: Circle,
-): number {
-  if (!fuente) return 0;
-  const poligono = fromCircle(circulo);
-  let total = 0;
-  fuente.forEachFeatureIntersectingExtent(poligono.getExtent(), (feature) => {
-    const geometria = feature.getGeometry();
-    if (geometria instanceof Point && poligono.intersectsCoordinate(geometria.getCoordinates())) {
-      total++;
-    }
+/**
+ * Registros cuya coordenada cae dentro del polígono o del círculo dibujado con las herramientas.
+ * Trabaja sobre los datos y no sobre los puntos pintados: varios clientes de un mismo predio
+ * comparten un solo punto en el mapa y aquí deben salir todos.
+ */
+export function registrosDentroDeArea<T extends Record<string, unknown>>(
+  registros: T[],
+  area: Polygon | Circle,
+  origen: ConfigOrigenCoordenada,
+): T[] {
+  const poligono = area instanceof Polygon ? area : fromCircle(area);
+  return registros.filter((registro) => {
+    const coordenada = extraerCoordenada(registro, origen);
+    return !!coordenada && poligono.intersectsCoordinate(coordenada);
   });
-  return total;
 }
