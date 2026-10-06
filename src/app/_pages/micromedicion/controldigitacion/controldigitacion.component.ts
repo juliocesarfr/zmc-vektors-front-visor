@@ -48,9 +48,21 @@ import { InputNumberModule } from "primeng/inputnumber";
 import { ToastModule } from "primeng/toast";
 import { InputTextModule } from "primeng/inputtext";
 
-import { DISTANCIA_MAX_ACOMETIDA_M, ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
-import { colorPorEstadoLectura, COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from "../../../shared/constantes/colores-mapa";
-import { LISTA_MESES, TIPOS_PROMEDIO, TIPOS_RECEPCION_FOTOS_LECTURA, SECTOR_TODOS } from "../../../shared/constantes/lecturas";
+import {
+  DISTANCIA_MAX_ACOMETIDA_M,
+  ORIGENES_COORDENADA,
+} from "../../../shared/constantes/coordenadas";
+import {
+  colorPorEstadoLectura,
+  COLOR_FICHA_AGUA,
+  COLOR_FICHA_ALCANTARILLADO,
+} from "../../../shared/constantes/colores-mapa";
+import {
+  LISTA_MESES,
+  TIPOS_PROMEDIO,
+  TIPOS_RECEPCION_FOTOS_LECTURA,
+  SECTOR_TODOS,
+} from "../../../shared/constantes/lecturas";
 import { RegistroLectura } from "@host/_models/vektors/RegistroLectura";
 import { SectorCiclo } from "@host/_models/vektors/SectorCiclo";
 import { ROTULO_ENVIVO_MS } from "../../../shared/mapa/destello-lecturas";
@@ -60,10 +72,11 @@ import {
   extraerCoordenada,
 } from "../../../shared/mapa/geo.utils";
 import { DestelloLecturas } from "../../../shared/mapa/destello-lecturas";
+import { LecturasEnVivoService } from "../../../core/tiempo-real";
 import {
-  LecturasEnVivoService,
-} from "../../../core/tiempo-real";
-import { ContextoTiempoReal, LecturaEnVivo } from "@host/_models/vektors/LecturaEnVivo";
+  ContextoTiempoReal,
+  LecturaEnVivo,
+} from "@host/_models/vektors/LecturaEnVivo";
 import {
   FormaPunto,
   MapEstilosFactory,
@@ -75,10 +88,21 @@ import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import { GisConfigService } from "../../../core/gis";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
-import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
-import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import {
+  crearCapaWms,
+  crearCapaOsm,
+  crearCapaSatelital,
+  CAPAS_BASE_UI,
+} from "../../../shared/mapa/capas";
+import {
+  coordenadaLonLat,
+  abrirGoogleStreetView,
+} from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
-import { formatoFechaCorta, rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
+import {
+  formatoFechaCorta,
+  rangoFotosRecientes,
+} from "../../../shared/utils/fechas.utils";
 
 /** Qué ficha muestra el popup según la capa en que se hizo clic. */
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
@@ -109,7 +133,8 @@ type TipoPopup = "lectura" | "agua" | "alcantarillado";
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent
-  implements OnInit, AfterViewInit, OnDestroy {
+  implements OnInit, AfterViewInit, OnDestroy
+{
   private readonly destroyRef = inject(DestroyRef);
 
   // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
@@ -129,7 +154,8 @@ export class ControldigitacionComponent
   conectadoEnVivo = false;
   private timeoutRotulo?: number;
 
-  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
+  @ViewChild(CapasSidebarComponent)
+  private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
@@ -142,6 +168,7 @@ export class ControldigitacionComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  rutaLecturaLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
@@ -205,8 +232,8 @@ export class ControldigitacionComponent
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
     { id: "sectores", label: "Sectores Comerciales", active: false },
     { id: "calles", label: "Calles", active: false },
+    { id: "rutaLectura", label: "Ruta de Lectura", active: false },
   ];
-
 
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
@@ -226,7 +253,7 @@ export class ControldigitacionComponent
     private clientesService: ClientesService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) { }
+  ) {}
 
   ngOnInit(): void {
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
@@ -385,7 +412,8 @@ export class ControldigitacionComponent
             this.selectedCiclo.codciclo,
           ),
         ),
-        takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef),
+        takeUntil(this.cicloCambiado),
+        takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((data) => {
         this.listaSucursales = data;
@@ -406,7 +434,10 @@ export class ControldigitacionComponent
         this.selectedSucursal.codsuc,
         this.selectedCiclo.codciclo,
       )
-      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        takeUntil(this.sucursalCambiada),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe((data) => {
         this.listaSectores = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
@@ -560,7 +591,9 @@ export class ControldigitacionComponent
     this.lecturasLayer.getSource()!.addFeatures(featuresUsr);
     this.cajaAguaLayer.getSource()!.addFeatures(puntos("agua"));
     this.fichaAlcLayer.getSource()!.addFeatures(puntos("desague"));
-    this.acomAguaLayer.getSource()!.addFeatures(lineas("agua", "acometidaAgua"));
+    this.acomAguaLayer
+      .getSource()!
+      .addFeatures(lineas("agua", "acometidaAgua"));
     this.acomDesagueLayer
       .getSource()!
       .addFeatures(lineas("desague", "acometidaDesague"));
@@ -630,12 +663,26 @@ export class ControldigitacionComponent
     this.osmLayer = crearCapaOsm(this.baseActive === "osm");
     this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
-    this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(),
+    this.lotesLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("lotes"),
+      true,
+    );
+    this.sectoresComercialesLayer = crearCapaWms(
+      this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("calles"),
+      false,
+    );
+    this.rutaLecturaLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("rutaLectura"),
+      false,
+    );
 
     this.lecturasLayer = this.crearCapaPuntos(
       { forma: "circulo", radios: RADIOS_LECTURA, visible: true },
@@ -669,6 +716,7 @@ export class ControldigitacionComponent
       acc_alc: this.acomDesagueLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      rutaLectura: this.rutaLecturaLayer,
     };
 
     this.map = new OlMap({
@@ -678,6 +726,7 @@ export class ControldigitacionComponent
         this.sectoresComercialesLayer,
         this.callesLayer,
         this.lotesLayer,
+        this.rutaLecturaLayer,
         this.acomAguaLayer,
         this.acomDesagueLayer,
         this.fichaAlcLayer,
@@ -694,7 +743,11 @@ export class ControldigitacionComponent
 
   /** Capa de puntos (usuarios o fichas) con etiqueta del código y resaltado del seleccionado. */
   private crearCapaPuntos(
-    opciones: { forma: FormaPunto; radios: typeof RADIOS_LECTURA; visible: boolean },
+    opciones: {
+      forma: FormaPunto;
+      radios: typeof RADIOS_LECTURA;
+      visible: boolean;
+    },
     colorDe: (punto: FeatureLike) => string,
   ): VectorLayer<VectorSource> {
     return new VectorLayer({
@@ -718,7 +771,11 @@ export class ControldigitacionComponent
       source: new VectorSource(),
       visible: false,
       style: (linea, resolucion) =>
-        this.estilos.lineaAcometida(color, linea === this.featureSeleccionado, resolucion),
+        this.estilos.lineaAcometida(
+          color,
+          linea === this.featureSeleccionado,
+          resolucion,
+        ),
     });
   }
 
@@ -740,7 +797,10 @@ export class ControldigitacionComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
+      const isDrawing = this.map
+        .getInteractions()
+        .getArray()
+        .some((i) => i.get("isDrawInteraction"));
       if (isDrawing) return;
       let clickedLayer: BaseLayer | null = null;
       const feature = this.map.forEachFeatureAtPixel(
@@ -749,7 +809,10 @@ export class ControldigitacionComponent
           clickedLayer = layer;
           return f;
         },
-        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
+        {
+          hitTolerance: 5,
+          layerFilter: (layer: any) => !layer.get("isDrawLayer"),
+        },
       ) as Feature | undefined;
 
       if (feature) {
@@ -800,7 +863,9 @@ export class ControldigitacionComponent
     this.ref = abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc,
+      this.selectedSucursal?.codsuc ||
+        this.lecturaSeleccionada?.codsuc ||
+        this.datosClientePopup?.codsuc,
     );
   }
 
@@ -848,9 +913,7 @@ export class ControldigitacionComponent
       case "3":
         return formatoFechaCorta(medidor?.fechareinst);
       default:
-        return formatoFechaCorta(
-          medidor?.fechainst || medidor?.fechainsmed,
-        );
+        return formatoFechaCorta(medidor?.fechainst || medidor?.fechainsmed);
     }
   }
 
@@ -864,7 +927,6 @@ export class ControldigitacionComponent
     this.cargandoImagenes = true;
     const codsuc = lectura.codsuc || this.selectedSucursal?.codsuc || "002";
     const codcliente = lectura.codcliente;
-
 
     forkJoin({
       imagenes: this.controlImgService
@@ -899,15 +961,15 @@ export class ControldigitacionComponent
           this.imagenesPopup =
             imagenes?.mensaje === "EXITO" && imagenes?.data?.length > 0
               ? imagenes.data
-                .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
-                .map((e: any) => ({
-                  ...e,
-                  src: e.img64?.startsWith("data:")
-                    ? e.img64
-                    : "data:image/jpeg;base64," + e.img64,
+                  .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
+                  .map((e: any) => ({
+                    ...e,
+                    src: e.img64?.startsWith("data:")
+                      ? e.img64
+                      : "data:image/jpeg;base64," + e.img64,
 
-                  fechareg: e?.fechareg,
-                }))
+                    fechareg: e?.fechareg,
+                  }))
               : [];
         },
         error: () => (this.cargandoImagenes = false),
@@ -939,7 +1001,11 @@ export class ControldigitacionComponent
       next: (registros) => {
         this.cargando = false;
         if (registros.length === 0) {
-          this.avisar("warn", "Aviso", "No se encontró un usuario con ese código en ningún sector para este ciclo.");
+          this.avisar(
+            "warn",
+            "Aviso",
+            "No se encontró un usuario con ese código en ningún sector para este ciclo.",
+          );
           return;
         }
         this.mostrarSoloRegistros(registros);
@@ -955,7 +1021,11 @@ export class ControldigitacionComponent
       },
       error: () => {
         this.cargando = false;
-        this.avisar("error", "Error", "Ocurrió un error al buscar el cliente en el servidor.");
+        this.avisar(
+          "error",
+          "Error",
+          "Ocurrió un error al buscar el cliente en el servidor.",
+        );
       },
     });
   }
@@ -1038,7 +1108,11 @@ export class ControldigitacionComponent
         this.cargando = false;
         this.filtrosVisible = false;
         if (registros.length === 0) {
-          this.avisar("info", "Aviso", "No se encontró ningún registro para el Código de Cliente");
+          this.avisar(
+            "info",
+            "Aviso",
+            "No se encontró ningún registro para el Código de Cliente",
+          );
           return;
         }
         this.mostrarSoloRegistros(registros);
@@ -1056,7 +1130,11 @@ export class ControldigitacionComponent
         this.cargando = false;
         this.limpiarCapas();
         this.resultadoBusquedaJson = null;
-        this.avisar("error", "Aviso de usuario", "Ocurrió un error al cargar las lecturas");
+        this.avisar(
+          "error",
+          "Aviso de usuario",
+          "Ocurrió un error al cargar las lecturas",
+        );
       },
     });
   }
@@ -1103,7 +1181,10 @@ export class ControldigitacionComponent
     this.centrarEnUsuario(registro);
   }
 
-  private buscarPuntoPorCodigo(capa: VectorLayer<VectorSource> | undefined, codigo: string): Feature | undefined {
+  private buscarPuntoPorCodigo(
+    capa: VectorLayer<VectorSource> | undefined,
+    codigo: string,
+  ): Feature | undefined {
     const buscado = codigo.trim().toLowerCase();
     return capa
       ?.getSource()
@@ -1113,18 +1194,27 @@ export class ControldigitacionComponent
 
   /** Código del cliente de un registro o de un punto; algunas consultas lo traen como `nroSuministro`. */
   private codigoDe(registro: Record<string, unknown>): string {
-    return String(registro["codcliente"] || registro["nroSuministro"] || "").trim();
+    return String(
+      registro["codcliente"] || registro["nroSuministro"] || "",
+    ).trim();
   }
 
   private acercarAPunto(punto: Feature): void {
     const geometria = punto.getGeometry();
     if (!geometria) return;
-    this.map.getView().animate({ center: getCenter(geometria.getExtent()), zoom: 21, duration: 800 });
+    this.map.getView().animate({
+      center: getCenter(geometria.getExtent()),
+      zoom: 21,
+      duration: 800,
+    });
   }
 
   private centrarEnUsuario(registro: RegistroLectura): void {
     const coordenada = extraerCoordenada(registro, ORIGENES_COORDENADA.usuario);
-    if (coordenada) this.map.getView().animate({ center: coordenada, zoom: 17, duration: 600 });
+    if (coordenada)
+      this.map
+        .getView()
+        .animate({ center: coordenada, zoom: 17, duration: 600 });
   }
 
   // ============================================================
@@ -1134,7 +1224,11 @@ export class ControldigitacionComponent
   abrirStreetView(x: unknown, y: unknown): void {
     const lonLat = coordenadaLonLat(x, y, this.gis.proyeccionUtm);
     if (!lonLat) {
-      this.avisar("warn", "Aviso", "No hay coordenadas válidas para abrir Street View.");
+      this.avisar(
+        "warn",
+        "Aviso",
+        "No hay coordenadas válidas para abrir Street View.",
+      );
       return;
     }
     abrirGoogleStreetView(lonLat);

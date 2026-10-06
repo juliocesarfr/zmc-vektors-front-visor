@@ -65,6 +65,7 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       acometidaAlcantarillado: "sm_sig_acometidas_al",
       fichaAgua: "v_com_fichas_catastrales",
       fichaAlcantarillado: "emapa_ficha_alcantarillado",
+      rutaLectura: "rut_a_lectura",
     },
     // Completar con el nombre real publicado en GeoServer.
     capasTecnicas: {

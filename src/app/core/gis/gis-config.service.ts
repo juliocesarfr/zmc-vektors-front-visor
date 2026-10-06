@@ -189,6 +189,7 @@ export class GisConfigService {
     lotes: "lotes",
     sectores: "sectoresComerciales",
     calles: "calles",
+    rutaLectura: "rutaLectura",
   };
 
   // Los switches vectoriales (sin rol WMS) se conservan siempre.

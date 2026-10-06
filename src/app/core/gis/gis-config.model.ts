@@ -10,6 +10,7 @@ export type CapaGisConocida =
   | "acometidaAlcantarillado"
   | "fichaAgua"
   | "fichaAlcantarillado"
+  | "rutaLectura"
   | "tuberias"
   | "fuentes"
   | "valvulas"
@@ -32,6 +33,7 @@ export interface CapasGis {
   acometidaAlcantarillado?: string;
   fichaAgua?: string;
   fichaAlcantarillado?: string;
+  rutaLectura?: string;
 }
 
 export interface CapasTecnicasGis {
