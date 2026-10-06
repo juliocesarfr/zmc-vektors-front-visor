@@ -34,7 +34,8 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
     },
     // Completar con el nombre real publicado en GeoServer.
     capasTecnicas: {
-      // tuberias: "",
+      // tuberiasAgua: "",
+      // tuberiasAlcantarillado: "",
       // fuentes: "",
       // valvulas: "",
       // curvasNivel: "",
@@ -70,9 +71,88 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
     // Completar con el nombre real publicado en GeoServer.
     capasTecnicas: {
       fuentes: "sm_sig_fuentes",
-      tuberias: "sm_sig_tuberias",
+      tuberiasAgua: "sm_sig_tuberias",
+      tuberiasAlcantarillado: "sm_sig_alcantarillado",
       valvulas: "sm_sig_valvulas",
       curvasNivel: "sm_sig_curvas_de_nivel",
+    },
+    // Columnas reales de GeoServer. Los lotes traen datos personales (DNI, teléfono, correo):
+    // nunca dejarlos sin lista de atributos.
+    consultaCapas: {
+      valvulas: {
+        campoTitulo: "dc_id",
+        atributos: {
+          type: "Tipo",
+          funcion: "Función",
+          status: "Estado",
+          conserv: "Conservación",
+          dn_plg: "Diámetro (pulg)",
+          prof: "Profundidad (m)",
+          tipo_det: "Detalle",
+          tapa: "Tapa",
+          protecc: "Protección",
+          sentido_ap: "Sentido de apertura",
+          mat_vastago: "Material del vástago",
+          marca: "Marca",
+          anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      tuberiasAgua: {
+        campoTitulo: "dc_id",
+        atributos: {
+          tipo: "Tipo",
+          material: "Material",
+          dn_plg: "Diámetro (pulg)",
+          dn_mm: "Diámetro (mm)",
+          length_gis: "Longitud (m)",
+          status: "Estado",
+          conserv: "Conservación",
+          node1: "Nodo inicial",
+          node2: "Nodo final",
+          anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      tuberiasAlcantarillado: {
+        campoTitulo: "dc_id",
+        atributos: {
+          tipo: "Tipo",
+          material: "Material",
+          dn_mm: "Diámetro (mm)",
+          dn_plg: "Diámetro (pulg)",
+          longitud_gis: "Longitud (m)",
+          pendiente: "Pendiente",
+          nodo1: "Buzón inicial",
+          nodo2: "Buzón final",
+          cota1: "Cota inicial",
+          cota2: "Cota final",
+          prof_entrada: "Profundidad de entrada (m)",
+          prof_salida: "Profundidad de salida (m)",
+          conserv: "Conservación",
+          anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      curvasNivel: {
+        atributos: { elevation: "Elevación (m)", fuente: "Fuente" },
+      },
+      lotes: {
+        campoTitulo: "codcatastral",
+        campoCliente: "codcliente",
+        atributos: {
+          codcliente: "Cód. cliente",
+          propietario: "Titular",
+          direccion: "Dirección",
+          codsector: "Sector",
+          codmza: "Manzana",
+          nrolote: "Lote",
+          nromed: "Medidor",
+        },
+      },
     },
     vista: {
       centro: [-76.3654, -6.4886],
@@ -89,7 +169,8 @@ export const ZOOM_POR_DEFECTO = 18;
 
 // Rótulos que no se pueden derivar del rol (tildes, "de").
 export const ETIQUETAS_POR_DEFECTO: Record<string, string> = {
-  tuberias: "Tuberías",
+  tuberiasAgua: "Tuberías de Agua",
+  tuberiasAlcantarillado: "Tuberías de Desagüe",
   valvulas: "Válvulas",
   curvasNivel: "Curvas de Nivel",
 };

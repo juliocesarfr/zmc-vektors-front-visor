@@ -83,11 +83,21 @@ import {
   RADIOS_LECTURA,
   RADIOS_FICHA,
 } from "../../../shared/mapa/mapa-estilos";
-import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
+import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
 import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
-import { GisConfigService } from "../../../core/gis";
+import { MARCA_CAPA_RESALTADO } from "../../../shared/mapa/interaccion-gis";
+import { ZOOM_PREDIO } from "../../../shared/mapa/predio-buscado";
+import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import {
+  CapaConsultable,
+  ConsultaCapasGisService,
+  GisConfigService,
+} from "../../../core/gis";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
+import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
+import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { ExcelService } from "@host/_servicios/reportes/excel.service";
 import {
   crearCapaWms,
   crearCapaOsm,
@@ -109,12 +119,28 @@ import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service"
 /** Qué ficha muestra el popup según la capa en que se hizo clic. */
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
+const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "lecturaanterior", titulo: "Lect. anterior", anchoExcel: 12 },
+  { campo: "lecturaultima", titulo: "Lect. actual", anchoExcel: 12 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+  { campo: "descripcionEstadoLectura", titulo: "Estado de lectura", anchoExcel: 24 },
+  { campo: "inspector", titulo: "Inspector", anchoExcel: 30 },
+];
+
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
   imports: [
     CapasSidebarComponent,
     VisorImagenesComponent,
+    PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -144,6 +170,8 @@ export class ControldigitacionComponent
   private readonly cicloCambiado = new Subject<void>();
   private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -151,6 +179,7 @@ export class ControldigitacionComponent
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
   private readonly factArchService = inject(FactArchService);
+  private readonly excelService = inject(ExcelService);
 
   totalEnVivo = 0;
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
@@ -285,7 +314,28 @@ export class ControldigitacionComponent
     this.crearMapa();
     this.capasSidebar?.conectarMapa(this.map);
 
-    agregarHerramientasMapa(this.map);
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () => this.capasComercialesConsultables(),
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: (detalle) => this.avisar("info", "Aviso", detalle),
+      listado: {
+        columnas: COLUMNAS_TABLA_LECTURAS,
+        tituloReporte: "CONTROL DE DIGITACIÓN",
+        nombreArchivo: "control_digitacion_area_",
+        origen: ORIGENES_COORDENADA.usuario,
+        registros: () => this.resultadoBusquedaJson ?? [],
+        aFila: (registro) => this.aFilaTabla(registro),
+        subcabecera: () => [
+          `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+          `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+          `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+          `Periodo: ${this.selectedMes}/${this.selectedAnio}`,
+        ],
+        excelService: this.excelService,
+      },
+    });
 
     this.initClick();
 
@@ -303,6 +353,7 @@ export class ControldigitacionComponent
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
     this.destellos?.limpiar();
+    this.controladorGis?.destruir();
     clearTimeout(this.timeoutRotulo);
     this.map?.setTarget(undefined);
     this.ref?.close();
@@ -677,6 +728,7 @@ export class ControldigitacionComponent
 
   private limpiarCapas(): void {
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
+    this.controladorGis?.quitarPredio();
     this.destellos?.limpiar();
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
@@ -684,6 +736,7 @@ export class ControldigitacionComponent
     this.totalSinCoordenadas = 0;
     this.totalEnVivo = 0;
     this.ultimaEnVivo = null;
+    this.controladorGis?.descartarListado();
     clearTimeout(this.timeoutRotulo);
   }
 
@@ -823,7 +876,9 @@ export class ControldigitacionComponent
     return "lectura";
   }
 
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
   private seleccionarFeature(feature: Feature, tipo: TipoPopup): void {
+    this.controladorGis?.cerrarPopupGis();
     this.tipoPopup = tipo;
     this.featureSeleccionado = feature;
     this.refrescarCapasVector();
@@ -833,11 +888,7 @@ export class ControldigitacionComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map
-        .getInteractions()
-        .getArray()
-        .some((i) => i.get("isDrawInteraction"));
-      if (isDrawing) return;
+      if (estaUsandoHerramientas(this.map)) return;
       let clickedLayer: BaseLayer | null = null;
       const feature = this.map.forEachFeatureAtPixel(
         evt.pixel,
@@ -847,7 +898,8 @@ export class ControldigitacionComponent
         },
         {
           hitTolerance: 5,
-          layerFilter: (layer: any) => !layer.get("isDrawLayer"),
+          layerFilter: (layer: any) =>
+            !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
         },
       ) as Feature | undefined;
 
@@ -855,8 +907,42 @@ export class ControldigitacionComponent
         this.seleccionarFeature(feature, this.tipoPopupDeCapa(clickedLayer));
       } else {
         this.cerrarPopup();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
+  }
+
+  // ============================================================
+  // CONSULTA GIS (GetFeatureInfo)
+  // ============================================================
+
+  private capasComercialesConsultables(): CapaConsultable[] {
+    return [
+      { rol: "rutaLectura", capa: this.rutaLecturaLayer },
+      { rol: "lotes", capa: this.lotesLayer },
+      { rol: "calles", capa: this.callesLayer },
+      { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+    ];
+  }
+
+  private aFilaTabla(registro: Record<string, unknown>): FilaListado {
+    const direccion = direccionDe(registro);
+    return {
+      ...registro,
+      direccion,
+      descripcionEstadoLectura: this.getDescripcionEstadoLectura(String(registro["estadolectura"] ?? "")),
+    };
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = this.codigoDe(fila);
+    const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
+    if (!punto) {
+      this.avisar("warn", "Aviso", `El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto, "lectura");
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
   }
 
   // ============================================================
@@ -1051,6 +1137,7 @@ export class ControldigitacionComponent
           this.seleccionarFeature(punto, "lectura");
           this.activarCapasPorDefectoBusqueda();
           this.acercarAPunto(punto);
+          this.controladorGis?.marcarPredio(codigo);
         } else {
           this.mostrarPopupSinPunto(registros[0]);
         }
@@ -1098,6 +1185,7 @@ export class ControldigitacionComponent
           this.acercarAPunto(repintado);
         }
       }
+      this.controladorGis?.marcarPredio(codigo);
       return true;
     }
     return false;
@@ -1112,6 +1200,7 @@ export class ControldigitacionComponent
   reiniciarBusqueda(): void {
     this.searchCodCliente = "";
     this.cerrarPopup();
+    this.controladorGis?.quitarPredio();
     if (this.isBusquedaClienteActiva) {
       this.isBusquedaClienteActiva = false;
       if (this.resultadoBusquedaOriginalJson !== undefined) {
@@ -1158,6 +1247,7 @@ export class ControldigitacionComponent
           this.seleccionarFeature(punto, "lectura");
           this.activarCapasPorDefectoBusqueda();
           this.centrarEnUsuario(registros[0]);
+          this.controladorGis?.marcarPredio(codcliente);
         } else {
           this.mostrarPopupSinPunto(registros[0]);
         }
@@ -1211,10 +1301,12 @@ export class ControldigitacionComponent
 
   /** El registro no tiene coordenadas pintables: se abre el popup igual y se centra en el usuario. */
   private mostrarPopupSinPunto(registro: RegistroLectura): void {
+    this.controladorGis?.cerrarPopupGis();
     this.lecturaSeleccionada = registro;
     this.cargarDatosPopup(registro);
     this.activarCapasPorDefectoBusqueda();
     this.centrarEnUsuario(registro);
+    this.controladorGis?.marcarPredio(this.codigoDe(registro));
   }
 
   private buscarPuntoPorCodigo(
@@ -1240,7 +1332,7 @@ export class ControldigitacionComponent
     if (!geometria) return;
     this.map.getView().animate({
       center: getCenter(geometria.getExtent()),
-      zoom: 21,
+      zoom: ZOOM_PREDIO,
       duration: 800,
     });
   }

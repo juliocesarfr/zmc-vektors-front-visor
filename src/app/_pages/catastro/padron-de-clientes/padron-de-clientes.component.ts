@@ -42,26 +42,46 @@ import Zoom from "ol/control/Zoom";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 
 import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
-import { GisConfigService } from "../../../core/gis";
+import { ConsultaCapasGisService, GisConfigService } from "../../../core/gis";
 import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import {
   MapEstilosFactory,
   RADIOS_LECTURA,
 } from "../../../shared/mapa/mapa-estilos";
-import { agregarHerramientasMapa } from "../../../shared/mapa/herramientas-medicion";
-import { crearFeaturePunto, extraerCoordenada, contarPuntosEnCirculo } from "../../../shared/mapa/geo.utils";
+import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
+import { MARCA_CAPA_RESALTADO } from "../../../shared/mapa/interaccion-gis";
+import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
+import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { ExcelService } from "@host/_servicios/reportes/excel.service";
+import { crearFeaturePunto, extraerCoordenada } from "../../../shared/mapa/geo.utils";
 import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/Catastro/FiltroPadronClientesTipoActividadRequest";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
 import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
-import type Circle from "ol/geom/Circle";
+
+const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "tarifa", titulo: "Categoría", anchoExcel: 22 },
+  { campo: "actividad", titulo: "Actividad", anchoExcel: 22 },
+  { campo: "estadoservicio", titulo: "Estado del servicio", anchoExcel: 18 },
+  { campo: "tiposervicio", titulo: "Tipo de servicio", anchoExcel: 18 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+];
 
 @Component({
   selector: "app-padron-de-clientes",
   standalone: true,
   imports: [
     CapasSidebarComponent,
+    PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
     ButtonModule,
@@ -82,6 +102,9 @@ export class PadronDeClientesComponent
   private readonly cicloCambiado = new Subject<void>();
   private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly excelService = inject(ExcelService);
+  controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
@@ -507,6 +530,7 @@ export class PadronDeClientesComponent
 
   private limpiarCapas(): void {
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
+    this.controladorGis?.descartarListado();
     this.totalClientes = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -526,6 +550,7 @@ export class PadronDeClientesComponent
 
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
+    this.controladorGis?.destruir();
     this.map?.setTarget(undefined);
     this.ref?.close();
   }
@@ -546,6 +571,7 @@ export class PadronDeClientesComponent
 
   reiniciarBusqueda(): void {
     this.searchCodCliente = "";
+    this.controladorGis?.quitarPredio();
     if (this.isBusquedaClienteActiva) {
       this.isBusquedaClienteActiva = false;
       if (this.resultadoBusquedaOriginalJson !== undefined) {
@@ -609,6 +635,7 @@ export class PadronDeClientesComponent
           }
           this.seleccionarFeature(refound);
         }
+        this.controladorGis?.marcarPredio(query);
       }
       return;
     }
@@ -656,6 +683,7 @@ export class PadronDeClientesComponent
             if (refound) {
               this.seleccionarFeature(refound);
             }
+            this.controladorGis?.marcarPredio(query);
           } else {
             this.avisar(
               "warn",
@@ -731,10 +759,30 @@ export class PadronDeClientesComponent
       controls: [new Zoom()],
     });
 
-    agregarHerramientasMapa(this.map, (geometry) => {
-      if (geometry && geometry.getType() === "Circle") {
-        this.contarElementosEnRadio(geometry);
-      }
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () => [
+        { rol: "lotes", capa: this.lotesLayer },
+        { rol: "calles", capa: this.callesLayer },
+        { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+      ],
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: (detalle) => this.avisar("info", "Aviso", detalle),
+      listado: {
+        columnas: COLUMNAS_TABLA_PADRON,
+        tituloReporte: "PADRÓN DE CLIENTES",
+        nombreArchivo: "padron_clientes_area_",
+        origen: ORIGENES_COORDENADA.usuario,
+        registros: () => this.resultadoBusquedaJson ?? [],
+        aFila: (registro) => this.aFilaTabla(registro),
+        subcabecera: () => [
+          `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+          `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+          `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+        ],
+        excelService: this.excelService,
+      },
     });
 
     this.initClick();
@@ -762,25 +810,45 @@ export class PadronDeClientesComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map
-        .getInteractions()
-        .getArray()
-        .some((i) => i.get("isDrawInteraction"));
-      if (isDrawing) return;
+      if (estaUsandoHerramientas(this.map)) return;
       const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
         hitTolerance: 5,
-        layerFilter: (layer: any) => !layer.get("isDrawLayer"),
+        layerFilter: (layer: any) =>
+          !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
       }) as Feature | undefined;
 
       if (feature) {
         this.seleccionarFeature(feature);
-      } else if (!this.clienteSeleccionado) {
+      } else {
         this.cerrarPopup();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
   }
 
+  private aFilaTabla(registro: Record<string, unknown>): FilaListado {
+    const direccion = direccionDe(registro);
+    const catetar = String(registro["catetar"] ?? "");
+    return { ...registro, direccion, tarifa: this.getTarifaName(catetar) || catetar };
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = String(fila["codcliente"] ?? "").trim();
+    const punto = this.usuariosLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => String(f.get("codcliente") ?? "").trim() === codigo);
+    if (!punto) {
+      this.avisar("warn", "Aviso", `El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto);
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
+  }
+
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
   private seleccionarFeature(feature: Feature): void {
+    this.controladorGis?.cerrarPopupGis();
     this.featureSeleccionado = feature;
     this.refrescarCapasVector();
     this.clienteSeleccionado = feature.getProperties();
@@ -816,14 +884,5 @@ export class PadronDeClientesComponent
 
   private avisar(severity: string, summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail });
-  }
-
-  private contarElementosEnRadio(circulo: Circle): void {
-    const total = contarPuntosEnCirculo(this.usuariosLayer?.getSource(), circulo);
-    this.messageService.add({
-      severity: "info",
-      summary: "Selección de Radio",
-      detail: `Se encontraron ${total} clientes en el área seleccionada.`,
-    });
   }
 }
