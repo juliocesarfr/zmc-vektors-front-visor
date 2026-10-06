@@ -96,7 +96,11 @@ import {
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
 import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
-import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import {
+  ColumnaListado,
+  FilaListado,
+  direccionDe,
+} from "../../../shared/utils/listado-excel";
 import { ExcelService } from "@host/_servicios/reportes/excel.service";
 import {
   crearCapaWms,
@@ -130,7 +134,11 @@ const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
   { campo: "lecturaanterior", titulo: "Lect. anterior", anchoExcel: 12 },
   { campo: "lecturaultima", titulo: "Lect. actual", anchoExcel: 12 },
   { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
-  { campo: "descripcionEstadoLectura", titulo: "Estado de lectura", anchoExcel: 24 },
+  {
+    campo: "descripcionEstadoLectura",
+    titulo: "Estado de lectura",
+    anchoExcel: 24,
+  },
   { campo: "inspector", titulo: "Inspector", anchoExcel: 30 },
 ];
 
@@ -526,7 +534,7 @@ export class ControldigitacionComponent
   private construirFiltro(): FiltroLecturas {
     return {
       codsuc: this.selectedSucursal.codsuc,
-      codsede: this.codsedeSesion ?? "%",
+      codsede: this.selectedSucursal.codsuc ?? "%",
       codsector: this.selectedSector ? this.selectedSector.codsector : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
@@ -930,7 +938,9 @@ export class ControldigitacionComponent
     return {
       ...registro,
       direccion,
-      descripcionEstadoLectura: this.getDescripcionEstadoLectura(String(registro["estadolectura"] ?? "")),
+      descripcionEstadoLectura: this.getDescripcionEstadoLectura(
+        String(registro["estadolectura"] ?? ""),
+      ),
     };
   }
 
@@ -938,7 +948,11 @@ export class ControldigitacionComponent
     const codigo = this.codigoDe(fila);
     const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
     if (!punto) {
-      this.avisar("warn", "Aviso", `El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      this.avisar(
+        "warn",
+        "Aviso",
+        `El cliente ${codigo} no tiene coordenadas para ubicarlo.`,
+      );
       return;
     }
     this.seleccionarFeature(punto, "lectura");
