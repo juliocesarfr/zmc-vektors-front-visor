@@ -262,7 +262,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       next: (registros) => {
         this.cargando = false;
         if (registros.length === 0) {
-          this.avisar("info", "Aviso", "No se encontró ningún registro para el Código de Cliente");
+          this.avisar("warn", "Aviso", "No se encontró a este cliente en la base de datos.");
           return;
         }
 
@@ -315,12 +315,18 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
           this.markerLayer?.getSource()?.addFeature(feature);
           this.map?.getView().animate({ center: coord, zoom: 19, duration: 800 });
         } else {
-          this.avisar("warn", "Aviso", "El cliente no tiene coordenadas válidas.");
+          this.avisar("warn", "Sin Ubicación", "Este cliente no se encuentra georreferenciado en el mapa.");
         }
       },
-      error: () => {
+      error: (err) => {
         this.cargando = false;
-        this.avisar("error", "Error", "Ocurrió un error al cargar el suministro.");
+        if (err?.status === 401 || err?.status === 403) {
+          this.avisar("error", "Acceso Denegado", "No tienes permisos para consultar las rutas de Vektors.");
+        } else if (err?.status === 404) {
+          this.avisar("error", "No Encontrado", "El servicio de Vektors no se encuentra disponible.");
+        } else {
+          this.avisar("error", "Error", "Ocurrió un error al cargar los datos del cliente.");
+        }
       }
     });
   }
