@@ -174,8 +174,9 @@
   position: absolute;
   top: 70px;
   right: 16px;
-  width: min(360px, calc(100vw - 20px));
+  width: min(420px, calc(100vw - 32px));
   min-width: 260px;
+  max-height: calc(100vh - 180px);
   z-index: 1000;
   background: #ffffff;
   border-radius: 8px;
@@ -336,6 +337,14 @@
   .up-section {
     border: 1px solid #f1f5f9;
     border-radius: 6px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+      transform: translateY(-1px);
+    }
 
     .up-section-title {
       display: flex;
@@ -366,6 +375,16 @@
       &.imgs {
         background: #fdf4ff;
         color: #480384;
+      }
+
+      &.contacto {
+        background: #f0fdfa;
+        color: #0f766e;
+      }
+
+      &.facturacion {
+        background: #fef2f2;
+        color: #b91c1c;
       }
 
       .up-img-badge {
@@ -405,6 +424,11 @@
       display: flex;
       flex-direction: column;
       gap: 0px;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: #f8fafc;
+      }
 
       &.full {
         grid-column: span 2;

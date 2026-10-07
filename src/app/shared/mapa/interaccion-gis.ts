@@ -170,7 +170,7 @@ export class InteraccionGis {
     this.map.removeLayer(this.capaResaltado);
   }
 
-  private alMoverCursor(evento: MapBrowserEvent): void {
+  private alMoverCursor(evento: MapBrowserEvent<any>): void {
     if (evento.dragging) return;
     // Un cálculo por cuadro basta: pointermove llega muchas veces más rápido que lo que se pinta.
     const habiaPendiente = this.pixelPendiente !== null;
