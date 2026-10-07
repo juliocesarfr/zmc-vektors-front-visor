@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DropdownModule } from 'primeng/dropdown';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -80,6 +81,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private readonly clientesService = inject(ClientesService);
   private readonly dialogService = inject(DialogService);
   private readonly catastroService = inject(CatastroService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly baseLayers = CAPAS_BASE_UI;
   baseActive: string | null = 'osm';
@@ -116,6 +118,18 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   ngOnInit(): void {
     this.cargarSucursales();
     this.cargarCombosEstaticos();
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      if (params['codcliente']) {
+        this.searchCodCliente = params['codcliente'];
+        
+        const interval = setInterval(() => {
+          if (this.selectedSucursal && this.selectedAnio && this.selectedMes) {
+            clearInterval(interval);
+            this.buscarPorCodCliente();
+          }
+        }, 100);
+      }
+    });
   }
 
   private cargarSucursales(): void {
@@ -150,8 +164,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     for (const capa of this.commercialLayers) {
       this.capasWms.set(capa.id, crearCapaWms(this.gis.urlWms(), this.gis.capa(capa.id), capa.active));
     }
-
-    // Target por referencia, no por id: en el microfrontend el id puede chocar.
     
     this.markerLayer = new VectorLayer({
       source: new VectorSource(),
@@ -169,7 +181,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       }),
     });
     this.capasSidebar?.conectarMapa(this.map);
-    // Sin listado: esta pantalla no tiene herramientas de dibujo ni registros cargados.
     this.controladorGis = new ControladorMapaGis(this.map, {
       consulta: this.consultaCapasGis,
       gis: this.gis,
@@ -322,7 +333,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   getDescripcionEstadoLectura(codigo: string): string {
     if (!codigo) return "-";
-    // In main we don't load listaEstadosLectura yet, so we return the code
     return codigo;
   }
 
