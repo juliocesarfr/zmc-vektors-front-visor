@@ -14,7 +14,7 @@ import { CommonModule } from "@angular/common";
 import { forkJoin, of } from "rxjs";
 import { catchError, switchMap, tap } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-// import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
+import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -866,22 +866,8 @@ export class SeguimientoDeLecturaXinspectorComponent
   // ============================================================
 
   verMasInformacion(codcliente: string | undefined): void {
-    // if (!codcliente) return;
+    if (!codcliente) return;
 
-<<<<<<< HEAD
-    // this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-    //   header: "Consulta General de Usuario",
-    //   width: "90%",
-    //   height: "95%",
-    //   baseZIndex: 10000,
-    //   maximizable: true,
-    //   data: {
-    //     codcliente,
-    //     codsuc: this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
-    //     operacion: "Vektors",
-    //   },
-    // });
-=======
     this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
       header: "Consulta General de Usuario",
       width: "90%",
@@ -895,7 +881,6 @@ export class SeguimientoDeLecturaXinspectorComponent
         operacion: "Vektors",
       },
     });
->>>>>>> fef30333238e98fd7fe217592a3f2b915581a24b
   }
 
   // ============================================================
