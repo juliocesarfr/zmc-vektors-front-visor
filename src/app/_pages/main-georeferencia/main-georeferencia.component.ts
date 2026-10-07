@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { DropdownModule } from 'primeng/dropdown';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
@@ -82,6 +82,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private readonly dialogService = inject(DialogService);
   private readonly catastroService = inject(CatastroService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly baseLayers = CAPAS_BASE_UI;
   baseActive: string | null = 'osm';
@@ -240,6 +241,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.controladorGis?.quitarPredio();
     this.markerLayer?.getSource()?.clear();
     this.lecturaSeleccionada = null;
+    this.limpiarURL();
   }
 
   buscarPorCodCliente(): void {
@@ -335,6 +337,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.lecturaSeleccionada = null;
     this.datosClientePopup = null;
     this.imagenesPopup = [];
+    this.limpiarURL();
   }
 
   getDescripcionEstadoLectura(codigo: string): string {
@@ -446,5 +449,12 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   private avisar(severity: "success" | "info" | "warn" | "error", summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail });
+  }
+  private limpiarURL(): void {
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { codcliente: null },
+      queryParamsHandling: 'merge'
+    });
   }
 }
