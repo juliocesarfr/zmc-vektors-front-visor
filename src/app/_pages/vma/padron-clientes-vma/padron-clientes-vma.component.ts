@@ -1,17 +1,16 @@
 import {
   Component,
+  ViewChild,
   OnInit,
-  OnDestroy,
   CUSTOM_ELEMENTS_SCHEMA,
   DestroyRef,
   inject,
 } from "@angular/core";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
 import { DropdownModule } from "primeng/dropdown";
-import { InputTextModule } from "primeng/inputtext";
 import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
@@ -19,10 +18,8 @@ import { SectoresCicloService } from "@host/_servicios/seguridad/sectores-ciclo.
 import { TarifasService } from "@host/_servicios/catastro/tarifas.service";
 import { TipousuarioService } from "@host/_servicios/catastro/tipousuario.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, of } from "rxjs";
-import { catchError, finalize } from "rxjs/operators";
-import { DialogService, DynamicDialogModule } from "primeng/dynamicdialog";
-import { TooltipModule } from "primeng/tooltip";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, finalize, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import VectorLayer from "ol/layer/Vector";
@@ -31,13 +28,29 @@ import { Feature } from "ol";
 
 import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-visor.component";
 import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
-import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
-import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
+import { MapEstilosFactory, RADIOS_LECTURA } from "../../../shared/mapa/mapa-estilos";
+import { ListadoMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { ColumnaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { crearFeaturePunto, extraerCoordenada } from "../../../shared/mapa/geo.utils";
 import { FiltroPadronClientesVMARequest } from "@host/_models/vektors/VMA/FiltroPadronClientesVMARequest";
 import { VmaService } from "@host/_servicios/vektors/vma.service";
-import { ConfigOrigenCoordenada, ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
-import { fromCircle } from "ol/geom/Polygon";
+import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
+import { abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 
+
+const COLUMNAS_TABLA_PADRON_VMA: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "catetar", titulo: "Categoría", anchoExcel: 10 },
+  { campo: "descripactividad", titulo: "Actividad", anchoExcel: 28 },
+  { campo: "estadoservicio", titulo: "Estado del servicio", anchoExcel: 16 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+];
 
 @Component({
   selector: "app-padron-clientes-vma",
@@ -48,23 +61,21 @@ import { fromCircle } from "ol/geom/Polygon";
     ButtonModule,
     ToastModule,
     DropdownModule,
-    InputTextModule,
-    DynamicDialogModule,
-    TooltipModule,
     MapaVisorComponent,
     MapaPopupClienteComponent
   ],
   templateUrl: "./padron-clientes-vma.component.html",
   styleUrl: "./padron-clientes-vma.component.scss",
-  providers: [
-    DatePipe,
-    MessageService,
-    DialogService,
-  ],
+  providers: [MessageService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class PadronClientesVmaComponent implements OnInit, OnDestroy {
+export class PadronClientesVmaComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly estilos = new MapEstilosFactory();
 
   map?: OlMap;
@@ -124,18 +135,31 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.cargarCombosEstaticos();
+    this.cargarCatalogos();
   }
 
-  ngOnDestroy(): void {}
+  @ViewChild(MapaVisorComponent) private visor?: MapaVisorComponent;
+
+  readonly listadoMapa: Omit<ListadoMapaGis, "excelService"> = {
+    columnas: COLUMNAS_TABLA_PADRON_VMA,
+    tituloReporte: "PADRÓN DE CLIENTES VMA",
+    nombreArchivo: "padron_vma_area_",
+    origen: ORIGENES_COORDENADA.usuario,
+    registros: () => this.resultadoBusquedaJson ?? [],
+    aFila: (registro) => ({ ...registro, direccion: direccionDe(registro) }),
+    subcabecera: () => [
+      `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+      `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+      `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+    ],
+  };
 
   onMapReady(map: OlMap): void {
     this.map = map;
-    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
-      if (geometry && geometry.getType() === 'Circle') {
-        this.contarElementosEnRadio(geometry);
-      }
-    });
+  }
+
+  mostrarAvisoMapa(detalle: string): void {
+    this.avisar("info", "Aviso", detalle);
   }
 
 
@@ -151,7 +175,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
     this.messageService.add({ severity, summary, detail, life: 3000 });
   }
 
-  private cargarCombosEstaticos(): void {
+  private cargarCatalogos(): void {
     this.cargando = true;
 
     forkJoin({
@@ -198,6 +222,8 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
   }
 
   onCicloChange(): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.selectedTarifa = null;
@@ -208,7 +234,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(this.selectedCiclo.codigo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => (this.listaSucursales = data || []),
         error: (err) => console.error("Error al cargar sucursales:", err)
@@ -216,6 +242,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedTarifa = null;
     this.listaSectores = [];
@@ -225,7 +252,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
 
     this.tarifasService
       .drop(this.selectedSucursal.codsuc)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaTarifas = [
@@ -239,7 +266,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
 
     this.sectoresCicloService
       .drop_sectores_x_ciclo(this.selectedSucursal.codsuc, this.selectedCiclo.codigo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSectores = [
@@ -360,6 +387,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
 
   private limpiarCapas(): void {
     this.usuariosLayer.getSource()?.clear();
+    this.visor?.descartarListado();
     this.totalClientes = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -388,8 +416,7 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
     if (!this.clienteSeleccionado) return;
     const coordObj = extraerCoordenada(this.clienteSeleccionado, ORIGENES_COORDENADA["usuario"]);
     if (coordObj) {
-      const svUrl = `http://maps.google.com/maps?q=&layer=c&cbll=${coordObj[1]},${coordObj[0]}&cbp=11,0,0,0,0`;
-      window.open(svUrl, "StreetView", "width=800,height=600");
+      abrirGoogleStreetView(coordObj);
     } else {
       this.avisar("warn", "Aviso", "El cliente no tiene coordenadas válidas.");
     }
@@ -414,13 +441,14 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
             if (features && features.length > 0) {
               this.onFeatureClick(features[0]);
             }
+            this.visor?.marcarPredio(query);
             
             this.avisar("success", "Encontrado", `Cliente ${query} encontrado.`);
           } else {
             this.avisar("error", "No encontrado", response?.mensaje || "No existe.");
           }
         },
-        error: (err) => {
+        error: () => {
           this.cargando = false;
           this.avisar("error", "Error", "Problemas de conexión con el servidor");
         }
@@ -431,25 +459,5 @@ export class PadronClientesVmaComponent implements OnInit, OnDestroy {
     this.resultadoBusquedaJson = null;
     this.limpiarCapas();
     this.cerrarPopup();
-  }
-
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-    const source = this.usuariosLayer.getSource();
-    if (source) {
-      source.forEachFeatureIntersectingExtent(extent, (feature) => {
-        const geom = feature.getGeometry();
-        if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
-          count++;
-        }
-      });
-    }
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} clientes en el área seleccionada.`
-    });
   }
 }

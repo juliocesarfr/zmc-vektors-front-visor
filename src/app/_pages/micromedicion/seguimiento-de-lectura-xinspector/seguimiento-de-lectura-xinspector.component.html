@@ -7,6 +7,27 @@
     <div class="sl-title">
       <img src="assets/images/img-medicion/writing.png" alt="seguimiento" />
       <h3>SEGUIMIENTO DE LECTURA <span>| Por Inspector</span></h3>
+
+      <!-- Estado del socket + última toma recibida, dentro de la barra. -->
+      <span
+        class="sl-envivo"
+        [class.offline]="!conectadoEnVivo"
+        [title]="
+          ultimaEnVivo
+            ? ultimaEnVivo.inspector + ' tomó lectura de ' + ultimaEnVivo.codcliente
+            : (conectadoEnVivo ? 'Recibiendo lecturas en tiempo real' : 'Sin conexión en tiempo real')
+        "
+      >
+        <span class="sl-envivo__pulso"></span>
+        <span class="sl-envivo__texto" *ngIf="ultimaEnVivo; else slSinActividad">
+          <strong>{{ ultimaEnVivo.inspector }}</strong> · {{ ultimaEnVivo.codcliente }}
+        </span>
+        <ng-template #slSinActividad>
+          <span class="sl-envivo__texto">
+            {{ conectadoEnVivo ? "Tiempo Real" : "Sin conexión" }}
+          </span>
+        </ng-template>
+      </span>
     </div>
 
     <div class="sl-toolbar-actions">
@@ -62,14 +83,14 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedCiclo">
-        <p-dropdown [options]="listaSucursalesxusr" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+        <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
           (ngModelChange)="onSucursalChange()" [style]="{ width: '180px' }" placeholder="Sucursales"
           [appendTo]="'body'"></p-dropdown>
         <label>Sucursal</label>
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="totalSectores2" [(ngModel)]="selectedSector" optionLabel="descripcion"
+        <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector" optionLabel="descripcion"
            [filter]="true" filterBy="descripcion"
           [style]="{ width: '180px' }" placeholder="Sector" [appendTo]="'body'">
           <ng-template let-sector pTemplate="item">
@@ -80,7 +101,7 @@
       </span>
 
       <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="inspectoresxSector" [(ngModel)]="selectedInspector"
+        <p-dropdown [options]="listaInspectores" [(ngModel)]="selectedInspector"
           optionLabel="names" [filter]="true" filterBy="names" [showClear]="true"
           [style]="{ width: '240px' }" placeholder="Inspector" [appendTo]="'body'">
           <ng-template let-insp pTemplate="item">
@@ -112,36 +133,11 @@
     <div #mapContainer id="map" class="map"></div>
 
     <!-- Sidebar de capas -->
-    <div class="gis-sidebar-container">
-      <div class="gis-sidebar-panel" *ngIf="sidebarOpen">
-        <div class="sidebar-title">
-          <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
-        </div>
-        <div class="base-layers">
-          <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="setBaseLayer(l.id)">
-            <img class="icon" [src]="l.iconUrl" [alt]="l.label" />
-            <span>{{ l.label }}</span>
-          </button>
-        </div>
-        <div class="divider"></div>
-        <div class="sidebar-title">
-          <img src="assets/images/img-georeferencia/radar-icon.gif" class="gif-icon" alt="Capas"> CAPAS DEL SEGUIMIENTO
-        </div>
-        <div class="commercial-layers">
-          <div class="c-layer" *ngFor="let l of commercialLayers" (click)="toggleCommercialLayer(l)">
-            <span [class.active-text]="l.active">{{ l.label }}</span>
-            <div class="custom-toggle" [class.on]="l.active">
-              <div class="toggle-circle"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <button class="sidebar-toggle-btn" [class.closed]="!sidebarOpen" (click)="toggleSidebar()"
-        [title]="sidebarOpen ? 'Ocultar capas' : 'Mostrar capas'">
-        <span *ngIf="!sidebarOpen" class="stb-text">VER CAPAS</span>
-        <i class="pi" [class.pi-chevron-left]="sidebarOpen" [class.pi-chevron-right]="!sidebarOpen"></i>
-      </button>
-    </div>
+    <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
+      [commercialLayers]="commercialLayers"
+      tituloComerciales="CAPAS DEL SEGUIMIENTO"
+      (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleCommercialLayer($event)">
+    </app-capas-sidebar>
 
     <!-- Resumen de estadísticas del detalle -->
     <div class="sl-resumen" *ngIf="totalRegistros > 0">
@@ -160,6 +156,10 @@
       <div class="card-resumen warn">
         <span class="numero">{{ totalLejos }}</span>
         <span class="titulo">Tomadas lejos</span>
+      </div>
+      <div class="card-resumen vivo" *ngIf="totalEnVivo > 0">
+        <span class="numero">{{ totalEnVivo }}</span>
+        <span class="titulo">En vivo</span>
       </div>
     </div>
 
@@ -294,5 +294,9 @@
           (click)="verMasInformacion($any(registroSeleccionado['codcliente']))"></button>
       </div>
     </div>
+
+    <app-paneles-mapa-gis [controlador]="controladorGis"
+      [hayPanelDerecho]="!!registroSeleccionado || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
   </div>
 </div>

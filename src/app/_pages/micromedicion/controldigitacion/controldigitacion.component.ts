@@ -6,16 +6,16 @@ import {
   CUSTOM_ELEMENTS_SCHEMA,
   HostListener,
   DestroyRef,
+  NgZone,
   ViewChild,
   ElementRef,
   inject,
 } from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { CommonModule, DatePipe } from "@angular/common";
-import { forkJoin, of } from "rxjs";
-import { catchError, switchMap, tap } from "rxjs/operators";
+import { CommonModule } from "@angular/common";
+import { forkJoin, of, Subject, Observable } from "rxjs";
+import { catchError, switchMap, tap, takeUntil, map } from "rxjs/operators";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
 import OlMap from "ol/Map";
 import View from "ol/View";
@@ -27,8 +27,8 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
-import Feature from "ol/Feature";
-import { transform } from "ol/proj";
+import Feature, { FeatureLike } from "ol/Feature";
+import Point from "ol/geom/Point";
 import { extend, getCenter } from "ol/extent";
 
 import { MessageService } from "primeng/api";
@@ -40,47 +40,115 @@ import { MicromedicionService } from "@host/_servicios/vektors/micromedicion.ser
 import { ControlImgService } from "@host/_servicios/procesar-img/control-img.service";
 import { ClientesService } from "@host/_servicios/catastro/clientes.service";
 import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
-import { ValidacionSistemaService } from "@host/_servicios/validar/validacion-sistema.service";
 import { FormsModule } from "@angular/forms";
 import { DropdownModule } from "primeng/dropdown";
 import { ButtonModule } from "primeng/button";
 import { MultiSelectModule } from "primeng/multiselect";
 import { InputNumberModule } from "primeng/inputnumber";
 import { ToastModule } from "primeng/toast";
-import { TagModule } from "primeng/tag";
 import { InputTextModule } from "primeng/inputtext";
 
 import {
   DISTANCIA_MAX_ACOMETIDA_M,
   ORIGENES_COORDENADA,
+} from "../../../shared/constantes/coordenadas";
+import {
   colorPorEstadoLectura,
   COLOR_FICHA_AGUA,
-  COLOR_FICHA_ALC,
+  COLOR_FICHA_ALCANTARILLADO,
+} from "../../../shared/constantes/colores-mapa";
+import {
   LISTA_MESES,
   TIPOS_PROMEDIO,
-  TIPOS_RECEPCION_IMG,
-  TipoPopup,
-  RegistroLectura,
-  Sector,
+  TIPOS_RECEPCION_FOTOS_LECTURA,
   SECTOR_TODOS,
-} from "../../../config/Controldigitacion.config";
+} from "../../../shared/constantes/lecturas";
+import { RegistroLectura } from "@host/_models/vektors/RegistroLectura";
+import { SectorCiclo } from "@host/_models/vektors/SectorCiclo";
+import { ROTULO_ENVIVO_MS } from "../../../shared/mapa/destello-lecturas";
 import {
   crearFeaturePunto,
   crearFeatureLinea,
   extraerCoordenada,
-} from "../.././../util/Geo.utils";
+} from "../../../shared/mapa/geo.utils";
+import { DestelloLecturas } from "../../../shared/mapa/destello-lecturas";
+import { LecturasEnVivoService } from "../../../core/tiempo-real";
 import {
+  ContextoTiempoReal,
+  LecturaEnVivo,
+} from "@host/_models/vektors/LecturaEnVivo";
+import {
+  FormaPunto,
   MapEstilosFactory,
   RADIOS_LECTURA,
   RADIOS_FICHA,
-} from "../../../util/Mapaestilos.factory";
-import { observarTamanoMapa } from "../.././../util/Mapinit.util";
-import { GisConfigService } from "../../../core/gis";
+} from "../../../shared/mapa/mapa-estilos";
+import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
+import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
+import { MARCA_CAPA_RESALTADO } from "../../../shared/mapa/interaccion-gis";
+import { ZOOM_PREDIO } from "../../../shared/mapa/predio-buscado";
+import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import {
+  CapaConsultable,
+  ConsultaCapasGisService,
+  GisConfigService,
+} from "../../../core/gis";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
+import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
+import {
+  ColumnaListado,
+  FilaListado,
+  direccionDe,
+} from "../../../shared/utils/listado-excel";
+import { ExcelService } from "@host/_servicios/reportes/excel.service";
+import {
+  crearCapaWms,
+  crearCapaOsm,
+  crearCapaSatelital,
+  CAPAS_BASE_UI,
+} from "../../../shared/mapa/capas";
+import {
+  coordenadaLonLat,
+  abrirGoogleStreetView,
+} from "../../../shared/mapa/street-view";
+import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+
+import {
+  formatoFechaCorta,
+  rangoFotosRecientes,
+} from "../../../shared/utils/fechas.utils";
+import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
+
+/** Qué ficha muestra el popup según la capa en que se hizo clic. */
+type TipoPopup = "lectura" | "agua" | "alcantarillado";
+
+const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "lecturaanterior", titulo: "Lect. anterior", anchoExcel: 12 },
+  { campo: "lecturaultima", titulo: "Lect. actual", anchoExcel: 12 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+  {
+    campo: "descripcionEstadoLectura",
+    titulo: "Estado de lectura",
+    anchoExcel: 24,
+  },
+  { campo: "inspector", titulo: "Inspector", anchoExcel: 30 },
+];
 
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
+    VisorImagenesComponent,
+    PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
     DropdownModule,
@@ -88,32 +156,49 @@ import { GisConfigService } from "../../../core/gis";
     ButtonModule,
     InputNumberModule,
     ToastModule,
-    TagModule,
     InputTextModule,
   ],
   templateUrl: "./controldigitacion.component.html",
   styleUrl: "./controldigitacion.component.scss",
   providers: [
-    DatePipe,
-    ValidacionSistemaService,
     MessageService,
     DialogService,
+    // Al destruirse se da de baja del socket sin cerrarlo para las demás pantallas.
+    LecturasEnVivoService,
   ],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
 export class ControldigitacionComponent
-  implements OnInit, AfterViewInit, OnDestroy {
+  implements OnInit, AfterViewInit, OnDestroy
+{
   private readonly destroyRef = inject(DestroyRef);
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
-  /** Referencia directa al <div #mapContainer> real montado por Angular. */
+  private readonly enVivo = inject(LecturasEnVivoService);
+  private destellos?: DestelloLecturas;
+  private readonly zone = inject(NgZone);
+  private readonly factArchService = inject(FactArchService);
+  private readonly excelService = inject(ExcelService);
+
+  totalEnVivo = 0;
+  ultimaEnVivo: { inspector: string; codcliente: string } | null = null;
+  conectadoEnVivo = false;
+  private timeoutRotulo?: number;
+
+  @ViewChild(CapasSidebarComponent)
+  private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // ---- Mapa y capas ----
   map!: OlMap;
   lecturasLayer!: VectorLayer<VectorSource>;
   cajaAguaLayer!: VectorLayer<VectorSource>;
@@ -123,42 +208,38 @@ export class ControldigitacionComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  rutaLecturaLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
-  /** id de capa comercial (HTML) → capa de OpenLayers. Evita el if/else gigante. */
   private registroCapas: Record<string, BaseLayer> = {};
-  /** Capas vectoriales que se limpian/refrescan juntas. */
   private capasVector: VectorLayer<VectorSource>[] = [];
 
   tipoPopup: TipoPopup = "lectura";
 
-  // ---- Sesión ----
-  private readonly _codsede = sessionStorage.getItem("codsede");
-  private readonly _codemp = sessionStorage.getItem("codemp");
+  private readonly codsedeSesion = sessionStorage.getItem("codsede");
 
-  // ---- Filtros ----
   dataCiclos: any[] = [];
   fechaCiclos: any;
-  listaSucursalesxusr: any[] = [];
-  totalSectores2: Sector[] = [];
-  lista_estadolec: any[] = [];
+  listaSucursales: any[] = [];
+  listaSectores: SectorCiclo[] = [];
+  listaEstadosLectura: any[] = [];
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
-  selectedSector: Sector | null = null; // '%' = todos
+  selectedSector: SectorCiclo | null = null; // '%' = todos
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
-  consumoini: number | null = 0;
-  consumofin: number | null = 0;
+  consumoInicial: number | null = 0;
+  consumoFinal: number | null = 0;
   selectedTipoPromedio: (typeof TIPOS_PROMEDIO)[number] | null =
     TIPOS_PROMEDIO[0]; // default: MEDIDO
 
   resultadoBusquedaJson: RegistroLectura[] | null = null;
 
   readonly listaMeses = LISTA_MESES;
-  readonly tipopromedio = TIPOS_PROMEDIO;
+  readonly tiposPromedio = TIPOS_PROMEDIO;
   readonly listaYear: { anio: string }[] = Array.from(
     { length: 6 },
     (_, i) => ({
@@ -166,9 +247,7 @@ export class ControldigitacionComponent
     }),
   );
 
-  // ---- UI ----
   filtrosVisible = false;
-  sidebarOpen = true;
   baseActive: string | null = "osm";
   cargando = false;
   totalLecturas = 0;
@@ -182,18 +261,7 @@ export class ControldigitacionComponent
     undefined;
   isBusquedaClienteActiva = false;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
@@ -204,28 +272,20 @@ export class ControldigitacionComponent
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
     { id: "sectores", label: "Sectores Comerciales", active: false },
     { id: "calles", label: "Calles", active: false },
+    { id: "rutaLectura", label: "Ruta de Lectura", active: false },
   ];
 
-  // ---- Popup ----
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
   datosClientePopup: any = null;
   ref: DynamicDialogRef | undefined;
 
-  // ---- Lightbox ----
-  imagenAbierta: string | null = null;
-  imagenAbiertaIndex = -1;
-  imagenZoom = 1;
-  imagenRotacion = 0;
-  isDragging = false;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  imgOffsetX = 0;
-  imgOffsetY = 0;
+  /** Foto abierta en el visor; -1 = cerrado. */
+  indiceFotoAbierta = -1;
 
   constructor(
-    private aperturaservices: AperturaMicromedicionService,
-    private seguridadService: SucursalesService,
+    private aperturaService: AperturaMicromedicionService,
+    private sucursalesService: SucursalesService,
     private sectoresService: SectoresCicloService,
     private consultaService: ConsulGenericService,
     private micromedicionService: MicromedicionService,
@@ -233,13 +293,12 @@ export class ControldigitacionComponent
     private clientesService: ClientesService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) { }
+  ) {}
 
   ngOnInit(): void {
-    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
-    this.aperturaservices
+    this.aperturaService
       .getCiclos()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((response) => {
@@ -253,35 +312,137 @@ export class ControldigitacionComponent
     this.consultaService
       .getconsultaService("TEL", "ALL", "ALL", "ALL")
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((data) => (this.lista_estadolec = data));
+      .subscribe((data) => (this.listaEstadosLectura = data));
+
+    // Aquí y no en ngAfterViewInit: si se navega antes, takeUntilDestroyed lanzaría.
+    this.iniciarTiempoReal();
   }
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
 
-    MapEstilosFactory.setupAdvancedMapTools(this.map);
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () => this.capasComercialesConsultables(),
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: (detalle) => this.avisar("info", "Aviso", detalle),
+      listado: {
+        columnas: COLUMNAS_TABLA_LECTURAS,
+        tituloReporte: "CONTROL DE DIGITACIÓN",
+        nombreArchivo: "control_digitacion_area_",
+        origen: ORIGENES_COORDENADA.usuario,
+        registros: () => this.resultadoBusquedaJson ?? [],
+        aFila: (registro) => this.aFilaTabla(registro),
+        subcabecera: () => [
+          `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+          `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+          `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+          `Periodo: ${this.selectedMes}/${this.selectedAnio}`,
+        ],
+        excelService: this.excelService,
+      },
+    });
 
     this.initClick();
 
     requestAnimationFrame(() => {
-      const el =
-        this.mapContainer?.nativeElement ?? document.getElementById("map");
-      if (!el) {
-        console.error(
-          "[ControlDigitacion] No se encontró el contenedor del mapa (#map ni #mapContainer).",
-        );
-        return;
-      }
+      const el = this.mapContainer?.nativeElement;
+      if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
+
+      this.destellos = new DestelloLecturas(this.map, this.zone);
     });
   }
 
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
+    this.destellos?.limpiar();
+    this.controladorGis?.destruir();
+    clearTimeout(this.timeoutRotulo);
     this.map?.setTarget(undefined);
     this.ref?.close();
+  }
+
+  // ============================================================
+  // TIEMPO REAL
+  // ============================================================
+
+  private iniciarTiempoReal(): void {
+    this.enVivo.lecturas$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((lectura) => this.aplicarLecturaEnVivo(lectura));
+
+    this.enVivo.conectado$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((activo) => (this.conectadoEnVivo = activo));
+
+    this.enVivo.conectar(this.contextoTiempoReal());
+  }
+
+  private contextoTiempoReal(): ContextoTiempoReal {
+    return {
+      codsuc: this.selectedSucursal?.codsuc ?? null,
+      codciclo: this.selectedCiclo?.codciclo ?? null,
+      anio: this.selectedAnio ?? null,
+      mes: this.selectedMes ?? null,
+    };
+  }
+
+  // Si el cliente no está en el mapa se ignora, para no salirse del filtro aplicado.
+  private aplicarLecturaEnVivo(lectura: LecturaEnVivo): void {
+    const feature = this.lecturasLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find(
+        (f) =>
+          String(f.get("codcliente") ?? f.get("nroSuministro") ?? "").trim() ===
+          lectura.codcliente,
+      );
+
+    if (!feature) return;
+
+    if (lectura.estadolectura) {
+      feature.set("estadolectura", lectura.estadolectura);
+    }
+    if (lectura.tipoestlectura) {
+      feature.set("tipoestlectura", lectura.tipoestlectura);
+    }
+    if (lectura.codinspector) {
+      feature.set("codinspector", lectura.codinspector);
+    }
+
+    this.totalEnVivo++;
+    this.mostrarRotulo(lectura);
+
+    const geometria = feature.getGeometry();
+    const coordenada =
+      geometria?.getType() === "Point"
+        ? (geometria as Point).getCoordinates()
+        : null;
+
+    if (coordenada) {
+      this.destellos?.mostrar(lectura.codcliente, coordenada, {
+        color: colorPorEstadoLectura(lectura.estadolectura),
+        inspector: lectura.codinspector,
+        detalle: lectura.inspector || lectura.codcliente,
+      });
+    }
+  }
+
+  private mostrarRotulo(lectura: LecturaEnVivo): void {
+    this.ultimaEnVivo = {
+      inspector: lectura.inspector || lectura.codinspector || "—",
+      codcliente: lectura.codcliente,
+    };
+
+    clearTimeout(this.timeoutRotulo);
+    this.timeoutRotulo = window.setTimeout(() => {
+      this.ultimaEnVivo = null;
+    }, ROTULO_ENVIVO_MS);
   }
 
   // ============================================================
@@ -293,28 +454,42 @@ export class ControldigitacionComponent
   }
 
   onCicloChange(autoLoad = false): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.limpiarCapas();
     if (!this.selectedCiclo) return;
 
-    this.aperturaservices
+    this.aperturaService
       .getfechaCiclos(this.selectedCiclo.codciclo)
       .pipe(
         tap((response) => {
           this.fechaCiclos = response.data;
-          this.selectedAnio = this.fechaCiclos.year;
-          this.selectedMes = this.fechaCiclos.month;
+          this.factArchService
+            .recuperar_ultimo_periodo_comercial("001")
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((res) => {
+              const aniomes = res?.aniomes || "202609";
+              const anio = aniomes.substring(0, 4);
+              const mes = aniomes.substring(4, 6);
+              if (!this.listaYear.find((y) => y.anio === anio)) {
+                this.listaYear.unshift({ anio: anio });
+              }
+              this.selectedAnio = anio;
+              this.selectedMes = mes;
+            });
         }),
         switchMap(() =>
-          this.seguridadService.drop_sucursales_x_ciclo(
+          this.sucursalesService.drop_sucursales_x_ciclo(
             this.selectedCiclo.codciclo,
           ),
         ),
+        takeUntil(this.cicloCambiado),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe((data) => {
-        this.listaSucursalesxusr = data;
+        this.listaSucursales = data;
         if (autoLoad && data?.length > 0) {
           this.selectedSucursal = data[0];
           this.onSucursalChange();
@@ -323,6 +498,7 @@ export class ControldigitacionComponent
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     if (!this.selectedSucursal) return;
 
@@ -331,39 +507,41 @@ export class ControldigitacionComponent
         this.selectedSucursal.codsuc,
         this.selectedCiclo.codciclo,
       )
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        takeUntil(this.sucursalCambiada),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe((data) => {
-        this.totalSectores2 = [SECTOR_TODOS, ...data];
+        this.listaSectores = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
         this.selectedSector = def;
-        this.consumoini = 0;
-        this.consumofin = 0;
+        this.consumoInicial = 0;
+        this.consumoFinal = 0;
       });
   }
 
-  private sectorPorDefecto(): Sector | null {
+  private sectorPorDefecto(): SectorCiclo | null {
     return (
-      this.totalSectores2.find(
+      this.listaSectores.find(
         (s) => s.codsector === "01" || s.codsector === "1",
       ) ??
-      this.totalSectores2[1] ??
-      this.totalSectores2[0] ??
+      this.listaSectores[1] ??
+      this.listaSectores[0] ??
       null
     );
   }
 
-  /** Construye el filtro a partir del estado actual de la pantalla. */
   private construirFiltro(): FiltroLecturas {
     return {
       codsuc: this.selectedSucursal.codsuc,
-      codsede: this._codsede ?? "%",
+      codsede: this.selectedSucursal.codsuc ?? "%",
       codsector: this.selectedSector ? this.selectedSector.codsector : "%",
       codciclo: this.selectedCiclo.codciclo,
       anio: this.selectedAnio,
       mes: this.selectedMes,
       estadolectura: (this.selectedEstados || []).join(","),
-      consumoini: this.consumoini,
-      consumofin: this.consumofin,
+      consumoini: this.consumoInicial,
+      consumofin: this.consumoFinal,
       tipopromedio: this.selectedTipoPromedio?.codigo ?? "",
     };
   }
@@ -388,9 +566,9 @@ export class ControldigitacionComponent
   procesar(): void {
     if (!this.filtrosBasicosValidos()) return;
     if (
-      this.consumoini != null &&
-      this.consumofin != null &&
-      this.consumoini > this.consumofin
+      this.consumoInicial != null &&
+      this.consumoFinal != null &&
+      this.consumoInicial > this.consumoFinal
     ) {
       this.avisar(
         "warn",
@@ -400,13 +578,14 @@ export class ControldigitacionComponent
       return;
     }
 
+    this.enVivo.actualizarContexto(this.contextoTiempoReal());
+
     this.ejecutarBusqueda(this.construirFiltro(), (registros) => {
       this.resultadoBusquedaJson = registros;
       this.actualizarCapasComerciales();
     });
   }
 
-  /** Petición compartida entre "Buscar" y la búsqueda por código de cliente. */
   private ejecutarBusqueda(
     filtro: FiltroLecturas,
     onData: (registros: RegistroLectura[]) => void,
@@ -438,13 +617,24 @@ export class ControldigitacionComponent
     const def = this.sectorPorDefecto();
     this.selectedSector = def;
     this.selectedEstados = [];
-    this.consumoini = 0;
-    this.consumofin = 0;
-    this.selectedTipoPromedio = TIPOS_PROMEDIO[0]; // consistente con el default inicial
+    this.consumoInicial = 0;
+    this.consumoFinal = 0;
+    this.selectedTipoPromedio = TIPOS_PROMEDIO[0];
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
-      this.selectedAnio = this.fechaCiclos.year;
-      this.selectedMes = this.fechaCiclos.month;
+      this.factArchService
+        .recuperar_ultimo_periodo_comercial("001")
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((res) => {
+          const aniomes = res?.aniomes || "202609";
+          const anio = aniomes.substring(0, 4);
+          const mes = aniomes.substring(4, 6);
+          if (!this.listaYear.find((y) => y.anio === anio)) {
+            this.listaYear.unshift({ anio: anio });
+          }
+          this.selectedAnio = anio;
+          this.selectedMes = mes;
+        });
     }
     this.limpiarCapas();
   }
@@ -461,12 +651,21 @@ export class ControldigitacionComponent
     this.totalLecturas = registros.length;
     if (registros.length === 0) return;
 
-    // Cada capa vectorial de puntos/líneas se llena con la misma receta:
-    // registro → feature (o null si no hay coordenada) → addFeatures.
-    const puntos = (origen: keyof typeof ORIGENES_COORDENADA) =>
-      registros
+    const puntos = (origen: keyof typeof ORIGENES_COORDENADA) => {
+      const coords = new Set<string>();
+      return registros
         .map((r) => crearFeaturePunto(r, ORIGENES_COORDENADA[origen]))
-        .filter((f): f is Feature => f !== null);
+        .filter((f): f is Feature => {
+          if (!f) return false;
+          const geom = f.getGeometry();
+          if (!geom || geom.getType() !== "Point") return false;
+          const [lon, lat] = (geom as any).getCoordinates();
+          const key = `${lon.toFixed(6)}_${lat.toFixed(6)}`;
+          if (coords.has(key)) return false;
+          coords.add(key);
+          return true;
+        });
+    };
 
     const lineas = (
       origen: keyof typeof ORIGENES_COORDENADA,
@@ -487,10 +686,12 @@ export class ControldigitacionComponent
     this.lecturasLayer.getSource()!.addFeatures(featuresUsr);
     this.cajaAguaLayer.getSource()!.addFeatures(puntos("agua"));
     this.fichaAlcLayer.getSource()!.addFeatures(puntos("desague"));
-    this.acomAguaLayer.getSource()!.addFeatures(lineas("agua", "acomagua"));
+    this.acomAguaLayer
+      .getSource()!
+      .addFeatures(lineas("agua", "acometidaAgua"));
     this.acomDesagueLayer
       .getSource()!
-      .addFeatures(lineas("desague", "acomdesague"));
+      .addFeatures(lineas("desague", "acometidaDesague"));
 
     this.totalSinCoordenadas = registros.length - featuresUsr.length;
 
@@ -535,13 +736,18 @@ export class ControldigitacionComponent
 
   private limpiarCapas(): void {
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
+    this.controladorGis?.quitarPredio();
+    this.destellos?.limpiar();
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
+    this.totalEnVivo = 0;
+    this.ultimaEnVivo = null;
+    this.controladorGis?.descartarListado();
+    clearTimeout(this.timeoutRotulo);
   }
 
-  /** Fuerza re-render de todas las capas vectoriales (p.ej. al cambiar selección). */
   private refrescarCapasVector(): void {
     this.capasVector.forEach((capa) => capa?.changed());
   }
@@ -550,109 +756,45 @@ export class ControldigitacionComponent
   // MAPA
   // ============================================================
 
-  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: layer, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
-
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
-    this.sectoresComercialesLayer = this.crearWms(
+    this.lotesLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("lotes"),
+      true,
+    );
+    this.sectoresComercialesLayer = crearCapaWms(
+      this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("calles"),
+      false,
+    );
+    this.rutaLecturaLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("rutaLectura"),
+      false,
+    );
 
-    const zoomActual = () => this.map?.getView().getZoom() ?? 14;
-
-    this.lecturasLayer = new VectorLayer({
-      source: new VectorSource(),
-      visible: true,
-      style: (f) => {
-        return this.estilos.punto({
-          forma: "circulo",
-          color: colorPorEstadoLectura(f.get("estadolectura")),
-          zoom: zoomActual(),
-          seleccionado: f === this.featureSeleccionado,
-          etiqueta: f.get("codcliente") || f.get("nroSuministro"),
-          ...RADIOS_LECTURA,
-        });
-      },
-    });
-
-    this.cajaAguaLayer = new VectorLayer({
-      source: new VectorSource(),
-      visible: false,
-      style: (f) => {
-        return this.estilos.punto({
-          forma: "rombo",
-          color: COLOR_FICHA_AGUA,
-          zoom: zoomActual(),
-          seleccionado: f === this.featureSeleccionado,
-          etiqueta: f.get("codcliente") || f.get("nroSuministro"),
-          ...RADIOS_FICHA,
-        });
-      },
-    });
-
-    this.fichaAlcLayer = new VectorLayer({
-      source: new VectorSource(),
-      visible: false,
-      style: (f) => {
-        return this.estilos.punto({
-          forma: "rombo",
-          color: COLOR_FICHA_ALC,
-          zoom: zoomActual(),
-          seleccionado: f === this.featureSeleccionado,
-          etiqueta: f.get("codcliente") || f.get("nroSuministro"),
-          ...RADIOS_FICHA,
-        });
-      },
-    });
-
-    // La resolución llega como 2º parámetro de la style function en cada render:
-    // así la extensión de líneas cortas siempre usa la resolución vigente.
-    this.acomAguaLayer = new VectorLayer({
-      source: new VectorSource(),
-      visible: false,
-      style: (f, resolution) => {
-        return this.estilos.lineaAcometida(
-          COLOR_FICHA_AGUA,
-          f === this.featureSeleccionado,
-          resolution,
-        );
-      },
-    });
-
-    this.acomDesagueLayer = new VectorLayer({
-      source: new VectorSource(),
-      visible: false,
-      style: (f, resolution) => {
-        return this.estilos.lineaAcometida(
-          COLOR_FICHA_ALC,
-          f === this.featureSeleccionado,
-          resolution,
-        );
-      },
-    });
+    this.lecturasLayer = this.crearCapaPuntos(
+      { forma: "circulo", radios: RADIOS_LECTURA, visible: true },
+      (f) => colorPorEstadoLectura(f.get("estadolectura")),
+    );
+    this.cajaAguaLayer = this.crearCapaPuntos(
+      { forma: "rombo", radios: RADIOS_FICHA, visible: false },
+      () => COLOR_FICHA_AGUA,
+    );
+    this.fichaAlcLayer = this.crearCapaPuntos(
+      { forma: "rombo", radios: RADIOS_FICHA, visible: false },
+      () => COLOR_FICHA_ALCANTARILLADO,
+    );
+    this.acomAguaLayer = this.crearCapaAcometida(COLOR_FICHA_AGUA);
+    this.acomDesagueLayer = this.crearCapaAcometida(COLOR_FICHA_ALCANTARILLADO);
 
     this.capasVector = [
       this.lecturasLayer,
@@ -671,18 +813,17 @@ export class ControldigitacionComponent
       acc_alc: this.acomDesagueLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      rutaLectura: this.rutaLecturaLayer,
     };
 
     this.map = new OlMap({
-      // NO se pasa target aquí: en un microfrontend, resolver el id "map" por
-      // string durante la construcción engancha un div equivocado o inexistente
-      // (por eso salía en blanco al navegar y bien al recargar). Se engancha
-      // en ngAfterViewInit con setTarget sobre la referencia real del @ViewChild.
+      // Sin target aquí: en el microfrontend el id "map" engancha otro div. Se asigna en ngAfterViewInit.
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
         this.callesLayer,
         this.lotesLayer,
+        this.rutaLecturaLayer,
         this.acomAguaLayer,
         this.acomDesagueLayer,
         this.fichaAlcLayer,
@@ -697,7 +838,44 @@ export class ControldigitacionComponent
     });
   }
 
-  /** Determina el tipo de popup a mostrar según la capa clickeada. */
+  /** Capa de puntos (usuarios o fichas) con etiqueta del código y resaltado del seleccionado. */
+  private crearCapaPuntos(
+    opciones: {
+      forma: FormaPunto;
+      radios: typeof RADIOS_LECTURA;
+      visible: boolean;
+    },
+    colorDe: (punto: FeatureLike) => string,
+  ): VectorLayer<VectorSource> {
+    return new VectorLayer({
+      source: new VectorSource(),
+      visible: opciones.visible,
+      style: (punto) =>
+        this.estilos.punto({
+          forma: opciones.forma,
+          color: colorDe(punto),
+          zoom: this.map?.getView().getZoom() ?? 14,
+          seleccionado: punto === this.featureSeleccionado,
+          etiqueta: punto.get("codcliente") || punto.get("nroSuministro"),
+          ...opciones.radios,
+        }),
+    });
+  }
+
+  /** Capa de líneas ficha → acometida. */
+  private crearCapaAcometida(color: string): VectorLayer<VectorSource> {
+    return new VectorLayer({
+      source: new VectorSource(),
+      visible: false,
+      style: (linea, resolucion) =>
+        this.estilos.lineaAcometida(
+          color,
+          linea === this.featureSeleccionado,
+          resolucion,
+        ),
+    });
+  }
+
   private tipoPopupDeCapa(capa: BaseLayer | null): TipoPopup {
     if (capa === this.cajaAguaLayer || capa === this.acomAguaLayer)
       return "agua";
@@ -706,8 +884,9 @@ export class ControldigitacionComponent
     return "lectura";
   }
 
-  /** Punto único de selección: click en el mapa y buscador reutilizan esto. */
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
   private seleccionarFeature(feature: Feature, tipo: TipoPopup): void {
+    this.controladorGis?.cerrarPopupGis();
     this.tipoPopup = tipo;
     this.featureSeleccionado = feature;
     this.refrescarCapasVector();
@@ -717,8 +896,7 @@ export class ControldigitacionComponent
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
-      if (isDrawing) return;
+      if (estaUsandoHerramientas(this.map)) return;
       let clickedLayer: BaseLayer | null = null;
       const feature = this.map.forEachFeatureAtPixel(
         evt.pixel,
@@ -726,24 +904,64 @@ export class ControldigitacionComponent
           clickedLayer = layer;
           return f;
         },
-        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
+        {
+          hitTolerance: 5,
+          layerFilter: (layer: any) =>
+            !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
+        },
       ) as Feature | undefined;
 
       if (feature) {
         this.seleccionarFeature(feature, this.tipoPopupDeCapa(clickedLayer));
       } else {
         this.cerrarPopup();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
   }
 
   // ============================================================
-  // SIDEBAR DE CAPAS
+  // CONSULTA GIS (GetFeatureInfo)
   // ============================================================
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
+  private capasComercialesConsultables(): CapaConsultable[] {
+    return [
+      { rol: "rutaLectura", capa: this.rutaLecturaLayer },
+      { rol: "lotes", capa: this.lotesLayer },
+      { rol: "calles", capa: this.callesLayer },
+      { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+    ];
   }
+
+  private aFilaTabla(registro: Record<string, unknown>): FilaListado {
+    const direccion = direccionDe(registro);
+    return {
+      ...registro,
+      direccion,
+      descripcionEstadoLectura: this.getDescripcionEstadoLectura(
+        String(registro["estadolectura"] ?? ""),
+      ),
+    };
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = this.codigoDe(fila);
+    const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
+    if (!punto) {
+      this.avisar(
+        "warn",
+        "Aviso",
+        `El cliente ${codigo} no tiene coordenadas para ubicarlo.`,
+      );
+      return;
+    }
+    this.seleccionarFeature(punto, "lectura");
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
+  }
+
+  // ============================================================
+  // SIDEBAR DE CAPAS
+  // ============================================================
 
   setBaseLayer(id: string): void {
     this.baseActive = this.baseActive === id ? null : id;
@@ -756,8 +974,7 @@ export class ControldigitacionComponent
     this.registroCapas[layer.id]?.setVisible(layer.active);
   }
 
-  /** Cambia la capa WMS de lotes según los sectores. */
-  seleccionarSectores(sectores: Sector[]): void {
+  seleccionarSectores(sectores: SectorCiclo[]): void {
     if (!sectores || sectores.length === 0) return;
     const isTodos = sectores.some((s) => s.codsector === "%");
     const source = this.lotesLayer.getSource() as TileWMS;
@@ -774,27 +991,18 @@ export class ControldigitacionComponent
   }
 
   // ============================================================
-  //llama al modulo de consulta
+  // CONSULTA
   // ============================================================
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc:
-          this.selectedSucursal?.codsuc ||
-          this.lecturaSeleccionada?.codsuc ||
-          this.datosClientePopup?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    this.ref = abrirConsultaUsuario(
+      this.dialogService,
+      codcliente,
+      this.selectedSucursal?.codsuc ||
+        this.lecturaSeleccionada?.codsuc ||
+        this.datosClientePopup?.codsuc,
+    );
   }
 
   cerrarPopup(): void {
@@ -815,8 +1023,38 @@ export class ControldigitacionComponent
 
   getDescripcionEstadoLectura(codigo: string): string {
     if (!codigo) return "-";
-    const estado = this.lista_estadolec.find((e) => e.codigo === codigo);
+    const estado = this.listaEstadosLectura.find((e) => e.codigo === codigo);
     return estado ? estado.descripcion : codigo;
+  }
+
+  // `situacionmed` llega como string: "1" instalado, "2" retirado, "3" reinstalado.
+  getEtiquetaMovimientoMedidor(): string {
+    switch (this.situacionMedidor()) {
+      case "2":
+        return "F. Retiro";
+      case "3":
+        return "F. Reinstalación";
+      default:
+        return "F. Instalación";
+    }
+  }
+
+  // En "instalado" `fechainst` llega siempre null: la fecha real está en `fechainsmed`.
+  getFechaMovimientoMedidor(): string {
+    const medidor: any = this.datosClientePopup?._medidor;
+
+    switch (this.situacionMedidor()) {
+      case "2":
+        return formatoFechaCorta(medidor?.fecharetiro);
+      case "3":
+        return formatoFechaCorta(medidor?.fechareinst);
+      default:
+        return formatoFechaCorta(medidor?.fechainst || medidor?.fechainsmed);
+    }
+  }
+
+  private situacionMedidor(): string {
+    return String(this.datosClientePopup?._medidor?.situacionmed ?? "").trim();
   }
 
   private cargarDatosPopup(lectura: RegistroLectura): void {
@@ -826,22 +1064,14 @@ export class ControldigitacionComponent
     const codsuc = lectura.codsuc || this.selectedSucursal?.codsuc || "002";
     const codcliente = lectura.codcliente;
 
-    const hoy = new Date();
-    const fechaFinal = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-    const fechaInicial = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const formatDate = (d: Date) =>
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
     forkJoin({
       imagenes: this.controlImgService
         .read_x_tipolistar({
           codsuc,
           codcliente,
-          fecha_inicial: formatDate(fechaInicial),
-          fecha_final: formatDate(fechaFinal),
+          ...rangoFotosRecientes(),
           tipoarchivo: "IMG",
-          tiporecepcion: TIPOS_RECEPCION_IMG,
+          tiporecepcion: TIPOS_RECEPCION_FOTOS_LECTURA,
         })
         .pipe(catchError(() => of({ mensaje: "ERROR", data: [] }))),
       cliente: this.clientesService
@@ -867,15 +1097,15 @@ export class ControldigitacionComponent
           this.imagenesPopup =
             imagenes?.mensaje === "EXITO" && imagenes?.data?.length > 0
               ? imagenes.data
-                .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
-                .map((e: any) => ({
-                  ...e,
-                  src: e.img64?.startsWith("data:")
-                    ? e.img64
-                    : "data:image/jpeg;base64," + e.img64,
+                  .filter((e: any) => !e.tiporecepcionimages?.includes("FIRMA"))
+                  .map((e: any) => ({
+                    ...e,
+                    src: e.img64?.startsWith("data:")
+                      ? e.img64
+                      : "data:image/jpeg;base64," + e.img64,
 
-                  fechareg: e?.fechareg,
-                }))
+                    fechareg: e?.fechareg,
+                  }))
               : [];
         },
         error: () => (this.cargandoImagenes = false),
@@ -886,168 +1116,93 @@ export class ControldigitacionComponent
   // BUSCADOR POR CÓDIGO
   // ============================================================
 
-  /** Busca un codcliente en los features ya cargados en el mapa. */
+  /**
+   * Busca el código primero entre los puntos ya pintados; si no está, lo pide
+   * al servidor (puede estar en otro sector del mismo ciclo).
+   */
   buscarPorCodCliente(): void {
-    const query = String(this.searchCodCliente || "").trim();
-    if (!query) {
+    const codigo = String(this.searchCodCliente || "").trim();
+    if (!codigo) {
       this.reiniciarBusqueda();
       return;
     }
 
     this.refrescarCapasVector();
+    if (this.buscarEnMapa(codigo)) return;
 
-    // Primero, si ya tenemos datos cargados, buscamos ahí
-    const capas: { layer: VectorLayer<VectorSource>; tipo: TipoPopup }[] = [
-      { layer: this.lecturasLayer, tipo: "lectura" },
-      { layer: this.cajaAguaLayer, tipo: "agua" },
-      { layer: this.fichaAlcLayer, tipo: "alcantarillado" },
-      { layer: this.acomAguaLayer, tipo: "agua" },
-      { layer: this.acomDesagueLayer, tipo: "alcantarillado" },
-    ];
-
-    let foundFeatureLocally = false;
-    for (const { layer, tipo } of capas) {
-      const feature = layer
-        ?.getSource()
-        ?.getFeatures()
-        .find((f) => {
-          const fc = String(
-            f.get("codcliente") || f.get("nroSuministro") || "",
-          ).trim();
-          return fc === query;
-        });
-
-      if (feature) {
-        foundFeatureLocally = true;
-        this.seleccionarFeature(feature, tipo);
-        this.activarCapasPorDefectoBusqueda();
-
-        // Si lo encontró localmente y queremos aislarlo, necesitamos filtrar la lista
-        if (!this.isBusquedaClienteActiva) {
-          this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-          this.isBusquedaClienteActiva = true;
-        }
-
-        // Aislamos el usuario encontrado
-        const userFeature = this.resultadoBusquedaOriginalJson?.find(
-          (r: any) =>
-            String(r.codcliente || r.nroSuministro || "").trim() === query,
-        );
-        if (userFeature) {
-          this.resultadoBusquedaJson = [userFeature];
-          this.actualizarCapasComerciales(false);
-
-          const refound = this.lecturasLayer
-            ?.getSource()
-            ?.getFeatures()
-            .find(
-              (f) =>
-                String(
-                  f.get("codcliente") || f.get("nroSuministro") || "",
-                ).trim() === query,
-            );
-          if (refound) {
-            this.seleccionarFeature(refound, "lectura");
-            const geom = refound.getGeometry();
-            if (geom) {
-              this.map.getView().animate({
-                center: getCenter(geom.getExtent()),
-                zoom: 21,
-                duration: 800,
-              });
-            }
-          }
-        }
-        return;
-      }
-    }
-
-    // Si no se encontró localmente, buscar en el backend sin importar el sector
     if (!this.filtrosBasicosValidos()) return;
 
     this.cargando = true;
-    this.micromedicionService
-      .buscarLecturasPorSuministro({
-        codsuc: this.selectedSucursal.codsuc,
-        anio: this.selectedAnio,
-        mes: this.selectedMes,
-        nroSuministro: Number(query),
-      })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (data) => {
-          this.cargando = false;
-          const registros = data.data
-            ? Array.isArray(data.data)
-              ? data.data
-              : [data.data]
-            : [];
-
-          if (registros.length === 0) {
-            this.avisar(
-              "warn",
-              "Aviso",
-              "No se encontró un usuario con ese código en ningún sector para este ciclo.",
-            );
-            return;
-          }
-
-          if (!this.isBusquedaClienteActiva) {
-            this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-            this.isBusquedaClienteActiva = true;
-          }
-
-          // Reemplazamos la lista con SOLO el usuario buscado
-          this.resultadoBusquedaJson = registros;
-
-          this.searchCodCliente = "";
-          this.actualizarCapasComerciales(false);
-
-          const fEncontrado = this.lecturasLayer
-            ?.getSource()
-            ?.getFeatures()
-            .find((f) => {
-              const fc = String(
-                f.get("codcliente") || f.get("nroSuministro") || "",
-              ).trim();
-              return fc === query;
-            });
-          if (fEncontrado) {
-            this.seleccionarFeature(fEncontrado, "lectura");
-            this.activarCapasPorDefectoBusqueda();
-            const geom = fEncontrado.getGeometry();
-            if (geom) {
-              this.map.getView().animate({
-                center: getCenter(geom.getExtent()),
-                zoom: 21,
-                duration: 800,
-              });
-            }
-          } else {
-            this.lecturaSeleccionada = registros[0];
-            this.cargarDatosPopup(registros[0]);
-            this.activarCapasPorDefectoBusqueda();
-
-            const coord = extraerCoordenada(
-              registros[0],
-              ORIGENES_COORDENADA["usuario"],
-            );
-            if (coord) {
-              this.map
-                .getView()
-                .animate({ center: coord, zoom: 17, duration: 600 });
-            }
-          }
-        },
-        error: () => {
-          this.cargando = false;
+    this.consultarSuministro(codigo).subscribe({
+      next: (registros) => {
+        this.cargando = false;
+        if (registros.length === 0) {
           this.avisar(
-            "error",
-            "Error",
-            "Ocurrió un error al buscar el cliente en el servidor.",
+            "warn",
+            "Aviso",
+            "No se encontró un usuario con ese código en ningún sector para este ciclo.",
           );
-        },
-      });
+          return;
+        }
+        this.mostrarSoloRegistros(registros);
+
+        const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
+        if (punto) {
+          this.seleccionarFeature(punto, "lectura");
+          this.activarCapasPorDefectoBusqueda();
+          this.acercarAPunto(punto);
+          this.controladorGis?.marcarPredio(codigo);
+        } else {
+          this.mostrarPopupSinPunto(registros[0]);
+        }
+      },
+      error: () => {
+        this.cargando = false;
+        this.avisar(
+          "error",
+          "Error",
+          "Ocurrió un error al buscar el cliente en el servidor.",
+        );
+      },
+    });
+  }
+
+  /** Selecciona el código si ya está pintado en alguna capa. Devuelve `true` si lo encontró. */
+  private buscarEnMapa(codigo: string): boolean {
+    const capas: { capa: VectorLayer<VectorSource>; tipo: TipoPopup }[] = [
+      { capa: this.lecturasLayer, tipo: "lectura" },
+      { capa: this.cajaAguaLayer, tipo: "agua" },
+      { capa: this.fichaAlcLayer, tipo: "alcantarillado" },
+      { capa: this.acomAguaLayer, tipo: "agua" },
+      { capa: this.acomDesagueLayer, tipo: "alcantarillado" },
+    ];
+
+    for (const { capa, tipo } of capas) {
+      const punto = this.buscarPuntoPorCodigo(capa, codigo);
+      if (!punto) continue;
+
+      this.seleccionarFeature(punto, tipo);
+      this.activarCapasPorDefectoBusqueda();
+      this.guardarResultadoOriginal();
+
+      // Deja en el mapa solo ese usuario y lo vuelve a seleccionar ya repintado.
+      const registro = this.resultadoBusquedaOriginalJson?.find(
+        (r) => this.codigoDe(r) === codigo,
+      );
+      if (registro) {
+        this.resultadoBusquedaJson = [registro];
+        this.actualizarCapasComerciales(false);
+
+        const repintado = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
+        if (repintado) {
+          this.seleccionarFeature(repintado, "lectura");
+          this.acercarAPunto(repintado);
+        }
+      }
+      this.controladorGis?.marcarPredio(codigo);
+      return true;
+    }
+    return false;
   }
 
   abrirBusqueda(): void {
@@ -1059,6 +1214,7 @@ export class ControldigitacionComponent
   reiniciarBusqueda(): void {
     this.searchCodCliente = "";
     this.cerrarPopup();
+    this.controladorGis?.quitarPredio();
     if (this.isBusquedaClienteActiva) {
       this.isBusquedaClienteActiva = false;
       if (this.resultadoBusquedaOriginalJson !== undefined) {
@@ -1079,7 +1235,6 @@ export class ControldigitacionComponent
     this.reiniciarBusqueda();
   }
 
-  /** Evento global: buscar un codcliente consultando al backend. */
   @HostListener("window:buscar-codcliente", ["$event"])
   onBuscarCodCliente(event: CustomEvent): void {
     const codcliente: string = event.detail?.codcliente;
@@ -1087,197 +1242,130 @@ export class ControldigitacionComponent
     if (!this.filtrosBasicosValidos()) return;
 
     this.cargando = true;
-    this.micromedicionService
+    this.consultarSuministro(codcliente).subscribe({
+      next: (registros) => {
+        this.cargando = false;
+        this.filtrosVisible = false;
+        if (registros.length === 0) {
+          this.avisar(
+            "info",
+            "Aviso",
+            "No se encontró ningún registro para el Código de Cliente",
+          );
+          return;
+        }
+        this.mostrarSoloRegistros(registros);
+
+        const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codcliente);
+        if (punto) {
+          this.seleccionarFeature(punto, "lectura");
+          this.activarCapasPorDefectoBusqueda();
+          this.centrarEnUsuario(registros[0]);
+          this.controladorGis?.marcarPredio(codcliente);
+        } else {
+          this.mostrarPopupSinPunto(registros[0]);
+        }
+      },
+      error: () => {
+        this.cargando = false;
+        this.limpiarCapas();
+        this.resultadoBusquedaJson = null;
+        this.avisar(
+          "error",
+          "Aviso de usuario",
+          "Ocurrió un error al cargar las lecturas",
+        );
+      },
+    });
+  }
+
+  /** Lecturas del suministro en el periodo seleccionado; el backend a veces devuelve un objeto y no una lista. */
+  private consultarSuministro(codigo: string): Observable<RegistroLectura[]> {
+    return this.micromedicionService
       .buscarLecturasPorSuministro({
         codsuc: this.selectedSucursal.codsuc,
         anio: this.selectedAnio,
         mes: this.selectedMes,
-        nroSuministro: Number(codcliente),
+        nroSuministro: Number(codigo),
       })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (data) => {
-          this.cargando = false;
-          this.filtrosVisible = false;
-          const query = codcliente.trim().toLowerCase();
-          const registros = data.data
-            ? Array.isArray(data.data)
-              ? data.data
-              : [data.data]
-            : [];
-
-          if (registros.length === 0) {
-            this.avisar(
-              "info",
-              "Aviso",
-              "No se encontró ningún registro para el Código de Cliente",
-            );
-            return;
-          }
-
-          if (!this.isBusquedaClienteActiva) {
-            this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-            this.isBusquedaClienteActiva = true;
-          }
-
-          this.resultadoBusquedaJson = registros;
-          this.searchCodCliente = "";
-          this.actualizarCapasComerciales(false);
-
-          const feature = this.lecturasLayer
-            .getSource()
-            ?.getFeatures()
-            .find((f) => {
-              const fc = String(
-                f.get("codcliente") || f.get("nroSuministro") || "",
-              )
-                .trim()
-                .toLowerCase();
-              return fc === query;
-            });
-
-          if (feature) {
-            this.seleccionarFeature(feature, "lectura");
-            this.activarCapasPorDefectoBusqueda();
-          } else {
-            this.lecturaSeleccionada = registros[0];
-            this.cargarDatosPopup(registros[0]);
-            this.activarCapasPorDefectoBusqueda();
-          }
-
-          const coord = extraerCoordenada(
-            registros[0],
-            ORIGENES_COORDENADA["usuario"],
-          );
-          if (coord) {
-            this.map
-              .getView()
-              .animate({ center: coord, zoom: 17, duration: 600 });
-          }
-        },
-        error: () => {
-          this.cargando = false;
-          this.limpiarCapas();
-          this.resultadoBusquedaJson = null;
-          this.avisar(
-            "error",
-            "Aviso de usuario",
-            "Ocurrió un error al cargar las lecturas",
-          );
-        },
-      });
+      .pipe(
+        map((respuesta) => {
+          const datos = respuesta.data;
+          if (!datos) return [];
+          return Array.isArray(datos) ? datos : [datos];
+        }),
+        takeUntilDestroyed(this.destroyRef),
+      );
   }
 
-  // ============================================================
-  // LIGHTBOX DE IMÁGENES
-  // (candidato a extraerse como <app-lightbox-imagenes> reutilizable)
-  // ============================================================
-
-  get imagenActual(): any | null {
-    return this.imagenAbiertaIndex >= 0
-      ? this.imagenesPopup[this.imagenAbiertaIndex]
-      : null;
-  }
-  abrirImagenCompleta(index: number): void {
-    if (index < 0 || index >= this.imagenesPopup.length) return;
-    this.imagenAbiertaIndex = index;
-    this.imagenAbierta = this.imagenesPopup[index].src;
-    this.resetZoom();
+  /** Muestra solo estos registros en el mapa, recordando el resultado anterior para poder volver. */
+  private mostrarSoloRegistros(registros: RegistroLectura[]): void {
+    this.guardarResultadoOriginal();
+    this.resultadoBusquedaJson = registros;
+    this.searchCodCliente = "";
+    this.actualizarCapasComerciales(false);
   }
 
-  cerrarImagenCompleta(): void {
-    this.imagenAbierta = null;
-    this.imagenAbiertaIndex = -1;
-    this.resetZoom();
+  /** Recuerda el resultado de la búsqueda por filtros la primera vez que se busca un cliente. */
+  private guardarResultadoOriginal(): void {
+    if (this.isBusquedaClienteActiva) return;
+    this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
+    this.isBusquedaClienteActiva = true;
   }
 
-  siguienteImagen(event?: Event): void {
-    event?.stopPropagation();
-    if (this.imagenesPopup.length === 0) return;
-    this.abrirImagenCompleta(
-      (this.imagenAbiertaIndex + 1) % this.imagenesPopup.length,
-    );
+  /** El registro no tiene coordenadas pintables: se abre el popup igual y se centra en el usuario. */
+  private mostrarPopupSinPunto(registro: RegistroLectura): void {
+    this.controladorGis?.cerrarPopupGis();
+    this.lecturaSeleccionada = registro;
+    this.cargarDatosPopup(registro);
+    this.activarCapasPorDefectoBusqueda();
+    this.centrarEnUsuario(registro);
+    this.controladorGis?.marcarPredio(this.codigoDe(registro));
   }
 
-  anteriorImagen(event?: Event): void {
-    event?.stopPropagation();
-    if (this.imagenesPopup.length === 0) return;
-    this.abrirImagenCompleta(
-      (this.imagenAbiertaIndex - 1 + this.imagenesPopup.length) %
-      this.imagenesPopup.length,
-    );
+  private buscarPuntoPorCodigo(
+    capa: VectorLayer<VectorSource> | undefined,
+    codigo: string,
+  ): Feature | undefined {
+    const buscado = codigo.trim().toLowerCase();
+    return capa
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => this.codigoDe(f.getProperties()).toLowerCase() === buscado);
   }
 
-  @HostListener("document:keydown", ["$event"])
-  handleKeyboardEvent(event: KeyboardEvent): void {
-    if (!this.imagenAbierta) return;
-    if (event.key === "ArrowRight") this.siguienteImagen();
-    else if (event.key === "ArrowLeft") this.anteriorImagen();
-    else if (event.key === "Escape") this.cerrarImagenCompleta();
+  /** Código del cliente de un registro o de un punto; algunas consultas lo traen como `nroSuministro`. */
+  private codigoDe(registro: Record<string, unknown>): string {
+    return String(
+      registro["codcliente"] || registro["nroSuministro"] || "",
+    ).trim();
   }
 
-  zoomIn(): void {
-    this.imagenZoom = Math.min(this.imagenZoom + 0.25, 5);
+  private acercarAPunto(punto: Feature): void {
+    const geometria = punto.getGeometry();
+    if (!geometria) return;
+    this.map.getView().animate({
+      center: getCenter(geometria.getExtent()),
+      zoom: ZOOM_PREDIO,
+      duration: 800,
+    });
   }
 
-  zoomOut(): void {
-    this.imagenZoom = Math.max(this.imagenZoom - 0.25, 0.25);
-    if (this.imagenZoom <= 1) this.resetOffset();
-  }
-
-  resetZoom(): void {
-    this.imagenZoom = 1;
-    this.imagenRotacion = 0;
-    this.resetOffset();
-  }
-
-  rotarIzquierda(): void {
-    this.imagenRotacion -= 90;
-  }
-
-  rotarDerecha(): void {
-    this.imagenRotacion += 90;
-  }
-
-  onWheelZoom(e: WheelEvent): void {
-    e.preventDefault();
-    const delta = e.deltaY < 0 ? 0.15 : -0.15;
-    this.imagenZoom = Math.min(Math.max(this.imagenZoom + delta, 0.25), 5);
-    if (this.imagenZoom <= 1) this.resetOffset();
-  }
-
-  onDragStart(event: MouseEvent): void {
-    if (this.imagenZoom <= 1) return;
-    this.isDragging = true;
-    this.dragStartX = event.clientX - this.imgOffsetX;
-    this.dragStartY = event.clientY - this.imgOffsetY;
-    event.preventDefault();
-  }
-
-  onDragMove(event: MouseEvent): void {
-    if (!this.isDragging || this.imagenZoom <= 1) return;
-    this.imgOffsetX = event.clientX - this.dragStartX;
-    this.imgOffsetY = event.clientY - this.dragStartY;
-  }
-
-  onDragEnd(): void {
-    this.isDragging = false;
-  }
-
-  private resetOffset(): void {
-    this.imgOffsetX = 0;
-    this.imgOffsetY = 0;
+  private centrarEnUsuario(registro: RegistroLectura): void {
+    const coordenada = extraerCoordenada(registro, ORIGENES_COORDENADA.usuario);
+    if (coordenada)
+      this.map
+        .getView()
+        .animate({ center: coordenada, zoom: 17, duration: 600 });
   }
 
   // ============================================================
   // OTROS
   // ============================================================
 
-  abrirStreetView(coordX: unknown, coordY: unknown): void {
-    const x = Number(coordX);
-    const y = Number(coordY);
-
-    if (!x || !y || (x === 0 && y === 0)) {
+  abrirStreetView(x: unknown, y: unknown): void {
+    const lonLat = coordenadaLonLat(x, y, this.gis.proyeccionUtm);
+    if (!lonLat) {
       this.avisar(
         "warn",
         "Aviso",
@@ -1285,17 +1373,7 @@ export class ControldigitacionComponent
       );
       return;
     }
-
-    // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
-    let [lng, lat] = [x, y];
-    if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
-    }
-
-    window.open(
-      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
-      "_blank",
-    );
+    abrirGoogleStreetView(lonLat);
   }
 
   private avisar(

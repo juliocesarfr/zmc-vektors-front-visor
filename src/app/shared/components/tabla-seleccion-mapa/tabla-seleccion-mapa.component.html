@@ -1,0 +1,63 @@
+<div class="tabla-pastilla" *ngIf="estaOculta">
+  <button type="button" class="tp-abrir" (click)="estaOculta = false" title="Volver a abrir el listado">
+    <i class="pi pi-table"></i>
+    <span><strong>{{ filas.length }}</strong> {{ titulo | lowercase }}</span>
+    <span class="tp-ver">Ver</span>
+  </button>
+  <button type="button" class="tp-descartar" (click)="descartar.emit()" title="Descartar el listado">
+    <i class="pi pi-times"></i>
+  </button>
+</div>
+
+<div class="tabla-seleccion" *ngIf="!estaOculta" [class.minimizada]="estaMinimizada"
+  [class.con-panel-derecho]="hayPanelDerecho">
+  <div class="ts-header">
+    <div class="ts-titulo">
+      <i class="pi pi-table"></i>
+      <span>{{ titulo }}</span>
+      <span class="ts-total">{{ filasVisibles.length }}<ng-container *ngIf="textoFiltro"> de {{ filas.length }}</ng-container></span>
+    </div>
+
+    <div class="ts-acciones">
+      <span class="p-input-icon-left ts-filtro" *ngIf="!estaMinimizada">
+        <i class="pi pi-search"></i>
+        <input pInputText type="text" placeholder="Filtrar…" [(ngModel)]="textoFiltro"
+          (input)="tabla.filterGlobal(textoFiltro, 'contains')" />
+      </span>
+      <button pButton type="button" class="p-button-sm p-button-success ts-excel" icon="pi pi-file-excel"
+        [label]="estaExportando ? 'Generando…' : 'Excel'" [disabled]="filasVisibles.length === 0 || estaExportando"
+        (click)="exportarExcel()" title="Descargar en Excel lo que se ve en la tabla"></button>
+      <button type="button" class="ts-icono" (click)="estaMinimizada = !estaMinimizada"
+        [title]="estaMinimizada ? 'Mostrar tabla' : 'Minimizar tabla'">
+        <i class="pi" [class.pi-chevron-up]="estaMinimizada" [class.pi-chevron-down]="!estaMinimizada"></i>
+      </button>
+      <button type="button" class="ts-icono ts-cerrar" (click)="ocultar()"
+        title="Cerrar (el listado queda abajo para volver a abrirlo)"><i class="pi pi-times"></i></button>
+    </div>
+  </div>
+
+  <div class="ts-cuerpo" [hidden]="estaMinimizada">
+    <p-table #tabla [value]="filas" [columns]="columnas" [globalFilterFields]="camposFiltro" [scrollable]="true"
+      scrollHeight="flex" [rowHover]="true" styleClass="p-datatable-sm p-datatable-gridlines" (onFilter)="alFiltrar($event)">
+      <ng-template pTemplate="header" let-columnas>
+        <tr>
+          <th *ngFor="let columna of columnas" [pSortableColumn]="columna.campo">
+            <span class="ts-th">{{ columna.titulo }} <p-sortIcon [field]="columna.campo"></p-sortIcon></span>
+          </th>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="body" let-fila let-columnas="columns">
+        <tr class="ts-fila" (click)="filaElegida.emit(fila)" title="Ubicar en el mapa">
+          <td *ngFor="let columna of columnas">{{ fila[columna.campo] ?? '-' }}</td>
+        </tr>
+      </ng-template>
+      <ng-template pTemplate="emptymessage" let-columnas>
+        <tr>
+          <td [attr.colspan]="columnas.length" class="ts-vacio">
+            {{ filas.length === 0 ? 'No hay clientes en el dibujo.' : 'Ningún cliente coincide con el filtro.' }}
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>

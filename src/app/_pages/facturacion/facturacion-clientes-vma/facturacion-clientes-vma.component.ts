@@ -1,39 +1,53 @@
 import {
   Component,
+  ViewChild,
   OnInit,
-  OnDestroy,
   CUSTOM_ELEMENTS_SCHEMA,
   DestroyRef,
   inject,
 } from "@angular/core";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
 import { DropdownModule } from "primeng/dropdown";
-import { InputTextModule } from "primeng/inputtext";
 import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, of } from "rxjs";
-import { catchError, finalize } from "rxjs/operators";
-import { DialogService, DynamicDialogModule } from "primeng/dynamicdialog";
-import { TooltipModule } from "primeng/tooltip";
+import { of, Subject } from "rxjs";
+import { catchError, finalize, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { Feature } from "ol";
-import { fromCircle } from "ol/geom/Polygon";
 
+import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-visor.component";
 import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
-import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
-import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
-import { FiltroFacturacionVMARequest } from "@host/_models/vektors/Facturacion/FiltroFacturacionVMARequest";
+import { MapEstilosFactory, RADIOS_LECTURA } from "../../../shared/mapa/mapa-estilos";
+import { ListadoMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { ColumnaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { crearFeaturePunto, extraerCoordenada } from "../../../shared/mapa/geo.utils";
 import { FacturacionService } from "@host/_servicios/vektors/facturacion.service";
-import { ConfigOrigenCoordenada, ORIGENES_COORDENADA } from "../../../config/Controldigitacion.config";
+import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
+import { LISTA_MESES } from "../../../shared/constantes/lecturas";
+import { abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+
+const COLUMNAS_TABLA_FACTURACION_VMA: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "categoria", titulo: "Categoría", anchoExcel: 16 },
+  { campo: "tiposervicioabrv", titulo: "Servicio", anchoExcel: 10 },
+  { campo: "factortotal", titulo: "Factor total", anchoExcel: 12 },
+  { campo: "consumofac", titulo: "Consumo facturado", anchoExcel: 12 },
+  { campo: "impmesagu", titulo: "Importe agua", anchoExcel: 12 },
+  { campo: "impmesalc", titulo: "Importe alcantarillado", anchoExcel: 14 },
+  { campo: "laboratorio", titulo: "Laboratorio", anchoExcel: 20 },
+];
 
 @Component({
   selector: "app-facturacion-clientes-vma",
@@ -44,24 +58,22 @@ import { ConfigOrigenCoordenada, ORIGENES_COORDENADA } from "../../../config/Con
     ButtonModule,
     ToastModule,
     DropdownModule,
-    InputTextModule,
-    DynamicDialogModule,
-    TooltipModule,
     MapaVisorComponent,
     MapaPopupClienteComponent
   ],
   templateUrl: "./facturacion-clientes-vma.component.html",
   styleUrl: "./facturacion-clientes-vma.component.scss",
-  providers: [
-    DatePipe,
-    MessageService,
-    DialogService,
-  ],
+  providers: [MessageService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
+export class FacturacionClientesVmaComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
+
+  // Al cambiar de opción en un combo se cancelan las cargas que siguen pendientes de la
+  // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
+  private readonly cicloCambiado = new Subject<void>();
   private readonly estilos = new MapEstilosFactory();
+  private readonly factArchService = inject(FactArchService);
 
   map?: OlMap;
 
@@ -75,7 +87,7 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
   dataCiclos: any[] = [];
   listaSucursales: any[] = [];
   anios: any[] = [];
-  meses: any[] = [];
+  readonly meses = LISTA_MESES;
 
   selectedCiclo: any = null;
   selectedSucursal: any = null;
@@ -112,15 +124,28 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
     this.cargarCombosDinamicos();
   }
 
-  ngOnDestroy(): void {}
+  @ViewChild(MapaVisorComponent) private visor?: MapaVisorComponent;
+
+  readonly listadoMapa: Omit<ListadoMapaGis, "excelService"> = {
+    columnas: COLUMNAS_TABLA_FACTURACION_VMA,
+    tituloReporte: "FACTURACIÓN VMA",
+    nombreArchivo: "facturacion_vma_area_",
+    origen: ORIGENES_COORDENADA.usuario,
+    registros: () => this.resultadoBusquedaJson ?? [],
+    aFila: (registro) => ({ ...registro, direccion: direccionDe(registro) }),
+    subcabecera: () => [
+      `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+      `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+      `Periodo: ${this.selectedMes}/${this.selectedAnio}`,
+    ],
+  };
 
   onMapReady(map: OlMap): void {
     this.map = map;
-    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
-      if (geometry && geometry.getType() === 'Circle') {
-        this.contarElementosEnRadio(geometry);
-      }
-    });
+  }
+
+  mostrarAvisoMapa(detalle: string): void {
+    this.avisar("info", "Aviso", detalle);
   }
 
   toggleFiltros(): void {
@@ -137,27 +162,20 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
 
   private cargarCombosEstaticos(): void {
     const currentYear = new Date().getFullYear();
-    for (let i = currentYear; i >= 2020; i--) {
+    for (let i = currentYear + 1; i >= 2020; i--) {
       this.anios.push({ label: i.toString(), value: i.toString() });
     }
-    this.selectedAnio = this.anios[0].value;
-
-    this.meses = [
-      { label: 'Enero', value: '01' },
-      { label: 'Febrero', value: '02' },
-      { label: 'Marzo', value: '03' },
-      { label: 'Abril', value: '04' },
-      { label: 'Mayo', value: '05' },
-      { label: 'Junio', value: '06' },
-      { label: 'Julio', value: '07' },
-      { label: 'Agosto', value: '08' },
-      { label: 'Septiembre', value: '09' },
-      { label: 'Octubre', value: '10' },
-      { label: 'Noviembre', value: '11' },
-      { label: 'Diciembre', value: '12' },
-    ];
-    const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
-    this.selectedMes = currentMonth;
+    
+    this.factArchService.recuperar_ultimo_periodo_comercial('001').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(response => {
+      const aniomes = response?.aniomes || '202609';
+      const anio = aniomes.substring(0, 4);
+      const mes = aniomes.substring(4, 6);
+      if (!this.anios.find(a => a.value === anio)) {
+        this.anios.unshift({ label: anio, value: anio });
+      }
+      this.selectedAnio = anio;
+      this.selectedMes = mes;
+    });
   }
 
   private cargarCombosDinamicos(): void {
@@ -180,6 +198,7 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
   }
 
   onCicloChange(): void {
+    this.cicloCambiado.next();
     this.selectedSucursal = null;
     this.listaSucursales = [];
     if (!this.selectedCiclo) return;
@@ -187,7 +206,7 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(codCiclo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => (this.listaSucursales = data || []),
         error: (err) => console.error("Error al cargar sucursales:", err)
@@ -278,6 +297,7 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
 
   private limpiarCapas(): void {
     this.usuariosLayer.getSource()?.clear();
+    this.visor?.descartarListado();
     this.totalClientes = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -307,8 +327,7 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
     if (!this.clienteSeleccionado) return;
     const coordObj = extraerCoordenada(this.clienteSeleccionado, ORIGENES_COORDENADA["usuario"]);
     if (coordObj) {
-      const svUrl = `http://maps.google.com/maps?q=&layer=c&cbll=${coordObj[1]},${coordObj[0]}&cbp=11,0,0,0,0`;
-      window.open(svUrl, "StreetView", "width=800,height=600");
+      abrirGoogleStreetView(coordObj);
     } else {
       this.avisar("warn", "Aviso", "El cliente no tiene coordenadas válidas.");
     }
@@ -338,13 +357,14 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
             if (features && features.length > 0) {
               this.onFeatureClick(features[0]);
             }
+            this.visor?.marcarPredio(query);
             
             this.avisar("success", "Encontrado", `Cliente ${query} encontrado.`);
           } else {
             this.avisar("error", "No encontrado", response?.mensaje || "No existe.");
           }
         },
-        error: (err) => {
+        error: () => {
           this.cargando = false;
           this.avisar("error", "Error", "Problemas de conexión con el servidor");
         }
@@ -355,25 +375,5 @@ export class FacturacionClientesVmaComponent implements OnInit, OnDestroy {
     this.resultadoBusquedaJson = null;
     this.limpiarCapas();
     this.cerrarPopup();
-  }
-
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-    const source = this.usuariosLayer.getSource();
-    if (source) {
-      source.forEachFeatureIntersectingExtent(extent, (feature) => {
-        const geom = feature.getGeometry();
-        if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
-          count++;
-        }
-      });
-    }
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} clientes en el área seleccionada.`
-    });
   }
 }

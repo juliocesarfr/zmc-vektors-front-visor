@@ -1,0 +1,45 @@
+<div class="gis-sidebar-container">
+  <div class="gis-sidebar-panel" *ngIf="abierto">
+    <div class="sidebar-title">
+      <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
+    </div>
+    <div class="base-layers">
+      <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="baseLayerChange.emit(l.id)">
+        <img class="icon" [src]="l.iconUrl" [alt]="l.label" />
+        <span>{{ l.label }}</span>
+      </button>
+    </div>
+
+    <ng-container *ngIf="commercialLayers.length > 0">
+      <div class="divider"></div>
+      <div class="sidebar-title">
+        <img src="assets/images/img-georeferencia/radar-icon.gif" class="gif-icon" alt="Capas"> {{ tituloComerciales }}
+      </div>
+      <ng-container *ngTemplateOutlet="listaSwitches; context: { $implicit: commercialLayers }"></ng-container>
+    </ng-container>
+
+    <ng-container *ngIf="technicalLayers.length > 0">
+      <div class="divider"></div>
+      <div class="sidebar-title">
+        <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> {{ tituloTecnicas }}
+      </div>
+      <ng-container *ngTemplateOutlet="listaSwitches; context: { $implicit: technicalLayers, tecnica: true }"></ng-container>
+    </ng-container>
+  </div>
+  <button class="sidebar-toggle-btn" [class.closed]="!abierto" (click)="togglePanel()"
+    [title]="abierto ? 'Ocultar capas' : 'Mostrar capas'">
+    <span *ngIf="!abierto" class="stb-text">VER CAPAS</span>
+    <i class="pi" [class.pi-chevron-left]="abierto" [class.pi-chevron-right]="!abierto"></i>
+  </button>
+</div>
+
+<ng-template #listaSwitches let-capas let-tecnica="tecnica">
+  <div class="commercial-layers">
+    <div class="c-layer" *ngFor="let l of capas" (click)="tecnica ? toggleTecnica(l) : layerToggle.emit(l)">
+      <span [class.active-text]="l.active">{{ l.label }}</span>
+      <div class="custom-toggle" [class.on]="l.active">
+        <div class="toggle-circle"></div>
+      </div>
+    </div>
+  </div>
+</ng-template>

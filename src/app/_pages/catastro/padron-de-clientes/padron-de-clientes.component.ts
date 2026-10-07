@@ -9,7 +9,7 @@ import {
   ElementRef,
   inject,
 } from "@angular/core";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
@@ -24,8 +24,8 @@ import { TarifasService } from "@host/_servicios/catastro/tarifas.service";
 import { UrbamaeService } from "@host/_servicios/catastro/urbamae.service";
 import { TipousuarioService } from "@host/_servicios/catastro/tipousuario.service";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
-import { forkJoin, of } from "rxjs";
-import { catchError } from "rxjs/operators";
+import { forkJoin, of, Subject } from "rxjs";
+import { catchError, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
 import TileLayer from "ol/layer/Tile";
@@ -37,54 +37,81 @@ import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
-import { extend, getCenter } from "ol/extent";
-import { transform } from "ol/proj";
+import { getCenter } from "ol/extent";
 import Zoom from "ol/control/Zoom";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
-import { ConsultaUsuarioComponent } from "@mf-consulta/_pages/consulta-usuario/consulta-usuario.component";
 
+import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
+import { ConsultaCapasGisService, GisConfigService } from "../../../core/gis";
+import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import {
-  ORIGENES_COORDENADA,
-  ConfigOrigenCoordenada
-} from "../../../config/Controldigitacion.config";
-import { GisConfigService } from "../../../core/gis";
-import { fromCircle } from 'ol/geom/Polygon';
-import { observarTamanoMapa } from "../../../util/Mapinit.util";
-import { MapEstilosFactory, RADIOS_LECTURA } from "../../../util/Mapaestilos.factory";
-import { crearFeaturePunto, extraerCoordenada } from "../../../util/Geo.utils";
+  MapEstilosFactory,
+  RADIOS_LECTURA,
+} from "../../../shared/mapa/mapa-estilos";
+import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
+import { MARCA_CAPA_RESALTADO } from "../../../shared/mapa/interaccion-gis";
+import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
+import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
+import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
+import { ExcelService } from "@host/_servicios/reportes/excel.service";
+import { crearFeaturePunto, extraerCoordenada } from "../../../shared/mapa/geo.utils";
 import { FiltroPadronClientesTipoActividadRequest } from "@host/_models/vektors/Catastro/FiltroPadronClientesTipoActividadRequest";
+import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
+import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
+import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+
+const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "tarifa", titulo: "Categoría", anchoExcel: 22 },
+  { campo: "actividad", titulo: "Actividad", anchoExcel: 22 },
+  { campo: "estadoservicio", titulo: "Estado del servicio", anchoExcel: 18 },
+  { campo: "tiposervicio", titulo: "Tipo de servicio", anchoExcel: 18 },
+  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
+];
 
 @Component({
   selector: "app-padron-de-clientes",
   standalone: true,
   imports: [
+    CapasSidebarComponent,
+    PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
     ButtonModule,
     ToastModule,
     DropdownModule,
-    InputTextModule
+    InputTextModule,
   ],
   templateUrl: "./padron-de-clientes.component.html",
   styleUrl: "./padron-de-clientes.component.scss",
-  providers: [
-    DatePipe,
-    MessageService,
-    DialogService,
-  ],
+  providers: [MessageService, DialogService],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestroy {
+export class PadronDeClientesComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
   private readonly destroyRef = inject(DestroyRef);
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
+
+  private readonly cicloCambiado = new Subject<void>();
+  private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly excelService = inject(ExcelService);
+  controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
 
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
   private mapContainer!: ElementRef<HTMLDivElement>;
 
-  // ---- Mapa y capas ----
   map!: OlMap;
   usuariosLayer!: VectorLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
@@ -96,9 +123,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   private registroCapas: Record<string, BaseLayer> = {};
   private capasVector: VectorLayer<VectorSource>[] = [];
 
-  // ---- UI ----
   filtrosVisible = false;
-  sidebarOpen = true;
   baseActive: string | null = "osm";
   cargando = false;
 
@@ -106,7 +131,6 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   totalClientes = 0;
   totalSinCoordenadas = 0;
 
-  // ---- Filtros Data ----
   dataCiclos: any[] = [];
   listaSucursales: any[] = [];
   listaSectores: any[] = [];
@@ -117,7 +141,6 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   listaActividades: any[] = [];
   listaTipoUsuario: any[] = [];
 
-  // ---- Filtros Seleccionados ----
   selectedCiclo: any = null;
   selectedSucursal: any = null;
   selectedSector: any = null;
@@ -137,18 +160,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
   featureSeleccionado: Feature | null = null;
   ref: DynamicDialogRef | undefined;
 
-  baseLayers = [
-    {
-      id: "osm",
-      label: "OSM",
-      iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif",
-    },
-    {
-      id: "satelital",
-      label: "Satelital",
-      iconUrl: "assets/images/img-georeferencia/satellital-icon.gif",
-    },
-  ];
+  readonly baseLayers = CAPAS_BASE_UI;
 
   commercialLayers = [
     { id: "usuarios", label: "Usuarios", active: true },
@@ -167,68 +179,84 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     private tipoUsuarioService: TipousuarioService,
     private messageService: MessageService,
     private dialogService: DialogService,
-  ) { }
+  ) {}
 
   ngOnInit(): void {
-    // La EPS logueada puede no publicar todas estas capas: se ocultan sus switches.
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
 
     forkJoin({
-      ciclos: this.consulGenericService.getconsultaService("CCO", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      estadoServicio: this.consulGenericService.getconsultaService("TES", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      tipoServicio: this.consulGenericService.getconsultaService("TSE", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      actividades: this.consulGenericService.getconsultaService("TAC", "ALL", "ALL", "ALL").pipe(catchError(() => of<any[]>(([])))),
-      tipoUsuario: this.tipoUsuarioService.drop().pipe(catchError(() => of<any[]>(([]))))
+      ciclos: this.consulGenericService
+        .getconsultaService("CCO", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      estadoServicio: this.consulGenericService
+        .getconsultaService("TES", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      tipoServicio: this.consulGenericService
+        .getconsultaService("TSE", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      actividades: this.consulGenericService
+        .getconsultaService("TAC", "ALL", "ALL", "ALL")
+        .pipe(catchError(() => of<any[]>([]))),
+      tipoUsuario: this.tipoUsuarioService
+        .drop()
+        .pipe(catchError(() => of<any[]>([]))),
     })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: ({ ciclos, estadoServicio, tipoServicio, actividades, tipoUsuario }) => {
-          // Ciclos
+        next: ({
+          ciclos,
+          estadoServicio,
+          tipoServicio,
+          actividades,
+          tipoUsuario,
+        }) => {
           this.dataCiclos = [
             { codigo: "ALL", descripcion: "TODOS", codemp: "ALL", estareg: 1 },
-            ...ciclos
+            ...ciclos,
           ];
           if (this.dataCiclos.length > 0) {
             this.selectedCiclo = this.dataCiclos[1] || this.dataCiclos[0];
             this.onCicloChange();
           }
 
-          // Estado Servicio
           this.listaEstadoServicio = [
             { codigo: "ALL", descripcion: "TODOS" },
-            ...estadoServicio
+            ...estadoServicio,
           ];
           this.selectedEstadoServicio = "ALL";
 
-          // Tipo Servicio
           this.listaTipoServicio = [
             { codigo: "ALL", descripcion: "TODOS" },
-            ...tipoServicio
+            ...tipoServicio,
           ];
           this.selectedTipoServicio = "ALL";
 
-          // Actividad
           this.listaActividades = [
             { codigo: "ALL", descripcion: "TODOS" },
-            ...actividades
+            ...actividades,
           ];
           this.selectedActividad = "ALL";
 
-          // Tipo Usuario
           this.listaTipoUsuario = [
             { tipousuario: "ALL", descripcion: "TODOS" },
-            ...(tipoUsuario || [])
+            ...(tipoUsuario || []),
           ];
           this.selectedTipoUsuario = "ALL";
         },
         error: (err) => {
           console.error("Error cargando catálogos iniciales:", err);
-          this.avisar("error", "Error", "Error al cargar catálogos iniciales. Revisa tu conexión.");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Error al cargar catálogos iniciales. Revisa tu conexión.",
+          );
+        },
       });
   }
 
   onCicloChange(): void {
+    this.cicloCambiado.next();
+    this.sucursalCambiada.next();
     this.selectedSucursal = null;
     this.selectedSector = null;
     this.listaSucursales = [];
@@ -239,7 +267,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
     this.sucursalesService
       .drop_sucursales_x_ciclo(this.selectedCiclo.codigo)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSucursales = data || [];
@@ -251,11 +279,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         error: (err) => {
           console.error("Error al cargar sucursales:", err);
           this.listaSucursales = [];
-        }
+        },
       });
   }
 
   onSucursalChange(): void {
+    this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedTarifa = null;
     this.selectedUrbanizacion = null;
@@ -269,35 +298,42 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
     this.tarifasService
       .drop(sucursalCode)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
-          const uniqueData = (data || []).filter((item: any, index: number, self: any[]) =>
-            index === self.findIndex((t) => t.nomtar === item.nomtar)
+          const uniqueData = (data || []).filter(
+            (item: any, index: number, self: any[]) =>
+              index === self.findIndex((t) => t.nomtar === item.nomtar),
           );
           this.listaTarifas = [
             { catetar: "ALL", nomtar: "TODOS", codigo: "ALL" },
-            ...uniqueData
+            ...uniqueData,
           ];
           this.selectedTarifa = "ALL";
         },
-        error: (err) => console.error("Error al cargar tarifas:", err)
+        error: (err) => console.error("Error al cargar tarifas:", err),
       });
 
-    if (this.selectedSucursal.codsuc === "ALL" || this.selectedCiclo.codigo === "ALL") {
+    if (
+      this.selectedSucursal.codsuc === "ALL" ||
+      this.selectedCiclo.codigo === "ALL"
+    ) {
       this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
       this.selectedSector = this.listaSectores[0];
       return;
     }
 
     this.sectoresCicloService
-      .drop_sectores_x_ciclo(this.selectedCiclo.codigo, this.selectedSucursal.codsuc)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .drop_sectores_x_ciclo(
+        this.selectedSucursal.codsuc,
+        this.selectedCiclo.codigo,
+      )
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaSectores = [
             { codsector: "ALL", descripcion: "TODOS" },
-            ...(data || [])
+            ...(data || []),
           ];
           this.selectedSector = this.listaSectores[0];
         },
@@ -305,63 +341,89 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           console.error("Error al cargar sectores:", err);
           this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
           this.selectedSector = this.listaSectores[0];
-        }
+        },
       });
 
-    // Urbanizaciones
     this.urbamaeService
       .drop_x_sucursales(this.selectedSucursal.codsuc)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (data) => {
           this.listaUrbanizaciones = [
             { codurbaso: "ALL", descripcionurba: "TODOS" },
-            ...(data || [])
+            ...(data || []),
           ];
           this.selectedUrbanizacion = "ALL";
         },
-        error: (err) => console.error("Error al cargar urbanizaciones:", err)
+        error: (err) => console.error("Error al cargar urbanizaciones:", err),
       });
   }
 
   getDescEstadoServicio(): string {
-    return this.listaEstadoServicio?.find(e => e.codigo === this.selectedEstadoServicio)?.descripcion ?? "TODOS";
+    return (
+      this.listaEstadoServicio?.find(
+        (e) => e.codigo === this.selectedEstadoServicio,
+      )?.descripcion ?? "TODOS"
+    );
   }
 
   getDescTipoUsuario(): string {
-    return this.listaTipoUsuario?.find(e => e.tipousuario === this.selectedTipoUsuario)?.descripcion ?? "TODOS";
+    return (
+      this.listaTipoUsuario?.find(
+        (e) => e.tipousuario === this.selectedTipoUsuario,
+      )?.descripcion ?? "TODOS"
+    );
   }
 
   getDescTipoServicio(): string {
-    return this.listaTipoServicio?.find(e => e.codigo === this.selectedTipoServicio)?.descripcion ?? "TODOS";
+    return (
+      this.listaTipoServicio?.find(
+        (e) => e.codigo === this.selectedTipoServicio,
+      )?.descripcion ?? "TODOS"
+    );
   }
 
   getDescTarifa(): string {
-    return this.listaTarifas?.find(e => e.catetar === this.selectedTarifa)?.nomtar ?? "TODOS";
+    return (
+      this.listaTarifas?.find((e) => e.catetar === this.selectedTarifa)
+        ?.nomtar ?? "TODOS"
+    );
   }
 
   getTarifaName(catetar: string): string {
-    if (!catetar) return '';
-    const tarifa = this.listaTarifas?.find(t => t.catetar === catetar);
-    return tarifa ? tarifa.nomtar : '';
+    if (!catetar) return "";
+    const tarifa = this.listaTarifas?.find((t) => t.catetar === catetar);
+    return tarifa ? tarifa.nomtar : "";
   }
 
   getDescUrbanizacion(): string {
-    return this.listaUrbanizaciones?.find(e => e.codurbaso === this.selectedUrbanizacion)?.descripcionurba ?? "TODOS";
+    return (
+      this.listaUrbanizaciones?.find(
+        (e) => e.codurbaso === this.selectedUrbanizacion,
+      )?.descripcionurba ?? "TODOS"
+    );
   }
 
   getDescActividad(): string {
-    return this.listaActividades?.find(e => e.codigo === this.selectedActividad)?.descripcion ?? "TODOS";
+    return (
+      this.listaActividades?.find((e) => e.codigo === this.selectedActividad)
+        ?.descripcion ?? "TODOS"
+    );
   }
 
   procesar(): void {
     if (!this.selectedCiclo || !this.selectedSucursal) {
-      this.avisar("warn", "Aviso de usuario", "Debe seleccionar Ciclo y Sucursal");
+      this.avisar(
+        "warn",
+        "Aviso de usuario",
+        "Debe seleccionar Ciclo y Sucursal",
+      );
       return;
     }
 
     this.cargando = true;
-    const toNull = (val: any, key?: string) => (!val || val === "ALL") ? null : val;
+    const toNull = (val: any, key?: string) =>
+      !val || val === "ALL" ? null : val;
 
     const filtro: FiltroPadronClientesTipoActividadRequest = {
       codciclo: toNull(this.selectedCiclo.codigo),
@@ -375,7 +437,8 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       actividad: toNull(this.selectedActividad),
     };
 
-    this.catastroService.listarPadronActividad(filtro)
+    this.catastroService
+      .listarPadronActividad(filtro)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -387,7 +450,11 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           } else {
             this.resultadoBusquedaJson = [];
             this.limpiarCapas();
-            this.avisar("info", "Resultados", "No se encontraron registros con los filtros seleccionados");
+            this.avisar(
+              "info",
+              "Resultados",
+              "No se encontraron registros con los filtros seleccionados",
+            );
           }
         },
         error: (err) => {
@@ -395,8 +462,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           this.cargando = false;
           this.limpiarCapas();
           this.resultadoBusquedaJson = [];
-          this.avisar("error", "Error", "Ocurrió un error al cargar el padrón de clientes");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Ocurrió un error al cargar el padrón de clientes",
+          );
+        },
       });
   }
 
@@ -459,19 +530,18 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   private limpiarCapas(): void {
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
+    this.controladorGis?.descartarListado();
     this.totalClientes = 0;
     this.totalSinCoordenadas = 0;
   }
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
 
     requestAnimationFrame(() => {
-      const el =
-        this.mapContainer?.nativeElement ?? document.getElementById("map");
-      if (!el) {
-        return;
-      }
+      const el = this.mapContainer?.nativeElement;
+      if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();
       this.detenerObservadorMapa = observarTamanoMapa(this.map, el);
@@ -480,6 +550,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   ngOnDestroy(): void {
     this.detenerObservadorMapa?.();
+    this.controladorGis?.destruir();
     this.map?.setTarget(undefined);
     this.ref?.close();
   }
@@ -500,6 +571,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   reiniciarBusqueda(): void {
     this.searchCodCliente = "";
+    this.controladorGis?.quitarPredio();
     if (this.isBusquedaClienteActiva) {
       this.isBusquedaClienteActiva = false;
       if (this.resultadoBusquedaOriginalJson !== undefined) {
@@ -517,10 +589,15 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       return;
     }
 
-    const feature = this.usuariosLayer?.getSource()?.getFeatures().find((f) => {
-      const fc = String(f.get("codcliente") || f.get("nroSuministro") || "").trim();
-      return fc === query;
-    });
+    const feature = this.usuariosLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => {
+        const fc = String(
+          f.get("codcliente") || f.get("nroSuministro") || "",
+        ).trim();
+        return fc === query;
+      });
 
     if (feature) {
       if (!this.isBusquedaClienteActiva) {
@@ -529,16 +606,23 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       }
 
       const userFeature = this.resultadoBusquedaOriginalJson?.find(
-        (r: any) => String(r.codcliente || r.nroSuministro || "").trim() === query
+        (r: any) =>
+          String(r.codcliente || r.nroSuministro || "").trim() === query,
       );
 
       if (userFeature) {
         this.resultadoBusquedaJson = [userFeature];
         this.actualizarCapasComerciales(false);
 
-        const refound = this.usuariosLayer?.getSource()?.getFeatures().find(
-          (f) => String(f.get("codcliente") || f.get("nroSuministro") || "").trim() === query
-        );
+        const refound = this.usuariosLayer
+          ?.getSource()
+          ?.getFeatures()
+          .find(
+            (f) =>
+              String(
+                f.get("codcliente") || f.get("nroSuministro") || "",
+              ).trim() === query,
+          );
 
         if (refound) {
           const geom = refound.getGeometry();
@@ -551,6 +635,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
           }
           this.seleccionarFeature(refound);
         }
+        this.controladorGis?.marcarPredio(query);
       }
       return;
     }
@@ -558,10 +643,12 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     if (!this.selectedSucursal) return;
 
     this.cargando = true;
-    this.catastroService.buscarClienteActividad({
-      codsuc: this.selectedSucursal.codsuc,
-      codcliente: Number(query)
-    }).pipe(takeUntilDestroyed(this.destroyRef))
+    this.catastroService
+      .buscarClienteActividad({
+        codsuc: this.selectedSucursal.codsuc,
+        codcliente: Number(query),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
           this.cargando = false;
@@ -574,60 +661,60 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
             this.searchCodCliente = "";
             this.actualizarCapasComerciales(false);
 
-            const coord = extraerCoordenada(response.data, ORIGENES_COORDENADA["usuario"]);
+            const coord = extraerCoordenada(
+              response.data,
+              ORIGENES_COORDENADA["usuario"],
+            );
             if (coord) {
-              this.map.getView().animate({ center: coord, zoom: 21, duration: 600 });
+              this.map
+                .getView()
+                .animate({ center: coord, zoom: 21, duration: 600 });
             }
 
-            const refound = this.usuariosLayer?.getSource()?.getFeatures().find(
-              (f) => String(f.get("codcliente") || f.get("nroSuministro") || "").trim() === query
-            );
+            const refound = this.usuariosLayer
+              ?.getSource()
+              ?.getFeatures()
+              .find(
+                (f) =>
+                  String(
+                    f.get("codcliente") || f.get("nroSuministro") || "",
+                  ).trim() === query,
+              );
             if (refound) {
               this.seleccionarFeature(refound);
             }
+            this.controladorGis?.marcarPredio(query);
           } else {
-            this.avisar("warn", "Aviso", "No se encontró un usuario con ese código.");
+            this.avisar(
+              "warn",
+              "Aviso",
+              "No se encontró un usuario con ese código.",
+            );
           }
         },
         error: (err) => {
           this.cargando = false;
-          this.avisar("error", "Error", "Ocurrió un error al buscar el cliente.");
-        }
+          this.avisar(
+            "error",
+            "Error",
+            "Ocurrió un error al buscar el cliente.",
+          );
+        },
       });
   }
 
-
   // MAPA
-  private crearWms(layer: string, visible: boolean): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: layer, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = this.crearWms(this.gis.capa("lotes"), true);
-    this.sectoresComercialesLayer = this.crearWms(
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
+    this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(),
       this.gis.capa("sectoresComerciales"),
       false,
     );
-    this.callesLayer = this.crearWms(this.gis.capa("calles"), false);
+    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -662,7 +749,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
         this.lotesLayer,
         this.sectoresComercialesLayer,
         this.callesLayer,
-        this.usuariosLayer
+        this.usuariosLayer,
       ],
       view: new View({
         projection: this.gis.proyeccionMapa,
@@ -672,10 +759,30 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
       controls: [new Zoom()],
     });
 
-    MapEstilosFactory.setupAdvancedMapTools(this.map, (geometry) => {
-      if (geometry && geometry.getType() === 'Circle') {
-        this.contarElementosEnRadio(geometry);
-      }
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () => [
+        { rol: "lotes", capa: this.lotesLayer },
+        { rol: "calles", capa: this.callesLayer },
+        { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+      ],
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: (detalle) => this.avisar("info", "Aviso", detalle),
+      listado: {
+        columnas: COLUMNAS_TABLA_PADRON,
+        tituloReporte: "PADRÓN DE CLIENTES",
+        nombreArchivo: "padron_clientes_area_",
+        origen: ORIGENES_COORDENADA.usuario,
+        registros: () => this.resultadoBusquedaJson ?? [],
+        aFila: (registro) => this.aFilaTabla(registro),
+        subcabecera: () => [
+          `Ciclo: ${this.selectedCiclo?.descripcion ?? "-"}`,
+          `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+          `Sector: ${this.selectedSector?.descripcion ?? "-"}`,
+        ],
+        excelService: this.excelService,
+      },
     });
 
     this.initClick();
@@ -695,8 +802,7 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     }
   }
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
+  onSidebarToggle(): void {
     setTimeout(() => {
       this.map?.updateSize();
     }, 300);
@@ -704,23 +810,45 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
 
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
-      if (isDrawing) return;
-      const feature = this.map.forEachFeatureAtPixel(
-        evt.pixel,
-        (f) => f,
-        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
-      ) as Feature | undefined;
+      if (estaUsandoHerramientas(this.map)) return;
+      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
+        hitTolerance: 5,
+        layerFilter: (layer: any) =>
+          !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
+      }) as Feature | undefined;
 
       if (feature) {
         this.seleccionarFeature(feature);
-      } else if (!this.clienteSeleccionado) {
+      } else {
         this.cerrarPopup();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
   }
 
+  private aFilaTabla(registro: Record<string, unknown>): FilaListado {
+    const direccion = direccionDe(registro);
+    const catetar = String(registro["catetar"] ?? "");
+    return { ...registro, direccion, tarifa: this.getTarifaName(catetar) || catetar };
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = String(fila["codcliente"] ?? "").trim();
+    const punto = this.usuariosLayer
+      ?.getSource()
+      ?.getFeatures()
+      .find((f) => String(f.get("codcliente") ?? "").trim() === codigo);
+    if (!punto) {
+      this.avisar("warn", "Aviso", `El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto);
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
+  }
+
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
   private seleccionarFeature(feature: Feature): void {
+    this.controladorGis?.cerrarPopupGis();
     this.featureSeleccionado = feature;
     this.refrescarCapasVector();
     this.clienteSeleccionado = feature.getProperties();
@@ -736,73 +864,25 @@ export class PadronDeClientesComponent implements OnInit, AfterViewInit, OnDestr
     this.usuariosLayer?.changed();
   }
 
-  abrirStreetView(coordX: unknown, coordY: unknown): void {
-    const x = Number(coordX);
-    const y = Number(coordY);
-
-    if (!x || !y || (x === 0 && y === 0)) {
-      this.avisar(
-        "warn",
-        "Aviso",
-        "No hay coordenadas válidas para abrir Street View.",
-      );
+  abrirStreetView(x: unknown, y: unknown): void {
+    const lonLat = coordenadaLonLat(x, y, this.gis.proyeccionUtm);
+    if (!lonLat) {
+      this.avisar("warn", "Aviso", "No hay coordenadas válidas para abrir Street View.");
       return;
     }
-
-    // Si los valores exceden rangos WGS84 asumimos UTM 18S y convertimos.
-    let [lng, lat] = [x, y];
-    if (Math.abs(x) > 180 || Math.abs(y) > 90) {
-      [lng, lat] = transform([x, y], this.gis.proyeccionUtm, "EPSG:4326");
-    }
-
-    window.open(
-      `https://www.google.com/maps?layer=c&cbll=${lat},${lng}`,
-      "_blank",
-    );
+    abrirGoogleStreetView(lonLat);
   }
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-
-    this.ref = this.dialogService.open(ConsultaUsuarioComponent, {
-      header: "Consulta General de Usuario",
-      width: "90%",
-      height: "95%",
-      baseZIndex: 10000,
-      maximizable: true,
-      data: {
-        codcliente,
-        codsuc: this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
-        operacion: "Vektors",
-      },
-    });
+    this.ref = abrirConsultaUsuario(
+      this.dialogService,
+      codcliente,
+      this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
+    );
   }
 
   private avisar(severity: string, summary: string, detail: string): void {
     this.messageService.add({ severity, summary, detail });
-  }
-
-  private contarElementosEnRadio(circleGeom: any): void {
-    const polygon = fromCircle(circleGeom);
-    const extent = polygon.getExtent();
-    let count = 0;
-
-    if (this.usuariosLayer) {
-      const source = this.usuariosLayer.getSource();
-      if (source) {
-        source.forEachFeatureIntersectingExtent(extent, (feature) => {
-          const geom = feature.getGeometry();
-          if (geom && polygon.intersectsCoordinate((geom as any).getCoordinates())) {
-            count++;
-          }
-        });
-      }
-    }
-
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Selección de Radio',
-      detail: `Se encontraron ${count} clientes en el área seleccionada.`
-    });
   }
 }

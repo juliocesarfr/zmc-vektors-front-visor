@@ -13,7 +13,6 @@ export const PROYECCIONES_POR_DEFECTO: GisProyeccionesConfig = {
   utm: PROYECCION_UTM_DEFECTO,
 };
 
-
 export const CONFIG_EPS: Record<string, GisEpsConfig> = {
   "004": {
     ccodeps: "004",
@@ -23,15 +22,23 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       workspace: "eps_yurimaguas",
     },
     capas: {
-      lotes: "emapa_sig_lotes",
-      lotesPorSector: "emapa_sig_lotes_sector_{sector}",
-      sectoresComerciales: "emapa_sig_sectores_comerciales",
-      calles: "emapa_sig_calles",
+      lotes: "yurimaguas_sig_lotes",
+      lotesPorSector: "yurimaguas_sig_lotes_sector_{sector}",
+      sectoresComerciales: "yurimaguas_sig_sectores_comerciales",
+      calles: "yurimaguas_sig_calles",
       usuarios: "usuarios",
       acometidaAgua: "acometida_agua",
       acometidaAlcantarillado: "acometida_alcantarillado",
-      fichaAgua: "emapa_ficha_agua",
-      fichaAlcantarillado: "emapa_ficha_alcantarillado",
+      fichaAgua: "yurimaguas_ficha_agua",
+      fichaAlcantarillado: "yurimaguas_ficha_alcantarillado",
+    },
+    // Completar con el nombre real publicado en GeoServer.
+    capasTecnicas: {
+      // tuberiasAgua: "",
+      // tuberiasAlcantarillado: "",
+      // fuentes: "",
+      // valvulas: "",
+      // curvasNivel: "",
     },
     vista: {
       centro: [-76.1223, -5.9018],
@@ -57,8 +64,95 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       usuarios: "v_com_fichas_catastrales",
       acometidaAgua: "sm_sig_acometidas_ap",
       acometidaAlcantarillado: "sm_sig_acometidas_al",
-      fichaAgua: "emapa_ficha_agua",
+      fichaAgua: "v_com_fichas_catastrales",
       fichaAlcantarillado: "emapa_ficha_alcantarillado",
+      rutaLectura: "rut_a_lectura",
+    },
+    // Completar con el nombre real publicado en GeoServer.
+    capasTecnicas: {
+      fuentes: "sm_sig_fuentes",
+      tuberiasAgua: "sm_sig_tuberias",
+      tuberiasAlcantarillado: "sm_sig_alcantarillado",
+      valvulas: "sm_sig_valvulas",
+      curvasNivel: "sm_sig_curvas_de_nivel",
+    },
+    // Columnas reales de GeoServer. Los lotes traen datos personales (DNI, teléfono, correo):
+    // nunca dejarlos sin lista de atributos.
+    consultaCapas: {
+      valvulas: {
+        campoTitulo: "dc_id",
+        atributos: {
+          type: "Tipo",
+          funcion: "Función",
+          status: "Estado",
+          conserv: "Conservación",
+          dn_plg: "Diámetro (pulg)",
+          prof: "Profundidad (m)",
+          tipo_det: "Detalle",
+          tapa: "Tapa",
+          protecc: "Protección",
+          sentido_ap: "Sentido de apertura",
+          mat_vastago: "Material del vástago",
+          marca: "Marca",
+          anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      tuberiasAgua: {
+        campoTitulo: "dc_id",
+        atributos: {
+          tipo: "Tipo",
+          material: "Material",
+          dn_plg: "Diámetro (pulg)",
+          dn_mm: "Diámetro (mm)",
+          length_gis: "Longitud (m)",
+          status: "Estado",
+          conserv: "Conservación",
+          node1: "Nodo inicial",
+          node2: "Nodo final",
+          anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      tuberiasAlcantarillado: {
+        campoTitulo: "dc_id",
+        atributos: {
+          tipo: "Tipo",
+          material: "Material",
+          dn_mm: "Diámetro (mm)",
+          dn_plg: "Diámetro (pulg)",
+          longitud_gis: "Longitud (m)",
+          pendiente: "Pendiente",
+          nodo1: "Buzón inicial",
+          nodo2: "Buzón final",
+          cota1: "Cota inicial",
+          cota2: "Cota final",
+          prof_entrada: "Profundidad de entrada (m)",
+          prof_salida: "Profundidad de salida (m)",
+          conserv: "Conservación",
+          anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      curvasNivel: {
+        atributos: { elevation: "Elevación (m)", fuente: "Fuente" },
+      },
+      lotes: {
+        campoTitulo: "codcatastral",
+        campoCliente: "codcliente",
+        atributos: {
+          codcliente: "Cód. cliente",
+          propietario: "Titular",
+          direccion: "Dirección",
+          codsector: "Sector",
+          codmza: "Manzana",
+          nrolote: "Lote",
+          nromed: "Medidor",
+        },
+      },
     },
     vista: {
       centro: [-76.3654, -6.4886],
@@ -73,24 +167,21 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
 
 export const ZOOM_POR_DEFECTO = 18;
 
-/**
- * Vista neutra (Perú completo). Solo se usa cuando ni la EPS ni la empresa
- * declaran coordenadas: encuadrar sobre la ciudad de otra EPS sería mentirle
- * al usuario sobre dónde está mirando.
- */
+// Rótulos que no se pueden derivar del rol (tildes, "de").
+export const ETIQUETAS_POR_DEFECTO: Record<string, string> = {
+  tuberiasAgua: "Tuberías de Agua",
+  tuberiasAlcantarillado: "Tuberías de Desagüe",
+  valvulas: "Válvulas",
+  curvasNivel: "Curvas de Nivel",
+};
+
+// Solo si ni la EPS ni la empresa declaran coordenadas.
 export const VISTA_POR_DEFECTO: GisVistaConfig = {
   centro: [-75.0152, -9.19],
   zoom: 5,
 };
 
-/**
- * Configuración para una EPS que todavía no tiene entrada en `CONFIG_EPS`.
- *
- * Conserva el GeoServer que reporta el backend (`paramae/URLGIS`) para que las
- * URLs se construyan bien, pero deja el catálogo de capas **vacío**: como los
- * nombres no se pueden deducir, es preferible no dibujar capas a dibujar las de
- * otra EPS.
- */
+// EPS sin entrada en CONFIG_EPS: conserva el GeoServer del backend, sin capas.
 export function configSinCapas(
   ccodeps: string,
   baseUrl: string,

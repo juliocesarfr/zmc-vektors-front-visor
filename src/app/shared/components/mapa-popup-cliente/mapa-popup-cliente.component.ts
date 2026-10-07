@@ -1,13 +1,11 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
-import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-mapa-popup-cliente',
   standalone: true,
-  imports: [CommonModule, ButtonModule, TooltipModule],
-  providers: [DatePipe],
+  imports: [CommonModule, ButtonModule],
   templateUrl: './mapa-popup-cliente.component.html',
   styleUrls: ['./mapa-popup-cliente.component.scss']
 })
@@ -36,11 +34,6 @@ export class MapaPopupClienteComponent {
     if (this.clienteSeleccionado?.codcliente) {
       this.onVerMasInfo.emit(this.clienteSeleccionado.codcliente);
     }
-  }
-
-  getTarifaName(catetar: string): string {
-    // Return empty so the HTML handles fallbacks with other properties like desctarifa, nomtar, etc.
-    return '';
   }
 
   vmaParamsList = [

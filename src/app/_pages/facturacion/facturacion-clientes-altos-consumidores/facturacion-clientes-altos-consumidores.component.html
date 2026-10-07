@@ -8,7 +8,10 @@
   (mapClick)="onMapClick()"
   (search)="buscarCliente($event)"
   (clearSearch)="limpiarBusquedaCliente()"
-  (mapReady)="onMapReady($event)">
+  (mapReady)="onMapReady($event)"
+  [listado]="listadoMapa"
+  [hayPopupAbierto]="!!clienteSeleccionado"
+  (aviso)="mostrarAvisoMapa($event)">
   
   <ng-container toolbar-actions>
     <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
@@ -96,7 +99,7 @@
           </span>
 
           <span class="p-float-label" *ngIf="selectedSucursal">
-            <p-dropdown [options]="meses" [(ngModel)]="selectedMes" optionLabel="label" optionValue="value"
+            <p-dropdown [options]="meses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
                [style]="{ width: '140px' }" placeholder="Mes" [appendTo]="'body'">
             </p-dropdown>
             <label>Mes</label>

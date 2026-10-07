@@ -28,9 +28,16 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { Feature } from 'ol';
 
-import { observarTamanoMapa } from '../../../util/Mapinit.util';
-import { GisConfigService } from '../../../core/gis';
-import { MapEstilosFactory } from '../../../util/Mapaestilos.factory';
+import { observarTamanoMapa } from "../../mapa/observar-tamano-mapa";
+import { ConsultaCapasGisService, GisConfigService } from '../../../core/gis';
+import { ExcelService } from '@host/_servicios/reportes/excel.service';
+import { ControladorMapaGis, ListadoMapaGis } from '../../mapa/controlador-mapa-gis';
+import { estaUsandoHerramientas } from '../../mapa/herramientas-medicion';
+import { MARCA_CAPA_RESALTADO } from '../../mapa/interaccion-gis';
+import { FilaListado } from '../../utils/listado-excel';
+import { PanelesMapaGisComponent } from '../paneles-mapa-gis/paneles-mapa-gis.component';
+import { CapasSidebarComponent } from '../capas-sidebar/capas-sidebar.component';
+import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../mapa/capas";
 
 export interface BaseLayerConfig {
   id: string;
@@ -47,7 +54,7 @@ export interface CommercialLayerConfig {
 @Component({
   selector: 'app-mapa-visor',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule],
+  imports: [CapasSidebarComponent, PanelesMapaGisComponent, CommonModule, FormsModule, ButtonModule, InputTextModule],
   templateUrl: './mapa-visor.component.html',
   styleUrl: './mapa-visor.component.scss',
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -63,34 +70,39 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Override opcional; por defecto se usa el zoom de la EPS logueada. */
   @Input() mapZoom?: number;
 
-  @Input() baseLayers: BaseLayerConfig[] = [
-    { id: "osm", label: "OSM", iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif" },
-    { id: "satelital", label: "Satelital", iconUrl: "assets/images/img-georeferencia/satellital-icon.gif" },
-  ];
+  @Input() baseLayers = CAPAS_BASE_UI;
 
-  /**
-   * Switches de capas comerciales. No se recibe por parámetro: se arma con las
-   * capas que declara la EPS logueada, así que cada EPS ve exactamente las
-   * suyas (incluidas las que ninguna otra publica) sin tocar este componente.
-   */
   commercialLayers: CommercialLayerConfig[] = [];
 
   @Input() customVectorLayers: VectorLayer<VectorSource>[] = [];
+
+  /**
+   * Con listado, el visor agrega las herramientas de dibujo y lista en tabla o Excel los
+   * clientes del área dibujada; sin él, el mapa no tiene herramientas.
+   */
+  @Input() listado?: Omit<ListadoMapaGis, 'excelService'>;
+  /** La pantalla tiene abierto su popup del cliente: la tabla del área se corre para no taparlo. */
+  @Input() hayPopupAbierto = false;
 
   @Output() featureClick = new EventEmitter<Feature>();
   @Output() mapClick = new EventEmitter<void>();
   @Output() search = new EventEmitter<string>();
   @Output() clearSearch = new EventEmitter<void>();
   @Output() mapReady = new EventEmitter<OlMap>();
+  /** Mensaje para el usuario (por ejemplo, que primero cargue los datos); la pantalla lo muestra en su toast. */
+  @Output() aviso = new EventEmitter<string>();
 
+
+  @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild('mapContainer', { static: false }) mapContainer!: ElementRef;
 
-  /** GeoServer y capas de la EPS logueada; ya resueltos por `gisConfigResolver`. */
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly excelService = inject(ExcelService);
+  controladorGis?: ControladorMapaGis;
 
   map!: OlMap;
   private detenerObservadorMapa?: () => void;
-  sidebarOpen = false;
   baseActive = "osm";
   mostrarSearchPanel = false;
   searchQuery = "";
@@ -99,16 +111,12 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   private osmLayer!: TileLayer<OSM>;
   private satelitalLayer!: TileLayer<XYZ>;
 
-  /** Rol de capa -> capa WMS creada para esta EPS. */
   private readonly capasWms = new Map<string, TileLayer<TileWMS>>();
 
-  /** Id del switch que agrupa las capas vectoriales que aporta el padre. */
   private static readonly SWITCH_VECTORIAL = "usuarios";
 
   ngOnInit(): void {
-    // Las capas WMS salen del catálogo de la EPS logueada, en su orden de
-    // declaración. La primera arranca visible (es la capa base catastral de esa
-    // EPS); el resto queda apagada.
+    // La primera capa (la catastral) arranca visible; el resto apagadas.
     const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
 
     const switchVectorial: CommercialLayerConfig[] = this.customVectorLayers.length
@@ -133,9 +141,19 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.crearMapa();
+    this.capasSidebar?.conectarMapa(this.map);
+    this.controladorGis = new ControladorMapaGis(this.map, {
+      consulta: this.consultaCapasGis,
+      gis: this.gis,
+      capasComerciales: () =>
+        Array.from(this.capasWms, ([rol, capa]) => ({ rol, capa })),
+      capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
+      avisar: this.avisar,
+      listado: this.listado && { ...this.listado, excelService: this.excelService },
+    });
 
     requestAnimationFrame(() => {
-      const el = this.mapContainer?.nativeElement ?? document.getElementById("map");
+      const el = this.mapContainer?.nativeElement;
       if (!el) return;
       this.map.setTarget(el);
       this.map.updateSize();
@@ -148,47 +166,23 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.detenerObservadorMapa) {
       this.detenerObservadorMapa();
     }
+    this.controladorGis?.destruir();
     if (this.map) {
       this.map.setTarget(undefined);
     }
   }
 
-  /** Capa WMS del workspace de la EPS. */
-  private crearWms(capa: string, visible: boolean, opacity = 1): TileLayer<TileWMS> {
-    return new TileLayer({
-      visible,
-      opacity,
-      source: new TileWMS({
-        url: this.gis.urlWms(),
-        params: { LAYERS: capa, TILED: false },
-        serverType: "geoserver",
-        transition: 0,
-      }),
-    });
-  }
 
   private crearMapa(): void {
-    this.osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: this.baseActive === "osm",
-    });
+    this.osmLayer = crearCapaOsm(this.baseActive === "osm");
+    this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.satelitalLayer = new TileLayer({
-      source: new XYZ({
-        url: "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      }),
-      visible: this.baseActive === "satelital",
-    });
-
-    // Una capa WMS por cada capa que declara la EPS, en el mismo orden que los
-    // switches. La capa base catastral va semitransparente para dejar ver el
-    // mapa de fondo.
     this.capasWms.clear();
     const capasEps = this.gis.capasParaUi([MapaVisorComponent.SWITCH_VECTORIAL]);
     capasEps.forEach((capa, i) => {
       this.capasWms.set(
         capa.id,
-        this.crearWms(capa.capa, i === 0, i === 0 ? 0.7 : 1),
+        crearCapaWms(this.gis.urlWms(), capa.capa, i === 0, i === 0 ? 0.7 : 1),
       );
     });
 
@@ -211,8 +205,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     this.map.on("singleclick", (evt) => {
-      const isDrawing = this.map.getInteractions().getArray().some(i => i.get('isDrawInteraction'));
-      if (isDrawing) return;
+      if (estaUsandoHerramientas(this.map)) return;
 
       let f: Feature | undefined;
       this.map.forEachFeatureAtPixel(
@@ -220,19 +213,48 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
         (feature) => {
           if (!f) f = feature as Feature;
         },
-        { hitTolerance: 5, layerFilter: (layer: any) => !layer.get('isDrawLayer') }
+        {
+          hitTolerance: 5,
+          layerFilter: (layer: any) => !layer.get('isDrawLayer') && !layer.get(MARCA_CAPA_RESALTADO),
+        }
       );
 
       if (f) {
-        this.featureClick.emit(f);
+        this.seleccionarFeature(f);
       } else {
         this.mapClick.emit();
+        this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
   }
 
-  toggleSidebar(): void {
-    this.sidebarOpen = !this.sidebarOpen;
+  // Los dos popups ocupan el mismo lugar: abrir el del cliente cierra el de GIS.
+  private seleccionarFeature(feature: Feature): void {
+    this.controladorGis?.cerrarPopupGis();
+    this.featureClick.emit(feature);
+  }
+
+  /** La pantalla encontró al cliente buscado: se marca su lote en el mapa. */
+  marcarPredio(codcliente: string | number): void {
+    this.controladorGis?.marcarPredio(String(codcliente));
+  }
+
+  /** La pantalla volvió a pintar sus datos: el listado del área anterior ya no corresponde. */
+  descartarListado(): void {
+    this.controladorGis?.descartarListado();
+  }
+
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    const codigo = String(fila['codcliente'] ?? '').trim();
+    const punto = this.customVectorLayers
+      .flatMap((capa) => capa.getSource()?.getFeatures() ?? [])
+      .find((f) => String(f.get('codcliente') ?? '').trim() === codigo);
+    if (!punto) {
+      this.avisar(`El cliente ${codigo} no tiene coordenadas para ubicarlo.`);
+      return;
+    }
+    this.seleccionarFeature(punto);
+    this.controladorGis?.encuadrarEnZonaLibre(punto.getGeometry()!.getExtent());
   }
 
   setBaseLayer(id: string): void {
@@ -273,7 +295,10 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   limpiarBusqueda(): void {
     this.searchQuery = "";
+    this.controladorGis?.quitarPredio();
     this.isBusquedaActiva = false;
     this.clearSearch.emit();
   }
+
+  private readonly avisar = (detalle: string): void => this.aviso.emit(detalle);
 }
