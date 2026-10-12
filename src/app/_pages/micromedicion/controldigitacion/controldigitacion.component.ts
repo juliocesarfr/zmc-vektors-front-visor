@@ -209,6 +209,7 @@ export class ControldigitacionComponent
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
+  centroideFichaLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
@@ -267,6 +268,7 @@ export class ControldigitacionComponent
     { id: "usuarios", label: "Usuarios", active: true },
     { id: "lotes", label: "Lotes", active: true },
     { id: "caja_agua", label: "Ficha Agua", active: false },
+    { id: "centroideFicha", label: "Fichas (Centroide)", active: false },
     { id: "acometida", label: "Acometida de Agua", active: false },
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
@@ -780,6 +782,11 @@ export class ControldigitacionComponent
       this.gis.capa("rutaLectura"),
       false,
     );
+    this.centroideFichaLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("centroideFicha"),
+      false,
+    );
 
     this.lecturasLayer = this.crearCapaPuntos(
       { forma: "circulo", radios: RADIOS_LECTURA, visible: true },
@@ -814,6 +821,7 @@ export class ControldigitacionComponent
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
       rutaLectura: this.rutaLecturaLayer,
+      centroideFicha: this.centroideFichaLayer,
     };
 
     this.map = new OlMap({
@@ -824,6 +832,7 @@ export class ControldigitacionComponent
         this.callesLayer,
         this.lotesLayer,
         this.rutaLecturaLayer,
+        this.centroideFichaLayer,
         this.acomAguaLayer,
         this.acomDesagueLayer,
         this.fichaAlcLayer,
@@ -927,6 +936,7 @@ export class ControldigitacionComponent
   private capasComercialesConsultables(): CapaConsultable[] {
     return [
       { rol: "rutaLectura", capa: this.rutaLecturaLayer },
+      { rol: "centroideFicha", capa: this.centroideFichaLayer },
       { rol: "lotes", capa: this.lotesLayer },
       { rol: "calles", capa: this.callesLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },

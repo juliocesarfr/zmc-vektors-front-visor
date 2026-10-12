@@ -10,7 +10,13 @@ export type CapaGisConocida =
   | "acometidaAlcantarillado"
   | "fichaAgua"
   | "fichaAlcantarillado"
+  | "centroideFicha"
   | "rutaLectura"
+  | "rutaDistribucion"
+  | "areaLectura"
+  | "areaDistribucion"
+  | "manzanas"
+  | "urbanizaciones"
   | "tuberiasAgua"
   | "tuberiasAlcantarillado"
   | "fuentes"
@@ -34,7 +40,14 @@ export interface CapasGis {
   acometidaAlcantarillado?: string;
   fichaAgua?: string;
   fichaAlcantarillado?: string;
+  /** Punto de la ficha catastral publicado en GeoServer (no el de las lecturas del backend). */
+  centroideFicha?: string;
   rutaLectura?: string;
+  rutaDistribucion?: string;
+  areaLectura?: string;
+  areaDistribucion?: string;
+  manzanas?: string;
+  urbanizaciones?: string;
 }
 
 export interface CapasTecnicasGis {
