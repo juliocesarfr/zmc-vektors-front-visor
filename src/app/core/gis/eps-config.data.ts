@@ -163,6 +163,118 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       utm: "EPSG:32718", // UTM 18S
     },
   },
+  "021": {
+    ccodeps: "021",
+    descripcion: "EPS Sedacusco",
+    geoserver: {
+      baseUrl: "https://167.88.36.54/geoserver",
+      workspace: "sedacusco",
+    },
+    capas: {
+      lotes: "capas_lotes",
+      sectoresComerciales: "capa_sectores",
+      calles: "capa_vias",
+      usuarios: "capa_ficha",
+      acometidaAgua: "capa_agua",
+      acometidaAlcantarillado: "capa_desague",
+      centroideFicha: "capa_ficha",
+      rutaLectura: "capa_ruta_lectura",
+      rutaDistribucion: "capa_ruta_distribucion",
+      areaLectura: "capa_area_lecturas",
+      areaDistribucion: "capa_area_distribucion",
+      manzanas: "capa_manzanas",
+      urbanizaciones: "capa_urbanizaciones",
+    },
+    etiquetas: {
+      acometidaAgua: "Medidores",
+      acometidaAlcantarillado: "Cajas de Desagüe",
+    },
+    // Sus lotes no traen código de cliente: el buscador no puede marcar el predio (sin `campoCliente`).
+    consultaCapas: {
+      lotes: {
+        campoTitulo: "codcatastral_lote",
+        atributos: {
+          codcatastral_lote: "Cód. catastral",
+          codsector: "Sector",
+          codmanzana: "Manzana",
+          codlote: "Lote",
+          cod_mzn: "Manzana (catastro)",
+          cod_lote_1: "Lote (catastro)",
+        },
+      },
+      centroideFicha: {
+        campoTitulo: "codcatastral_conexion",
+        atributos: {
+          codcliente: "Cód. cliente",
+          codcatastral_conexion: "Cód. catastral",
+          codcatastral_rlectura: "Ruta de lectura",
+          codcatastral_rdistribucion: "Ruta de distribución",
+          concajaagua: "Con caja de agua",
+        },
+      },
+      acometidaAgua: {
+        campoTitulo: "codcatastral_conexion",
+        atributos: {
+          codcliente: "Cód. cliente",
+          codcatastral_conexion: "Cód. catastral",
+          grupo_usuario: "Grupo de usuario",
+          tipousuario: "Tipo de usuario",
+          name_sec_operativo: "Sector operativo",
+          concajaagua: "Con caja de agua",
+          dist_red_m: "Distancia a la red (m)",
+        },
+      },
+      acometidaAlcantarillado: {
+        campoTitulo: "codcatastral_lote",
+        atributos: {
+          codcliente: "Cód. cliente",
+          codcatastral_lote: "Cód. catastral del lote",
+          concajadesague: "Con caja de desagüe",
+          dist_agua_desague_m: "Distancia agua-desagüe (m)",
+        },
+      },
+      sectoresComerciales: {
+        campoTitulo: "codcatastral_sector",
+        atributos: { sector: "Sector", distrito: "Distrito" },
+      },
+      manzanas: {
+        campoTitulo: "codcatastral_manzana",
+        atributos: { cod_mzn: "Manzana (catastro)", obs: "Observación" },
+      },
+      urbanizaciones: {
+        campoTitulo: "cc_nombre_",
+        atributos: { cc_tipo_hu: "Tipo", cc_nombre_: "Nombre" },
+      },
+      calles: {
+        campoTitulo: "nom_via",
+        atributos: { cat_via: "Categoría", estado: "Estado", distrito: "Distrito" },
+      },
+      rutaLectura: {
+        campoTitulo: "codcatastral_rlectura",
+        atributos: { tiporuta: "Tipo", longitud: "Longitud (m)" },
+      },
+      rutaDistribucion: {
+        campoTitulo: "codcatastral_rdistribucion",
+        atributos: { tiporuta: "Tipo", longitud: "Longitud (m)" },
+      },
+      areaLectura: {
+        campoTitulo: "codcatastral_rlectura",
+        atributos: { sector: "Sector", distrito: "Distrito", tiporuta: "Tipo" },
+      },
+      areaDistribucion: {
+        campoTitulo: "codcatastral_rdistribucion",
+        atributos: { sector: "Sector", distrito: "Distrito", tiporuta: "Tipo" },
+      },
+    },
+    vista: {
+      centro: [-71.9675, -13.5226],
+      zoom: 16,
+    },
+    proyecciones: {
+      mapa: "EPSG:4326",
+      utm: "EPSG:32719", // UTM 19S
+    },
+  },
 };
 
 export const ZOOM_POR_DEFECTO = 18;
@@ -173,6 +285,10 @@ export const ETIQUETAS_POR_DEFECTO: Record<string, string> = {
   tuberiasAlcantarillado: "Tuberías de Desagüe",
   valvulas: "Válvulas",
   curvasNivel: "Curvas de Nivel",
+  centroideFicha: "Fichas (Centroide)",
+  rutaDistribucion: "Ruta de Distribución",
+  areaLectura: "Áreas de Lectura",
+  areaDistribucion: "Áreas de Distribución",
 };
 
 // Solo si ni la EPS ni la empresa declaran coordenadas.
