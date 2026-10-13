@@ -183,6 +183,7 @@ export class PadronDeClientesComponent
 
   ngOnInit(): void {
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+    this.crearMapa();
 
     forkJoin({
       ciclos: this.consulGenericService
@@ -444,6 +445,12 @@ export class PadronDeClientesComponent
         next: (response) => {
           this.cargando = false;
           this.filtrosVisible = false;
+          if (!response.success) {
+            this.resultadoBusquedaJson = [];
+            this.limpiarCapas();
+            this.avisar("error", "Error", this.mensajeDeError(response.mensaje));
+            return;
+          }
           if (response.data && response.data.length > 0) {
             this.resultadoBusquedaJson = response.data;
             this.actualizarCapasComerciales();
@@ -536,7 +543,6 @@ export class PadronDeClientesComponent
   }
 
   ngAfterViewInit(): void {
-    this.crearMapa();
     this.capasSidebar?.conectarMapa(this.map);
 
     requestAnimationFrame(() => {
@@ -652,6 +658,10 @@ export class PadronDeClientesComponent
       .subscribe({
         next: (response) => {
           this.cargando = false;
+          if (!response.success) {
+            this.avisar("error", "Error", this.mensajeDeError(response.mensaje));
+            return;
+          }
           if (response.data) {
             if (!this.isBusquedaClienteActiva) {
               this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
@@ -880,6 +890,11 @@ export class PadronDeClientesComponent
       codcliente,
       this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
     );
+  }
+
+  // El backend responde 200 con success=false y el detalle en mensaje (p. ej. error SQL de la base GIS).
+  private mensajeDeError(mensaje: string | undefined): string {
+    return mensaje?.trim() || "Ocurrió un error al consultar el padrón de clientes";
   }
 
   private avisar(severity: string, summary: string, detail: string): void {
