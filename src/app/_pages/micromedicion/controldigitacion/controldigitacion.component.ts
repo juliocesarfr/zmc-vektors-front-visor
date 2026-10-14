@@ -602,7 +602,8 @@ export class ControldigitacionComponent
           this.filtrosVisible = false;
           onData(data.data || []);
         },
-        error: () => {
+        error: (error) => {
+          console.error("Error al cargar lecturas:", error);
           this.cargando = false;
           this.limpiarCapas();
           this.resultadoBusquedaJson = null;
