@@ -10,29 +10,110 @@
   <div class="main-geo-filtros">
     <span class="p-float-label">
       <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
-        [style]="{ width: '180px' }" placeholder="Sucursal" [appendTo]="'body'"></p-dropdown>
+        [style]="{ width: '160px' }" placeholder="Sucursal" [appendTo]="'body'"></p-dropdown>
       <label>Sucursal</label>
+    </span>
+
+    <span class="p-float-label">
+      <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
+        [style]="{ width: '130px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
+      <label>Mes</label>
+    </span>
+
+    <span class="p-float-label">
+      <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
+        [style]="{ width: '100px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
+      <label>Año</label>
     </span>
   </div>
 
+  <!-- Panel de Búsqueda Vertical con 3 opciones directas (Abre hacia arriba) -->
   <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
+    <div class="tab-cyan-indicator"></div>
     <div class="search-header">
-      <span><i class="pi pi-search"></i> Buscar Cliente</span>
-      <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
-    </div>
-    <div class="search-actions" *ngIf="searchCodCliente">
-      <span class="limpiar-link" (click)="reiniciarBusqueda()">
-        <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+      <span class="search-header-title">
+        <i class="pi pi-search"></i> BÚSQUEDA DE CLIENTE
       </span>
+      <div class="header-actions">
+        <span class="limpiar-link" *ngIf="isBusquedaActiva || searchSuministro || searchDniRuc || searchNombre" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
+          <i class="pi pi-filter-slash"></i> Limpiar
+        </span>
+        <button type="button" class="btn-cerrar-busqueda" (click)="cerrarBusqueda()" title="Cerrar">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
     </div>
-    <div class="search-body p-inputgroup mt-2">
-      <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
-        (keyup.enter)="buscarPorCodCliente()">
-      <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"
-        title="Buscar"></button>
+
+    <div class="search-rows-container">
+      <!-- Opción 1: Nro. Suministro -->
+      <div class="search-row">
+        <fieldset class="search-fieldset">
+          <legend class="search-legend">Nro. Suministro</legend>
+          <div class="input-content">
+            <i class="pi pi-tint icon-cyan"></i>
+            <input 
+              type="text" 
+              [(ngModel)]="searchSuministro" 
+              placeholder="Ej: 12345" 
+              (keyup.enter)="buscarPorOpcion(1)">
+            <i 
+              *ngIf="searchSuministro" 
+              class="pi pi-times-circle clear-text-btn" 
+              (click)="searchSuministro = ''"></i>
+          </div>
+        </fieldset>
+        <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(1)" [disabled]="cargando">
+          BUSCAR
+        </button>
+      </div>
+
+      <!-- Opción 2: DNI / RUC -->
+      <div class="search-row">
+        <fieldset class="search-fieldset">
+          <legend class="search-legend">DNI / RUC</legend>
+          <div class="input-content">
+            <i class="pi pi-id-card icon-cyan"></i>
+            <input 
+              type="text" 
+              [(ngModel)]="searchDniRuc" 
+              placeholder="Ej: 12345678" 
+              (keyup.enter)="buscarPorOpcion(2)">
+            <i 
+              *ngIf="searchDniRuc" 
+              class="pi pi-times-circle clear-text-btn" 
+              (click)="searchDniRuc = ''"></i>
+          </div>
+        </fieldset>
+        <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(2)" [disabled]="cargando">
+          BUSCAR
+        </button>
+      </div>
+
+      <!-- Opción 3: Apellidos y nombres -->
+      <div class="search-row">
+        <fieldset class="search-fieldset">
+          <legend class="search-legend">Apellidos y nombres</legend>
+          <div class="input-content">
+            <i class="pi pi-user icon-cyan"></i>
+            <input 
+              type="text" 
+              [(ngModel)]="searchNombre" 
+              placeholder="Ej: Juan Perez" 
+              (keyup.enter)="buscarPorOpcion(3)">
+            <i 
+              *ngIf="searchNombre" 
+              class="pi pi-times-circle clear-text-btn" 
+              (click)="searchNombre = ''"></i>
+          </div>
+        </fieldset>
+        <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(3)" [disabled]="cargando">
+          BUSCAR
+        </button>
+      </div>
     </div>
   </div>
-  <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
+
+  <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()" title="Buscar Cliente">
     <i class="pi pi-search"></i>
   </button>
 

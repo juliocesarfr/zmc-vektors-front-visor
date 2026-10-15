@@ -41,6 +41,8 @@ import { ControlImgService } from "@host/_servicios/procesar-img/control-img.ser
 import { ClientesService } from "@host/_servicios/catastro/clientes.service";
 import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
 import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { DropdownModule } from "primeng/dropdown";
 import { ButtonModule } from "primeng/button";
 import { MultiSelectModule } from "primeng/multiselect";
@@ -188,6 +190,11 @@ export class ControldigitacionComponent
   private readonly zone = inject(NgZone);
   private readonly factArchService = inject(FactArchService);
   private readonly excelService = inject(ExcelService);
+  private readonly router = inject(Router);
+
+  volverAlMain(): void {
+    volverAlMainGeoreferencia(this.router);
+  }
 
   totalEnVivo = 0;
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;

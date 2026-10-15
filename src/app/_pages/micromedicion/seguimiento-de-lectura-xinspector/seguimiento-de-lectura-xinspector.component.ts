@@ -33,6 +33,8 @@ import { getCenter } from "ol/extent";
 
 import { MessageService } from "primeng/api";
 import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { DropdownModule } from "primeng/dropdown";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
@@ -149,6 +151,11 @@ export class SeguimientoDeLecturaXinspectorComponent
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
   private readonly factArchService = inject(FactArchService);
+  private readonly router = inject(Router);
+
+  volverAlMain(): void {
+    volverAlMainGeoreferencia(this.router);
+  }
 
   totalEnVivo = 0;
   ultimaEnVivo: { inspector: string; codcliente: string } | null = null;

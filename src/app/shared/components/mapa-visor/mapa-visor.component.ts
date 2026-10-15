@@ -14,6 +14,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { volverAlMainGeoreferencia } from '../../utils/navegacion.utils';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 
@@ -99,7 +101,12 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly gis = inject(GisConfigService);
   private readonly consultaCapasGis = inject(ConsultaCapasGisService);
   private readonly excelService = inject(ExcelService);
+  private readonly router = inject(Router);
   controladorGis?: ControladorMapaGis;
+
+  volverAlMain(): void {
+    volverAlMainGeoreferencia(this.router);
+  }
 
   map!: OlMap;
   private detenerObservadorMapa?: () => void;

@@ -72,7 +72,8 @@ import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from ".
 import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
 import { rangoFotosRecientes } from "../../../shared/utils/fechas.utils";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
+import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { EstadoCorte, MODO_CORTE, ModoSeguimiento } from "./modos-seguimiento";
 import {
   ResumenInspectorCorte,
@@ -133,8 +134,13 @@ export class SeguimientoProgramaComponent
   private readonly gis = inject(GisConfigService);
   private readonly consultaCapasGis = inject(ConsultaCapasGisService);
   private readonly excelService = inject(ExcelService);
+  private readonly router = inject(Router);
   controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
+
+  volverAlMain(): void {
+    volverAlMainGeoreferencia(this.router);
+  }
 
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;
   @ViewChild("mapContainer", { static: false })
