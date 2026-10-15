@@ -31,10 +31,18 @@ export interface TotalesPorEstado {
   rendimiento: number;
 }
 
-/** Ejecutado si el SP lo marca así; si no, pagado si tiene día de pago; si no, pendiente. */
+/** Pagó si `diapago` trae fecha. */
+export function tienePago(registro: RegistroCorte): boolean {
+  const fecha = registro?.diapago;
+  if (fecha == null) return false;
+  const texto = String(fecha).trim().toLowerCase();
+  return texto !== "" && texto !== "null";
+}
+
+/** Ejecutado si el SP lo marca así; si no, pagado si tiene fecha de pago; si no, pendiente. */
 export function estadoDelCorte(registro: RegistroCorte): EstadoCorte {
-  if (registro?.codestado === CODESTADO_EJECUTADO) return "ejecutado";
-  if (registro?.diapago) return "pagado";
+  if (String(registro?.codestado ?? "").trim() === CODESTADO_EJECUTADO) return "ejecutado";
+  if (tienePago(registro)) return "pagado";
   return "pendiente";
 }
 
@@ -53,6 +61,40 @@ export function totalesPorEstado(registros: RegistroCorte[]): TotalesPorEstado {
     pendientes: contar("pendiente"),
     rendimiento: rendimiento(ejecutados, registros.length),
   };
+}
+
+/** Cliente de un programa según cobranza (`usp_sysco_clientesenprecortesprogramados`). */
+export interface ClienteProgramaCobranza {
+  codsuc?: string;
+  codcliente?: number | string;
+  diapago?: string;
+}
+
+function claveCliente(codsuc: unknown, codcliente: unknown): string {
+  return `${String(codsuc ?? "").trim()}|${String(codcliente ?? "").trim()}`;
+}
+
+/**
+ * Completa `diapago` con lo que manda cobranza para el mismo programa: el SP de
+ * vektors lo devuelve vacío. No pisa un `diapago` que ya venía.
+ */
+export function aplicarDiapagoDeCobranza(
+  registros: RegistroCorte[],
+  clientes: ClienteProgramaCobranza[],
+): RegistroCorte[] {
+  const diapagoPorCliente = new Map<string, string>();
+  for (const cliente of clientes) {
+    if (tienePago(cliente)) {
+      diapagoPorCliente.set(claveCliente(cliente.codsuc, cliente.codcliente), String(cliente.diapago));
+    }
+  }
+  if (diapagoPorCliente.size === 0) return registros;
+
+  return registros.map((registro) => {
+    if (tienePago(registro)) return registro;
+    const diapago = diapagoPorCliente.get(claveCliente(registro.codsuc, registro.codcliente));
+    return diapago ? { ...registro, diapago } : registro;
+  });
 }
 
 /** Los registros sin inspector se agrupan bajo "—". */

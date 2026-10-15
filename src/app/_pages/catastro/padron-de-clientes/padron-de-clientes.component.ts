@@ -11,6 +11,8 @@ import {
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { Router } from "@angular/router";
+import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
 import { DropdownModule } from "primeng/dropdown";
@@ -104,8 +106,13 @@ export class PadronDeClientesComponent
   private readonly gis = inject(GisConfigService);
   private readonly consultaCapasGis = inject(ConsultaCapasGisService);
   private readonly excelService = inject(ExcelService);
+  private readonly router = inject(Router);
   controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
+
+  volverAlMain(): void {
+    volverAlMainGeoreferencia(this.router);
+  }
   private detenerObservadorMapa?: () => void;
 
   @ViewChild(CapasSidebarComponent) private capasSidebar?: CapasSidebarComponent;

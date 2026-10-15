@@ -1,13 +1,18 @@
 <div class="cd-wrapper">
-  
+
   <div class="cd-toolbar">
     <div class="cd-title">
       <img [src]="titleIcon" alt="mapa-visor" />
       <h3>{{ title }} <span>| Mapa</span></h3>
     </div>
-    
+
     <div class="cd-toolbar-actions">
       <ng-content select="[toolbar-actions]"></ng-content>
+      <button type="button" class="btn-volver-main" (click)="volverAlMain()"
+        title="Volver al Visor Principal de Georreferencia">
+        <i class="pi pi-arrow-left"></i>
+        <span>Regresar</span>
+      </button>
     </div>
   </div>
 
@@ -34,24 +39,23 @@
         </span>
       </div>
       <div class="search-body p-inputgroup mt-2">
-        <input type="text" pInputText placeholder="Buscar..." [(ngModel)]="searchQuery" (keyup.enter)="emitirBusqueda()">
-        <button pButton type="button" icon="pi pi-search" (click)="emitirBusqueda()" class="p-button-primary" title="Buscar"></button>
+        <input type="text" pInputText placeholder="Buscar..." [(ngModel)]="searchQuery"
+          (keyup.enter)="emitirBusqueda()">
+        <button pButton type="button" icon="pi pi-search" (click)="emitirBusqueda()" class="p-button-primary"
+          title="Buscar"></button>
       </div>
     </div>
     <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
       <i class="pi pi-search"></i>
     </button>
 
-    <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
-      [commercialLayers]="commercialLayers"
-      [abierto]="false"
-      (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleCommercialLayer($event)">
+    <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive" [commercialLayers]="commercialLayers"
+      [abierto]="false" (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleCommercialLayer($event)">
     </app-capas-sidebar>
 
     <ng-content select="[map-popup]"></ng-content>
 
-    <app-paneles-mapa-gis [controlador]="controladorGis"
-      [hayPanelDerecho]="hayPopupAbierto || mostrarSearchPanel"
+    <app-paneles-mapa-gis [controlador]="controladorGis" [hayPanelDerecho]="hayPopupAbierto || mostrarSearchPanel"
       (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
   </div>
 </div>
