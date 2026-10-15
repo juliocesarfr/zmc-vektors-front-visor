@@ -13,8 +13,8 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { of } from "rxjs";
-import { catchError } from "rxjs/operators";
+import { Observable, forkJoin, of } from "rxjs";
+import { catchError, map, switchMap } from "rxjs/operators";
 
 import { DropdownModule } from "primeng/dropdown";
 import { ButtonModule } from "primeng/button";
@@ -46,6 +46,8 @@ import { getCenter } from "ol/extent";
 
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { CobranzaService } from "@host/_servicios/vektors/cobranza.service";
+import { NotificacionCierreService } from "@host/_servicios/cobranza/notificacion-cierre.service";
+import { detallePrograma } from "@host/_models/cobranza/notificacion-cierre";
 import { ControlImgService } from "@host/_servicios/procesar-img/control-img.service";
 import { ConsultaUsuarioService } from "@host/_servicios/consulta/consulta-usuario.service";
 import { FiltrarProgramaPrecorte } from "@host/_models/vektors/Cobranza/FiltrarProgramaPrecorte";
@@ -77,6 +79,7 @@ import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.util
 import { EstadoCorte, MODO_CORTE, ModoSeguimiento } from "./modos-seguimiento";
 import {
   ResumenInspectorCorte,
+  aplicarDiapagoDeCobranza,
   codigoInspectorDe,
   colorConTransparencia,
   estadoDelCorte,
@@ -129,6 +132,7 @@ export class SeguimientoProgramaComponent
   implements OnInit, AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private cobranzaService = inject(CobranzaService);
+  private readonly notificacionesService = inject(NotificacionCierreService);
   private detenerObservadorMapa?: () => void;
 
   private readonly gis = inject(GisConfigService);
@@ -165,6 +169,7 @@ export class SeguimientoProgramaComponent
   private registroCapas: Record<string, BaseLayer> = {};
 
   dataSucursales: any[] = [];
+  /** Ítem del drop genérico SUC: `codigo` y `descripcion`. */
   selectedSucursal: any = null;
   nroPrecorte: number | null = null;
 
@@ -242,7 +247,7 @@ export class SeguimientoProgramaComponent
         const codsucIni =
           this.dialogConfig?.data?.codsuc ?? sessionStorage.getItem("codsuc");
         this.selectedSucursal =
-          this.dataSucursales.find((s) => s.codsuc === codsucIni) ??
+          this.dataSucursales.find((s) => s.codigo === codsucIni) ??
           this.dataSucursales[0];
 
         const nroIni = this.dialogConfig?.data?.nroprecorte;
@@ -310,7 +315,7 @@ export class SeguimientoProgramaComponent
       .subscribe((programa) => {
         if (!programa?.nroprecorte) return;
         const suc = this.dataSucursales.find(
-          (s) => s.codsuc === programa.filtrocodsuc,
+          (s) => s.codigo === programa.filtrocodsuc,
         );
         if (suc) this.selectedSucursal = suc;
         this.nroPrecorte = Number(programa.nroprecorte);
@@ -320,7 +325,7 @@ export class SeguimientoProgramaComponent
 
   private ejecutarBusqueda(): void {
     const filtro: FiltrarProgramaPrecorte = {
-      codsuc: this.selectedSucursal.codsuc,
+      codsuc: this.selectedSucursal.codigo,
       nroprecorte: this.nroPrecorte!,
       tipooperacion: this.modo.tipoOperacion,
     };
@@ -328,12 +333,16 @@ export class SeguimientoProgramaComponent
     this.cargando = true;
     this.cobranzaService
       .listarCorteconprograma(filtro)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap((resp) =>
+          this.completarDiapagoDeCobranza((resp?.data || []) as RegistroCorte[]),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
-        next: (resp) => {
+        next: (data) => {
           this.cargando = false;
           this.filtrosVisible = false;
-          const data = (resp?.data || []) as RegistroCorte[];
           this.registrosOriginal = data;
           this.registros = data;
           this.calcularInspectores();
@@ -352,6 +361,31 @@ export class SeguimientoProgramaComponent
           this.avisar("error", "Aviso", "Error al cargar el precorte");
         },
       });
+  }
+
+
+  private completarDiapagoDeCobranza(registros: RegistroCorte[]): Observable<RegistroCorte[]> {
+    const primero = registros[0];
+    if (!primero?.anio || !primero?.mes) return of(registros);
+
+    const sectores = [...new Set(registros.map((registro) => registro.codsector ?? ""))];
+    const consultas = sectores.map((codsector) => {
+      const peticion = new detallePrograma();
+      peticion.codsuc = this.selectedSucursal.codigo;
+      peticion.codsector = codsector;
+      peticion.anio = primero.anio!;
+      peticion.mes = primero.mes!;
+      peticion.nroprecorte = this.nroPrecorte!;
+      return this.notificacionesService
+        .postprogramaId(peticion)
+        .pipe(catchError(() => of({ data: [] })));
+    });
+
+    return forkJoin(consultas).pipe(
+      map((respuestas) => respuestas.flatMap((resp) => resp?.data ?? [])),
+      map((clientes) => aplicarDiapagoDeCobranza(registros, clientes)),
+      catchError(() => of(registros)),
+    );
   }
 
   limpiar(): void {
@@ -597,7 +631,7 @@ export class SeguimientoProgramaComponent
         registros: () => this.registros ?? [],
         aFila: (registro) => this.aFilaTabla(registro as RegistroCorte),
         subcabecera: () => [
-          `Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`,
+          `Sucursal: ${this.selectedSucursal?.descripcion ?? "-"}`,
           `Programa: ${this.nroPrecorte ?? "-"}`,
         ],
         excelService: this.excelService,
@@ -697,7 +731,7 @@ export class SeguimientoProgramaComponent
     this.corteSeleccionado = feature.getProperties() as RegistroCorte;
     this.corteSeleccionado.observacion_history = undefined;
 
-    const codsuc = (this.corteSeleccionado.codsuc as string) || this.selectedSucursal?.codsuc || "";
+    const codsuc = (this.corteSeleccionado.codsuc as string) || this.selectedSucursal?.codigo || "";
     const codcliente = this.corteSeleccionado.codcliente;
     if (codsuc && codcliente) {
       this.consultaUsuarioService.obtenerCorteReaperturaXcliente(codsuc, codcliente)
@@ -728,7 +762,7 @@ export class SeguimientoProgramaComponent
   private cargarImagenes(r: RegistroCorte): void {
     this.imagenesPopup = [];
     this.cargandoImagenes = true;
-    const codsuc = (r.codsuc as string) || this.selectedSucursal?.codsuc || "";
+    const codsuc = (r.codsuc as string) || this.selectedSucursal?.codigo || "";
     const codcliente = r.codcliente;
 
     this.controlImgService
@@ -772,7 +806,7 @@ export class SeguimientoProgramaComponent
     }
 
     this.cobranzaService.buscarPreCortePorCliente({
-      codsuc: this.selectedSucursal?.codsuc || "002",
+      codsuc: this.selectedSucursal?.codigo || "002",
       codcliente: Number(q),
       nroPrecorte: this.nroPrecorte ? Number(this.nroPrecorte) : 0
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -833,7 +867,7 @@ export class SeguimientoProgramaComponent
     this.ref = abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc || this.corteSeleccionado?.codsuc,
+      this.selectedSucursal?.codigo || this.corteSeleccionado?.codsuc,
     );
   }
 
