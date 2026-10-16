@@ -27,8 +27,8 @@ import { TipodocidentService } from "@host/_servicios/catastro/tipodocident.serv
 import {
   BusquedaAvanzadaClientesRequest,
   BusquedaAvanzadaClienteResponse,
-} from "../../models/busqueda-avanzada-clientes.models";
-import { BusquedaAvanzadaClientesService } from "../../services/busqueda-avanzada-clientes.service";
+} from "../../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models";
+import { BusquedaAvanzadaClientesService } from "../../../../../../host/src/app/_servicios/vektors/busqueda-avanzada-clientes.service";
 
 @Component({
   selector: "app-busqueda-avanzada-clientes",

@@ -63,8 +63,8 @@ import { crearFeaturePunto, crearFeatureLinea, extraerCoordenada } from '../../s
 import { estaUsandoHerramientas } from '../../shared/mapa/herramientas-medicion';
 import { ZOOM_PREDIO } from '../../shared/mapa/predio-buscado';
 import { BusquedaAvanzadaClientesComponent } from '../../shared/components/busqueda-avanzada-clientes/busqueda-avanzada-clientes.component';
-import { BusquedaAvanzadaClientesService } from '../../shared/services/busqueda-avanzada-clientes.service';
-import { BusquedaAvanzadaClientesRequest, BusquedaAvanzadaClienteResponse } from '../../shared/models/busqueda-avanzada-clientes.models';
+import { BusquedaAvanzadaClientesService } from '../../../../../host/src/app/_servicios/vektors/busqueda-avanzada-clientes.service';
+import { BusquedaAvanzadaClientesRequest, BusquedaAvanzadaClienteResponse } from '../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models';
 
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
