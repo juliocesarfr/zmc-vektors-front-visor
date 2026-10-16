@@ -2,6 +2,12 @@
 <div class="main-geo">
   <div #mapa class="main-geo-mapa"></div>
 
+  <!-- Loading indicator flotante cuando se cargan datos -->
+  <div class="map-loading-indicator" *ngIf="cargando">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>Cargando usuarios en el mapa...</span>
+  </div>
+
   <div class="main-geo-titulo">
     <span class="main-geo-modulo">GEORREFERENCIA</span>
     <span class="main-geo-eps">{{ gis.config.descripcion }}</span>
@@ -10,7 +16,8 @@
   <div class="main-geo-filtros">
     <span class="p-float-label">
       <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
-        [style]="{ width: '160px' }" placeholder="Sucursal" [appendTo]="'body'"></p-dropdown>
+        [style]="{ width: '160px' }" placeholder="Sucursal" [appendTo]="'body'"
+        (onChange)="onSucursalChange()"></p-dropdown>
       <label>Sucursal</label>
     </span>
 
@@ -27,94 +34,403 @@
     </span>
   </div>
 
-  <!-- Panel de Búsqueda Vertical con 3 opciones directas (Abre hacia arriba) -->
-  <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
-    <div class="tab-cyan-indicator"></div>
-    <div class="search-header">
-      <span class="search-header-title">
-        <i class="pi pi-search"></i> BÚSQUEDA DE CLIENTE
-      </span>
-      <div class="header-actions">
-        <span class="limpiar-link" *ngIf="isBusquedaActiva || searchSuministro || searchDniRuc || searchNombre" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
-          <i class="pi pi-filter-slash"></i> Limpiar
-        </span>
-        <button type="button" class="btn-cerrar-busqueda" (click)="cerrarBusqueda()" title="Cerrar">
-          <i class="pi pi-times"></i>
+  <div class="cd-search-panel light-tabs-panel" *ngIf="mostrarSearchPanel">
+    <!-- Header de Pestañas de Búsqueda -->
+    <div class="search-tabs-header">
+      <div class="search-tabs-top-bar">
+        <span class="search-tabs-title"><i class="pi pi-compass"></i> BÚSQUEDA Y FILTROS</span>
+        <div class="tabs-header-actions">
+          <span class="limpiar-link" *ngIf="isBusquedaActiva || searchSuministro || searchDniRuc || searchNombre || searchCatastral || searchNombreCalle || searchManzana || searchMedidor" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
+            <i class="pi pi-filter-slash"></i> Limpiar
+          </span>
+          <button type="button" class="btn-cerrar-busqueda" (click)="cerrarBusqueda()" title="Cerrar">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="search-tabs-nav">
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'usuario'" (click)="setTabBuscador('usuario')">
+          Usuario
+        </button>
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'calles'" (click)="setTabBuscador('calles')">
+          Calles
+        </button>
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'manzana'" (click)="setTabBuscador('manzana')">
+          Manzana
+        </button>
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'caja_agua'" (click)="setTabBuscador('caja_agua')">
+          Caja Agua/Ac.
+        </button>
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'categoria_usuario'" (click)="setTabBuscador('categoria_usuario')">
+          Cat. Usuario
+        </button>
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'tipo_usuario'" (click)="setTabBuscador('tipo_usuario')">
+          Tipo Usuario
+        </button>
+        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'est_conexion'" (click)="setTabBuscador('est_conexion')">
+          Est. Conexión
         </button>
       </div>
     </div>
 
-    <div class="search-rows-container">
-      <!-- Opción 1: Nro. Suministro -->
-      <div class="search-row">
-        <fieldset class="search-fieldset">
-          <legend class="search-legend">Nro. Suministro</legend>
-          <div class="input-content">
-            <i class="pi pi-tint icon-cyan"></i>
-            <input 
-              type="text" 
-              [(ngModel)]="searchSuministro" 
-              placeholder="Ej: 12345" 
-              (keyup.enter)="buscarPorOpcion(1)">
-            <i 
-              *ngIf="searchSuministro" 
-              class="pi pi-times-circle clear-text-btn" 
-              (click)="searchSuministro = ''"></i>
+    <!-- Contenido de las Pestañas -->
+    <div class="search-tab-body">
+      <!-- 1. Pestaña Usuario -->
+      <div *ngIf="tabActivaBuscador === 'usuario'" class="tab-content-vertical">
+        <div class="search-rows-container">
+          <div class="search-row">
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">Nro. Suministro</legend>
+              <div class="input-content">
+                <i class="pi pi-tint icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchSuministro" placeholder="Ej: 12345" (keyup.enter)="buscarPorOpcion(1)">
+                <i *ngIf="searchSuministro" class="pi pi-times-circle clear-text-btn" (click)="searchSuministro = ''"></i>
+              </div>
+            </fieldset>
+            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(1)" [disabled]="cargando">
+              BUSCAR
+            </button>
           </div>
-        </fieldset>
-        <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(1)" [disabled]="cargando">
-          BUSCAR
-        </button>
+
+          <div class="search-row">
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">DNI / RUC</legend>
+              <div class="input-content">
+                <i class="pi pi-id-card icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchDniRuc" placeholder="Ej: 12345678" (keyup.enter)="buscarPorOpcion(2)">
+                <i *ngIf="searchDniRuc" class="pi pi-times-circle clear-text-btn" (click)="searchDniRuc = ''"></i>
+              </div>
+            </fieldset>
+            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(2)" [disabled]="cargando">
+              BUSCAR
+            </button>
+          </div>
+
+          <div class="search-row">
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">Apellidos y nombres</legend>
+              <div class="input-content">
+                <i class="pi pi-user icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchNombre" placeholder="Ej: Juan Perez" (keyup.enter)="buscarPorOpcion(3)">
+                <i *ngIf="searchNombre" class="pi pi-times-circle clear-text-btn" (click)="searchNombre = ''"></i>
+              </div>
+            </fieldset>
+            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(3)" [disabled]="cargando">
+              BUSCAR
+            </button>
+          </div>
+
+         <!--- <div class="search-row">
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">Nro. Catastral</legend>
+              <div class="input-content">
+                <i class="pi pi-compass icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchCatastral" placeholder="Ej: 0010010011791150" (keyup.enter)="buscarPorOpcion(4)">
+                <i *ngIf="searchCatastral" class="pi pi-times-circle clear-text-btn" (click)="searchCatastral = ''"></i>
+              </div>
+            </fieldset>
+            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(4)" [disabled]="cargando">
+              BUSCAR
+            </button>
+          </div>-->
+
+        </div>
+
+        <div class="calle-results-wrapper mt-2" *ngIf="resultadosTab.length > 0">
+          <div class="results-header-info">
+            <span>{{ resultadosTab.length }} cliente(s) encontrado(s)</span>
+          </div>
+          <div class="results-scroll compact">
+            <div class="result-item-row" *ngFor="let r of resultadosTab" (click)="seleccionarResultadoTab(r)">
+              <div class="rir-left">
+                <span class="rir-suministro">{{ r.codcliente }}</span>
+                <div class="rir-datos">
+                  <span class="rir-nombre">{{ r.propietario || '-' }}</span>
+                  <span class="rir-dir">{{ r.descripcioncorta }} {{ r.descripcioncalle }} {{ r.nrocalle ? 'N° ' + r.nrocalle : '' }}</span>
+                </div>
+              </div>
+              <div class="rir-right">
+                <button type="button" class="btn-ubicar-mini" title="Ubicar en mapa">
+                  <i class="pi pi-map-marker"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Opción 2: DNI / RUC -->
-      <div class="search-row">
-        <fieldset class="search-fieldset">
-          <legend class="search-legend">DNI / RUC</legend>
-          <div class="input-content">
-            <i class="pi pi-id-card icon-cyan"></i>
-            <input 
-              type="text" 
-              [(ngModel)]="searchDniRuc" 
-              placeholder="Ej: 12345678" 
-              (keyup.enter)="buscarPorOpcion(2)">
-            <i 
-              *ngIf="searchDniRuc" 
-              class="pi pi-times-circle clear-text-btn" 
-              (click)="searchDniRuc = ''"></i>
+      <!-- 2. Pestaña Calles (con paginación y filtro rápido) -->
+      <div *ngIf="tabActivaBuscador === 'calles'" class="tab-content-vertical">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Nombre de la calle</legend>
+            <div class="input-content">
+              <i class="pi pi-map icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchNombreCalle" placeholder="Ej: Amazonas" (keyup.enter)="buscarPorCalle()">
+              <i *ngIf="searchNombreCalle" class="pi pi-times-circle clear-text-btn" (click)="searchNombreCalle = ''"></i>
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorCalle()" [disabled]="cargando">
+            BUSCAR
+          </button>
+        </div>
+
+        <div class="calle-results-wrapper" [class.has-results]="resultadosTab.length > 0">
+          <div *ngIf="resultadosTab.length === 0" class="empty-results-hint">
+            <i class="pi pi-search me-1"></i> Ingrese el nombre de la calle para ubicar suministros
           </div>
-        </fieldset>
-        <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(2)" [disabled]="cargando">
-          BUSCAR
-        </button>
+
+          <div *ngIf="resultadosTab.length > 0" class="results-quick-list">
+            <!-- Barra de Filtro Rápido e Info -->
+            <div class="calle-filter-toolbar">
+              <div class="results-header-info">
+                <span>{{ resultadosCalleFiltrados.length }} de {{ resultadosTab.length }} cliente(s)</span>
+              </div>
+              <div class="calle-filter-input">
+                <i class="pi pi-search"></i>
+                <input type="text" [(ngModel)]="filtroTextoCalle" (input)="filtrarResultadosCalle()" placeholder="Filtrar titular, N°, Mz...">
+                <i *ngIf="filtroTextoCalle" class="pi pi-times" (click)="filtroTextoCalle = ''; filtrarResultadosCalle()"></i>
+              </div>
+            </div>
+
+            <!-- Lista Paginada de Clientes -->
+            <div class="results-scroll">
+              <div class="result-item-row" *ngFor="let r of getClientesCallePaginados()" (click)="seleccionarResultadoTab(r)">
+                <div class="rir-left">
+                  <span class="rir-suministro">{{ r.codcliente }}</span>
+                  <div class="rir-datos">
+                    <span class="rir-nombre">{{ r.propietario || '-' }}</span>
+                    <span class="rir-dir">
+                      {{ r.descripcioncorta }} {{ r.descripcioncalle }} {{ r.nrocalle ? 'N° ' + r.nrocalle : '' }}
+                      <span *ngIf="r.codmza || r.nrolote"> | Mz. {{ r.codmza || '-' }} Lt. {{ r.nrolote || '-' }}</span>
+                    </span>
+                  </div>
+                </div>
+                <div class="rir-right">
+                  <button type="button" class="btn-ubicar-mini" title="Ubicar en mapa">
+                    <i class="pi pi-map-marker"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Barra de Paginación Elegante -->
+            <div class="calle-pagination-bar" *ngIf="totalPaginasCalle > 1">
+              <button type="button" class="btn-page" [disabled]="paginaCalleActual <= 1" (click)="cambiarPaginaCalle(-1)" title="Página anterior">
+                <i class="pi pi-chevron-left"></i>
+              </button>
+              <span class="page-info">Pág. {{ paginaCalleActual }} de {{ totalPaginasCalle }}</span>
+              <button type="button" class="btn-page" [disabled]="paginaCalleActual >= totalPaginasCalle" (click)="cambiarPaginaCalle(1)" title="Página siguiente">
+                <i class="pi pi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Opción 3: Apellidos y nombres -->
-      <div class="search-row">
-        <fieldset class="search-fieldset">
-          <legend class="search-legend">Apellidos y nombres</legend>
-          <div class="input-content">
-            <i class="pi pi-user icon-cyan"></i>
-            <input 
-              type="text" 
-              [(ngModel)]="searchNombre" 
-              placeholder="Ej: Juan Perez" 
-              (keyup.enter)="buscarPorOpcion(3)">
-            <i 
-              *ngIf="searchNombre" 
-              class="pi pi-times-circle clear-text-btn" 
-              (click)="searchNombre = ''"></i>
+      <!-- 3. Pestaña Manzana -->
+      <div *ngIf="tabActivaBuscador === 'manzana'" class="tab-content-vertical">
+        <div class="search-rows-container">
+          <div class="search-row">
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">Sector</legend>
+              <div class="input-content">
+                <i class="pi pi-th-large icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchSector" placeholder="Ej: 001" (keyup.enter)="buscarPorManzana()">
+              </div>
+            </fieldset>
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">Manzana</legend>
+              <div class="input-content">
+                <i class="pi pi-table icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchManzana" placeholder="Ej: 002" (keyup.enter)="buscarPorManzana()">
+              </div>
+            </fieldset>
+            <fieldset class="search-fieldset">
+              <legend class="search-legend">Lote</legend>
+              <div class="input-content">
+                <i class="pi pi-map-marker icon-cyan"></i>
+                <input type="text" [(ngModel)]="searchLote" placeholder="Ej: 003" (keyup.enter)="buscarPorManzana()">
+              </div>
+            </fieldset>
           </div>
-        </fieldset>
-        <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(3)" [disabled]="cargando">
-          BUSCAR
-        </button>
+          <button type="button" class="btn-cyan-pill w-full mt-1" (click)="buscarPorManzana()" [disabled]="cargando">
+            BUSCAR MANZANA / LOTE
+          </button>
+        </div>
+
+        <div class="calle-results-wrapper mt-2" *ngIf="resultadosTab.length > 0">
+          <div class="results-header-info">
+            <span>{{ resultadosTab.length }} cliente(s) en Manzana</span>
+          </div>
+          <div class="results-scroll compact">
+            <div class="result-item-row" *ngFor="let r of resultadosTab" (click)="seleccionarResultadoTab(r)">
+              <div class="rir-left">
+                <span class="rir-suministro">{{ r.codcliente }}</span>
+                <div class="rir-datos">
+                  <span class="rir-nombre">{{ r.propietario || '-' }}</span>
+                  <span class="rir-dir">Mz. {{ r.codmza }} Lt. {{ r.nrolote }}</span>
+                </div>
+              </div>
+              <div class="rir-right">
+                <button type="button" class="btn-ubicar-mini" title="Ubicar en mapa"><i class="pi pi-map-marker"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Pestaña Caja Agua/Acant. -->
+      <div *ngIf="tabActivaBuscador === 'caja_agua'" class="tab-content-vertical">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Nro. de Medidor / Ficha</legend>
+            <div class="input-content">
+              <i class="pi pi-tachometer icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchMedidor" placeholder="Ej: M12345" (keyup.enter)="buscarPorCajaAgua()">
+              <i *ngIf="searchMedidor" class="pi pi-times-circle clear-text-btn" (click)="searchMedidor = ''"></i>
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorCajaAgua()" [disabled]="cargando">
+            BUSCAR
+          </button>
+        </div>
+
+        <div class="calle-results-wrapper" [class.has-results]="resultadosTab.length > 0">
+          <div *ngIf="resultadosTab.length === 0" class="empty-results-hint">
+            <i class="pi pi-box me-1"></i> Ingrese el nro. de medidor para ubicar fichas de agua / alcantarillado
+          </div>
+          <div *ngIf="resultadosTab.length > 0" class="results-quick-list">
+            <div class="results-scroll compact">
+              <div class="result-item-row" *ngFor="let r of resultadosTab" (click)="seleccionarResultadoTab(r)">
+                <div class="rir-left">
+                  <span class="rir-suministro">{{ r.codcliente }}</span>
+                  <div class="rir-datos">
+                    <span class="rir-nombre">Medidor: {{ r.nromed || '-' }}</span>
+                    <span class="rir-dir">{{ r.descripcioncorta }} {{ r.descripcioncalle }}</span>
+                  </div>
+                </div>
+                <div class="rir-right">
+                  <button type="button" class="btn-ubicar-mini"><i class="pi pi-map-marker"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Pestaña Categoria Usuario (Image 2) -->
+      <div *ngIf="tabActivaBuscador === 'categoria_usuario'" class="tab-content-filter">
+        <div class="filter-header-row">
+          <span class="filter-title">Filtrar por Tarifa (activar la capa usuario):</span>
+          <span class="filter-clear-link" (click)="limpiarFiltrosTarifa()">Limpiar Filtros</span>
+        </div>
+        <div class="filter-box-dark">
+          <div class="filter-grid-cols-2">
+            <label class="custom-filter-checkbox" *ngFor="let item of tarifasFiltro">
+              <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
+              <span class="color-dot" [style.background-color]="item.dot"></span>
+              <span class="checkbox-text">{{ item.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Indicador de carga de puntos -->
+        <div *ngIf="cargandoFiltros" class="filter-status-loading">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Cargando puntos en el mapa...</span>
+        </div>
+
+        <!-- Mensaje cuando no encuentra -->
+        <div *ngIf="sinResultadosFiltros && !cargandoFiltros" class="filter-status-empty">
+          <i class="pi pi-exclamation-circle"></i>
+          <span>No se encontraron clientes con los filtros seleccionados.</span>
+        </div>
+      </div>
+
+      <!-- 6. Pestaña Tipo Usuario (Image 3) -->
+      <div *ngIf="tabActivaBuscador === 'tipo_usuario'" class="tab-content-filter">
+        <div class="filter-header-row">
+          <span class="filter-title">Filtrar por Tipo (activar la capa usuario):</span>
+          <span class="filter-clear-link" (click)="limpiarFiltrosTipo()">Limpiar Filtros</span>
+        </div>
+        <div class="filter-box-dark">
+          <div class="filter-grid-cols-2">
+            <label class="custom-filter-checkbox" *ngFor="let item of tiposUsuarioFiltro">
+              <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
+              <span class="color-dot" [style.background-color]="item.dot"></span>
+              <span class="checkbox-text">{{ item.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Indicador de carga de puntos -->
+        <div *ngIf="cargandoFiltros" class="filter-status-loading">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Cargando puntos en el mapa...</span>
+        </div>
+
+        <!-- Mensaje cuando no encuentra -->
+        <div *ngIf="sinResultadosFiltros && !cargandoFiltros" class="filter-status-empty">
+          <i class="pi pi-exclamation-circle"></i>
+          <span>No se encontraron clientes con los filtros seleccionados.</span>
+        </div>
+      </div>
+
+      <!-- 8. Pestaña Est. Conexión (Image 4) -->
+      <div *ngIf="tabActivaBuscador === 'est_conexion'" class="tab-content-split-filters">
+        <!-- Bloque 1: Estado Agua -->
+        <div class="split-filter-col">
+          <div class="filter-header-row">
+            <span class="filter-title">Estado Agua (Activar ficha Agua)</span>
+            <span class="filter-clear-link" (click)="limpiarFiltrosAgua()">Limpiar Filtros</span>
+          </div>
+          <div class="filter-box-dark scrollable-box">
+            <div class="filter-grid-cols-2">
+              <label class="custom-filter-checkbox" *ngFor="let item of estadosAguaFiltro">
+                <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
+                <span class="color-dot" [style.background-color]="item.dot"></span>
+                <span class="checkbox-text">{{ item.label }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bloque 2: Estado Desagüe -->
+        <div class="split-filter-col">
+          <div class="filter-header-row">
+            <span class="filter-title">Estado Desagüe (Activar Ficha Alcantarillado)</span>
+            <span class="filter-clear-link" (click)="limpiarFiltrosDesague()">Limpiar Filtros</span>
+          </div>
+          <div class="filter-box-dark scrollable-box">
+            <div class="filter-grid-cols-2">
+              <label class="custom-filter-checkbox" *ngFor="let item of estadosDesagueFiltro">
+                <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
+                <span class="color-dot" [style.background-color]="item.dot"></span>
+                <span class="checkbox-text">{{ item.label }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Indicador de carga de puntos -->
+        <div *ngIf="cargandoFiltros" class="filter-status-loading">
+          <i class="pi pi-spin pi-spinner"></i>
+          <span>Cargando puntos en el mapa...</span>
+        </div>
+
+        <!-- Mensaje cuando no encuentra -->
+        <div *ngIf="sinResultadosFiltros && !cargandoFiltros" class="filter-status-empty">
+          <i class="pi pi-exclamation-circle"></i>
+          <span>No se encontraron clientes con los filtros seleccionados.</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()" title="Buscar Cliente">
-    <i class="pi pi-search"></i>
+  <button class="cd-search-toggle" [class.is-active]="mostrarSearchPanel" (click)="toggleBusqueda()" [title]="mostrarSearchPanel ? 'Cerrar Buscador' : 'Búsqueda de Cliente y Filtros'">
+    <i [class]="mostrarSearchPanel ? 'pi pi-times' : 'pi pi-search'"></i>
   </button>
 
   <div class="user-popup" *ngIf="lecturaSeleccionada">
@@ -151,7 +467,7 @@
           </div>
           <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
             title="Ver en Google Street View"
-            (click)="abrirStreetView(lecturaSeleccionada.longitud, lecturaSeleccionada.latitud)"
+            (click)="abrirStreetView(lecturaSeleccionada?.lon ?? lecturaSeleccionada?.longitud ?? datosClientePopup?.lon ?? datosClientePopup?._predio?.lonpredio, lecturaSeleccionada?.lat ?? lecturaSeleccionada?.latitud ?? datosClientePopup?.lat ?? datosClientePopup?._predio?.latpredio)"
             style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
             <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
               alt="Street View">
@@ -274,4 +590,6 @@
   </app-capas-sidebar>
 
   <app-paneles-mapa-gis [controlador]="controladorGis"></app-paneles-mapa-gis>
+
+  
 </div>

@@ -1,0 +1,431 @@
+<div class="busqueda-avanzada-container">
+  <!-- Filtros Principales -->
+  <div class="filtro-card">
+    <div class="row g-2 align-items-center">
+      <!-- Sucursal -->
+      <div class="col-12 col-md-3">
+        <label class="form-label-custom">Sucursal</label>
+        <p-dropdown
+          [options]="listaSucursales"
+          [(ngModel)]="_codsuc"
+          [disabled]="seleccionarTodasSucursales"
+          (onChange)="onSucursalChange()"
+          optionValue="codsuc"
+          optionLabel="nombre"
+          placeholder="Seleccione Sucursal"
+          styleClass="w-100 p-inputtext-sm"
+          [appendTo]="'body'"
+        ></p-dropdown>
+      </div>
+
+      <!-- Checkbox Todas las Sucursales -->
+      <div class="col-12 col-md-3 d-flex align-items-center pt-md-4">
+        <p-checkbox
+          inputId="chkTodasSuc"
+          [(ngModel)]="seleccionarTodasSucursales"
+          (onChange)="onToggleTodasSucursales()"
+          [binary]="true"
+        ></p-checkbox>
+        <label for="chkTodasSuc" class="ms-2 mb-0 chk-label">
+          Ver todas las sucursales
+        </label>
+      </div>
+
+      <!-- Calles -->
+      <div class="col-12 col-md-3">
+        <label class="form-label-custom">Calle / Vía</label>
+        <p-dropdown
+          [options]="listaCalles"
+          [(ngModel)]="codcalle"
+          optionValue="codcalle"
+          optionLabel="descripcioncalle"
+          placeholder="Todas las calles"
+          [filter]="true"
+          filterBy="descripcioncalle"
+          [virtualScroll]="true"
+          [virtualScrollItemSize]="38"
+          styleClass="w-100 p-inputtext-sm"
+          [appendTo]="'body'"
+        ></p-dropdown>
+      </div>
+
+      <!-- Urbanizaciones -->
+      <div class="col-12 col-md-3">
+        <label class="form-label-custom">Urbanización / Asoc.</label>
+        <p-dropdown
+          [options]="listaUrbanizaciones"
+          [(ngModel)]="codurbaso"
+          optionValue="codurbaso"
+          optionLabel="descripcionurba"
+          placeholder="Todas las urbanizaciones"
+          [filter]="true"
+          filterBy="descripcionurba"
+          styleClass="w-100 p-inputtext-sm"
+          [appendTo]="'body'"
+        ></p-dropdown>
+      </div>
+    </div>
+
+    <!-- Fila 2 de Filtros -->
+    <div class="row g-2 align-items-center mt-1">
+      <!-- Suministro (CodCliente) -->
+      <div class="col-12 col-sm-6 col-md-2">
+        <label class="form-label-custom">Suministro</label>
+        <span class="p-input-icon-left w-100">
+          <i class="pi pi-bolt"></i>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Ej: 803720"
+            [(ngModel)]="codcliente"
+            (keydown.enter)="buscarClick()"
+          />
+        </span>
+      </div>
+
+      <!-- Nro. Medidor -->
+      <div class="col-12 col-sm-6 col-md-2">
+        <label class="form-label-custom">Nro. Medidor</label>
+        <span class="p-input-icon-left w-100">
+          <i class="pi pi-tachometer"></i>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Ej: M12345"
+            [(ngModel)]="nromedidor"
+            (keydown.enter)="buscarClick()"
+          />
+        </span>
+      </div>
+
+      <!-- Tipo Doc. -->
+      <div class="col-12 col-sm-6 col-md-2">
+        <label class="form-label-custom">Tipo Documento</label>
+        <p-dropdown
+          [options]="listaTiposDoc"
+          [(ngModel)]="tipodocident"
+          optionValue="tipodocident"
+          optionLabel="descripcion"
+          placeholder="Tipo Doc."
+          styleClass="w-100 p-inputtext-sm"
+          [appendTo]="'body'"
+        ></p-dropdown>
+      </div>
+
+      <!-- Nro. Documento -->
+      <div class="col-12 col-sm-6 col-md-2">
+        <label class="form-label-custom">Nro. Documento</label>
+        <span class="p-input-icon-left w-100">
+          <i class="pi pi-id-card"></i>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="DNI / RUC"
+            [(ngModel)]="nrodocumento"
+            (keydown.enter)="buscarClick()"
+          />
+        </span>
+      </div>
+
+      <!-- Propietario -->
+      <div class="col-12 col-md-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <label class="form-label-custom mb-0">Apellidos y Nombres / Razón Social</label>
+          <div class="coincidencia-toggle">
+            <span
+              class="badge-toggle"
+              [class.active]="letrainicio === 0"
+              (click)="letrainicio = 0"
+              title="Busca texto en cualquier posición"
+            >Contiene</span>
+            <span
+              class="badge-toggle"
+              [class.active]="letrainicio === 1"
+              (click)="letrainicio = 1"
+              title="Busca texto que inicie con los caracteres ingresados"
+            >Inicia con</span>
+          </div>
+        </div>
+        <span class="p-input-icon-left w-100">
+          <i class="pi pi-user"></i>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Ej: GONZALEZ PEREZ"
+            [(ngModel)]="propietario"
+            (keydown.enter)="buscarClick()"
+          />
+        </span>
+      </div>
+    </div>
+
+    <!-- Filtros Catastrales / Documentarios Desplegables -->
+    <div class="filtros-avanzados-collapse mt-2" *ngIf="mostrarFiltrosAvanzados">
+      <div class="row g-2 align-items-center">
+        <div class="col-6 col-md-2">
+          <label class="form-label-custom">Sector</label>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Cod. Sector"
+            [(ngModel)]="codsector"
+            (keydown.enter)="buscarClick()"
+          />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label-custom">Manzana</label>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Mza"
+            [(ngModel)]="codmza"
+            (keydown.enter)="buscarClick()"
+          />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label-custom">Lote</label>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Lote"
+            [(ngModel)]="nrolote"
+            (keydown.enter)="buscarClick()"
+          />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label-custom">Sublote</label>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Sublote"
+            [(ngModel)]="nrosublote"
+            (keydown.enter)="buscarClick()"
+          />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label-custom">Nro. Recibo</label>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Nro. Recibo"
+            [(ngModel)]="nrorecibo"
+            (keydown.enter)="buscarClick()"
+          />
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label-custom">Pedido QR / VISA</label>
+          <input
+            pInputText
+            type="text"
+            class="w-100 p-inputtext-sm"
+            placeholder="Nro. Pedido"
+            [(ngModel)]="nropedidoqr"
+            (keydown.enter)="buscarClick()"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra de Acciones de Búsqueda -->
+    <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
+      <div>
+        <button
+          pButton
+          type="button"
+          class="p-button-text p-button-sm btn-link-toggle"
+          [icon]="mostrarFiltrosAvanzados ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+          [label]="mostrarFiltrosAvanzados ? 'Ocultar filtros catastrales' : 'Más filtros (Sector, Mza, Lote, Recibo)'"
+          (click)="mostrarFiltrosAvanzados = !mostrarFiltrosAvanzados"
+        ></button>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button
+          pButton
+          type="button"
+          label="Limpiar"
+          icon="pi pi-filter-slash"
+          class="p-button-outlined p-button-secondary p-button-sm"
+          (click)="limpiarFiltros()"
+          [disabled]="cargando"
+        ></button>
+
+        <button
+          pButton
+          type="button"
+          label="Buscar Clientes"
+          icon="pi pi-search"
+          class="p-button-primary p-button-sm btn-buscar"
+          (click)="buscarClick()"
+          [loading]="cargando"
+        ></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resultados de Clientes -->
+  <div class="resultados-card mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+      <div class="resultados-contador">
+        <span class="badge-total" *ngIf="totalRecords > 0">
+          <i class="pi pi-users me-1"></i> {{ totalRecords }} cliente(s) encontrado(s)
+        </span>
+        <span class="text-muted fs-12" *ngIf="totalRecords === 0 && !cargando">
+          Ingrese filtros y presione <b>Buscar Clientes</b>
+        </span>
+      </div>
+    </div>
+
+    <p-table
+      [value]="listaClientes"
+      [lazy]="true"
+      (onPage)="onPageChange($event)"
+      [paginator]="true"
+      [rows]="rows"
+      [first]="first"
+      [totalRecords]="totalRecords"
+      [rowsPerPageOptions]="[5, 10, 20, 50]"
+      [loading]="cargando"
+      styleClass="p-datatable-sm p-datatable-gridlines p-datatable-striped tabla-clientes-avanzada"
+      [rowHover]="true"
+      responsiveLayout="scroll"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th style="width: 100px;" class="text-center">Suministro</th>
+          <th>Propietario</th>
+          <th>Dirección / Ubicación</th>
+          <th style="width: 120px;">Urbanización</th>
+          <th style="width: 110px;" class="text-center">Sector / Mza</th>
+          <th style="width: 100px;" class="text-center">Medidor</th>
+          <th style="width: 110px;">Doc. Ident.</th>
+          <th style="width: 100px;">Tarifa</th>
+          <th style="width: 110px;" class="text-center">Est. Servicio</th>
+          <th style="width: 100px;" class="text-center">Georref.</th>
+          <th style="width: 110px;" class="text-center">Acción</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-cliente>
+        <tr>
+          <!-- Suministro -->
+          <td class="text-center fw-bold text-primary">
+            {{ cliente.codcliente }}
+          </td>
+
+          <!-- Propietario -->
+          <td>
+            <div class="fw-bold fs-12">{{ cliente.propietario || '-' }}</div>
+            <span class="text-muted fs-11" *ngIf="cliente.descsucursal">
+              <i class="pi pi-building me-1"></i>{{ cliente.descsucursal }}
+            </span>
+          </td>
+
+          <!-- Dirección -->
+          <td class="fs-12">
+            <span>{{ cliente.descripcioncorta }} {{ cliente.descripcioncalle }} {{ cliente.nrocalle ? 'N° ' + cliente.nrocalle : '' }}</span>
+            <div class="text-muted fs-11 fst-italic" *ngIf="cliente.referencia">
+              Ref: {{ cliente.referencia }}
+            </div>
+          </td>
+
+          <!-- Urbanización -->
+          <td class="fs-12">
+            {{ cliente.descripcionurba || '-' }}
+          </td>
+
+          <!-- Sector / Manzana / Lote -->
+          <td class="text-center fs-12">
+            <span *ngIf="cliente.codsector">S: {{ cliente.codsector }}</span>
+            <span *ngIf="cliente.codmza"> Mz: {{ cliente.codmza }}</span>
+            <span *ngIf="cliente.nrolote"> Lt: {{ cliente.nrolote }}</span>
+            <span *ngIf="!cliente.codsector && !cliente.codmza && !cliente.nrolote">-</span>
+          </td>
+
+          <!-- Medidor -->
+          <td class="text-center fs-12">
+            <span class="badge-medidor" *ngIf="cliente.nromed && cliente.nromed !== 'SIN MEDIDOR'">
+              {{ cliente.nromed }}
+            </span>
+            <span class="text-muted fs-11" *ngIf="!cliente.nromed || cliente.nromed === 'SIN MEDIDOR'">
+              S/M
+            </span>
+          </td>
+
+          <!-- Doc. Identidad -->
+          <td class="fs-12">
+            <span *ngIf="cliente.nrodocident">
+              {{ cliente.tipodocident || '' }} {{ cliente.nrodocident }}
+            </span>
+            <span class="text-muted" *ngIf="!cliente.nrodocident">-</span>
+          </td>
+
+          <!-- Tarifa -->
+          <td class="fs-12">
+            {{ cliente.nomtar || cliente.catetar || '-' }}
+          </td>
+
+          <!-- Estado Servicio -->
+          <td class="text-center">
+            <span
+              class="badge-estado"
+              [class.activo]="cliente.estadoservicio === '001' || cliente.descripcionestservicio === 'ACTIVO'"
+              [class.cortado]="cliente.estadoservicio !== '001' && cliente.estadoservicio"
+            >
+              {{ cliente.descripcionestservicio || cliente.desestadoservicio || cliente.estadoservicio || '-' }}
+            </span>
+          </td>
+
+          <!-- Georreferenciado -->
+          <td class="text-center">
+            <span
+              *ngIf="tieneCoordenadas(cliente)"
+              class="badge-geo si"
+              pTooltip="Cuenta con coordenadas GIS"
+            >
+              <i class="pi pi-check-circle me-1"></i> Sí
+            </span>
+            <span
+              *ngIf="!tieneCoordenadas(cliente)"
+              class="badge-geo no"
+              pTooltip="Sin coordenadas en GIS"
+            >
+              <i class="pi pi-times-circle me-1"></i> No
+            </span>
+          </td>
+
+          <!-- Acciones -->
+          <td class="text-center">
+            <button
+              pButton
+              type="button"
+              icon="pi pi-map-marker"
+              label="Ubicar"
+              class="p-button-sm p-button-info btn-ubicar"
+              (click)="seleccionarCliente(cliente)"
+              pTooltip="Ubicar en el visor del mapa"
+            ></button>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="11" class="text-center py-4 text-muted">
+            <i class="pi pi-info-circle fs-16 mb-2 d-block"></i>
+            No se encontraron clientes con los filtros especificados.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>
