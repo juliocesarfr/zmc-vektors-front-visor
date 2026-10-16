@@ -148,6 +148,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   totalSinCoordenadas = 0;
 
   mostrarSearchPanel = false;
+  buscadorEstabaAbierto = false;
   searchSuministro = '';
   searchDniRuc = '';
   searchNombre = '';
@@ -482,6 +483,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.refrescarCapasVector();
     this.lecturaSeleccionada = feature.getProperties() as RegistroLectura;
     this.cargarDatosPopup(this.lecturaSeleccionada);
+
+    if (this.mostrarSearchPanel) {
+      this.buscadorEstabaAbierto = true;
+      this.mostrarSearchPanel = false;
+    }
   }
 
   setBaseLayer(id: string): void {
@@ -555,11 +561,25 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   activarCapasPorDefectoBusqueda(): void {
-    const capasActivar = ["caja_agua", "ficha_alc", "acometida", "acc_alc"];
+    const capasActivar = ["usuarios", "lotes", "caja_agua", "ficha_alc", "acometida", "acc_alc"];
     this.commercialLayers.forEach((c) => {
-      if (capasActivar.includes(c.id) && !c.active) {
+      if (capasActivar.includes(c.id)) {
         c.active = true;
         this.registroCapas[c.id]?.setVisible(true);
+      }
+    });
+  }
+
+  /**
+   * Desactiva las capas de detalle secundario y mantiene activas únicamente las capas permitidas
+   * (por defecto: 'usuarios' y 'lotes').
+   */
+  desactivarCapasSecundarias(capasPermitidas: string[] = ['usuarios', 'lotes']): void {
+    this.commercialLayers.forEach((c) => {
+      const debeEstarActiva = capasPermitidas.includes(c.id);
+      if (c.active !== debeEstarActiva) {
+        c.active = debeEstarActiva;
+        this.registroCapas[c.id]?.setVisible(debeEstarActiva);
       }
     });
   }
@@ -672,13 +692,20 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.isBusquedaActiva = true;
   }
 
-  private mostrarPopupSinPunto(registro: RegistroLectura): void {
+  private mostrarPopupSinPunto(registro: RegistroLectura, activarDetalles: boolean = false): void {
     this.controladorGis?.cerrarPopupGis();
     this.lecturaSeleccionada = registro;
     this.cargarDatosPopup(registro);
-    this.activarCapasPorDefectoBusqueda();
+    if (activarDetalles) {
+      this.activarCapasPorDefectoBusqueda();
+    }
     this.centrarEnUsuario(registro);
     this.controladorGis?.marcarPredio(this.codigoDe(registro));
+
+    if (this.mostrarSearchPanel) {
+      this.buscadorEstabaAbierto = true;
+      this.mostrarSearchPanel = false;
+    }
   }
 
   private buscarPuntoPorCodigo(
@@ -786,6 +813,13 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   toggleBusqueda(): void {
     this.mostrarSearchPanel = !this.mostrarSearchPanel;
     if (this.mostrarSearchPanel) {
+      if (this.lecturaSeleccionada) {
+        this.lecturaSeleccionada = null;
+        this.featureSeleccionado = null;
+        this.datosClientePopup = null;
+        this.imagenesPopup = [];
+      }
+      this.buscadorEstabaAbierto = false;
       this.refrescarCapasVector();
     }
   }
@@ -806,15 +840,12 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   setTabBuscador(tab: string): void {
     this.tabActivaBuscador = tab;
     this.resultadosTab = [];
-    if (tab === 'categoria_usuario' || tab === 'tipo_usuario') {
-      this.activarCapaPorId('usuarios');
-    } else if (tab === 'caja_agua') {
-      this.activarCapaPorId('caja_agua');
-      this.activarCapaPorId('ficha_alc');
-    } else if (tab === 'est_conexion') {
-      this.activarCapaPorId('usuarios');
-      this.activarCapaPorId('caja_agua');
-      this.activarCapaPorId('ficha_alc');
+
+    // Al cambiar de pestaña/filtro se desactivan las capas secundarias y solo se mantienen usuarios y lotes
+    if (tab === 'calles') {
+      this.desactivarCapasSecundarias(['usuarios', 'lotes', 'calles']);
+    } else {
+      this.desactivarCapasSecundarias(['usuarios', 'lotes']);
     }
 
     if (!this.resultadoBusquedaJson || this.resultadoBusquedaJson.length === 0) {
@@ -855,9 +886,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         this.paginaCalleActual = 1;
         this.resultadosCalleFiltrados = [...clientes];
         if (clientes.length > 0) {
-          this.activarCapasPorDefectoBusqueda();
-          this.activarCapaPorId('calles');
-          this.activarCapaPorId('usuarios');
+          this.desactivarCapasSecundarias(['usuarios', 'lotes', 'calles']);
           this.mostrarSoloRegistros(clientes as any);
           this.avisar("success", "Calle", `Se encontraron ${clientes.length} usuarios en "${calle}".`);
         } else {
@@ -923,9 +952,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         const clientes = resp?.data || [];
         this.resultadosTab = clientes;
         if (clientes.length > 0) {
-          this.activarCapasPorDefectoBusqueda();
-          this.activarCapaPorId('lotes');
-          this.activarCapaPorId('usuarios');
+          this.desactivarCapasSecundarias(['usuarios', 'lotes']);
           this.mostrarSoloRegistros(clientes as any);
           this.avisar("success", "Manzana", `Se encontraron ${clientes.length} usuarios.`);
         } else {
@@ -945,7 +972,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.avisar("warn", "Campo vacío", "Por favor ingrese el número de medidor o ficha.");
       return;
     }
-    this.activarCapasPorDefectoBusqueda();
     this.cargando = true;
     this.busquedaAvanzadaService.buscarClientesAvanzada({
       codsuc: this.selectedSucursal?.codsuc || 'ALL',
@@ -958,9 +984,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         const clientes = resp?.data || [];
         this.resultadosTab = clientes;
         if (clientes.length > 0) {
-          this.activarCapasPorDefectoBusqueda();
-          this.activarCapaPorId('caja_agua');
-          this.activarCapaPorId('usuarios');
+          this.desactivarCapasSecundarias(['usuarios', 'lotes', 'caja_agua', 'ficha_alc']);
           this.mostrarSoloRegistros(clientes as any);
           if (clientes.length === 1) {
             this.mostrarSearchPanel = false;
@@ -972,7 +996,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
               this.acercarAPunto(punto);
               this.controladorGis?.marcarPredio(codigo);
             } else {
-              this.mostrarPopupSinPunto(primer as any);
+              this.mostrarPopupSinPunto(primer as any, false);
             }
           }
           this.avisar("success", "Caja Agua/Alc.", `Se encontraron ${clientes.length} registros asociados.`);
@@ -988,17 +1012,17 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   seleccionarResultadoTab(r: any): void {
+    this.buscadorEstabaAbierto = true;
     this.mostrarSearchPanel = false;
     const codigo = this.codigoDe(r);
     this.searchSuministro = codigo;
     const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
     if (punto) {
       this.seleccionarFeature(punto, "lectura");
-      this.activarCapasPorDefectoBusqueda();
       this.acercarAPunto(punto);
       this.controladorGis?.marcarPredio(codigo);
     } else {
-      this.mostrarPopupSinPunto(r);
+      this.mostrarPopupSinPunto(r, false);
     }
   }
 
@@ -1217,12 +1241,14 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         this.resultadoBusquedaJson = this.resultadoBusquedaOriginalJson;
       }
       this.resultadosTab = this.resultadoBusquedaJson || [];
+      this.desactivarCapasSecundarias(['usuarios', 'lotes']);
       this.refrescarCapasVector();
       return;
     }
 
     this.cargandoFiltros = true;
     this.sinResultadosFiltros = false;
+    this.desactivarCapasSecundarias(['usuarios', 'lotes']);
     this.guardarResultadoOriginal();
     const base = this.resultadoBusquedaOriginalJson || this.resultadoBusquedaJson || [];
 
@@ -1306,11 +1332,13 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   cerrarBusqueda(): void {
+    this.buscadorEstabaAbierto = false;
     this.mostrarSearchPanel = false;
     this.reiniciarBusqueda();
   }
 
   reiniciarBusqueda(): void {
+    this.buscadorEstabaAbierto = false;
     this.searchSuministro = "";
     this.searchDniRuc = "";
     this.searchNombre = "";
@@ -1372,20 +1400,13 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
           return;
         }
 
-        if (op === 1 || op === 4) {
-          // El suministro y código catastral son identificadores únicos de un solo predio
-          const exacto = registros.find((r) => {
-            if (op === 1) return String(r.codcliente || '').trim() === valor;
-            const cat = String(r.codcatastral || '').trim().replace(/[-\s]/g, '');
-            const busq = valor.replace(/[-\s]/g, '');
-            return cat.toLowerCase() === busq.toLowerCase();
-          }) || registros[0];
-
+        if (op === 1) {
+          // Nro. Suministro: Búsqueda específica de un predio donde sí se activan las capas de detalle
+          const exacto = registros.find((r) => String(r.codcliente || '').trim() === valor) || registros[0];
           registros = [exacto];
           this.resultadosTab = registros;
           this.mostrarSearchPanel = false;
           this.activarCapasPorDefectoBusqueda();
-          this.activarCapaPorId('usuarios');
           this.mostrarSoloRegistros(registros as any);
 
           const codigo = this.codigoDe(exacto);
@@ -1395,13 +1416,40 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
             this.acercarAPunto(punto);
             this.controladorGis?.marcarPredio(codigo);
           } else {
-            this.mostrarPopupSinPunto(exacto as any);
+            this.mostrarPopupSinPunto(exacto as any, true);
           }
           return;
         }
 
-        this.activarCapasPorDefectoBusqueda();
-        this.activarCapaPorId('usuarios');
+        if (op === 4) {
+          // Nro. Catastral: Predio único pero para otros filtros se desactivan las capas secundarias, manteniendo solo usuarios y lotes
+          const exacto = registros.find((r) => {
+            const cat = String(r.codcatastral || '').trim().replace(/[-\s]/g, '');
+            const busq = valor.replace(/[-\s]/g, '');
+            return cat.toLowerCase() === busq.toLowerCase();
+          }) || registros[0];
+
+          registros = [exacto];
+          this.resultadosTab = registros;
+          this.mostrarSearchPanel = false;
+          this.desactivarCapasSecundarias(['usuarios', 'lotes']);
+          this.mostrarSoloRegistros(registros as any);
+
+          const codigo = this.codigoDe(exacto);
+          const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
+          if (punto) {
+            this.seleccionarFeature(punto, "lectura");
+            this.acercarAPunto(punto);
+            this.controladorGis?.marcarPredio(codigo);
+          } else {
+            this.mostrarPopupSinPunto(exacto as any, false);
+          }
+          return;
+        }
+
+        // Para cualquier otro filtro (op === 2 DNI/RUC, op === 3 Nombre, etc.):
+        // Desactivar capas secundarias y mantener únicamente usuarios y lotes
+        this.desactivarCapasSecundarias(['usuarios', 'lotes']);
         this.mostrarSoloRegistros(registros as any);
 
         if (registros.length === 1) {
@@ -1413,7 +1461,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
             this.acercarAPunto(punto);
             this.controladorGis?.marcarPredio(codigo);
           } else {
-            this.mostrarPopupSinPunto(registros[0] as any);
+            this.mostrarPopupSinPunto(registros[0] as any, false);
           }
         } else {
           this.mostrarSearchPanel = true;
@@ -1440,6 +1488,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.datosClientePopup = null;
     this.imagenesPopup = [];
     this.limpiarURL();
+
+    if (this.buscadorEstabaAbierto) {
+      this.mostrarSearchPanel = true;
+      this.buscadorEstabaAbierto = false;
+    }
   }
 
   getDescripcionEstadoLectura(codigo: string): string {

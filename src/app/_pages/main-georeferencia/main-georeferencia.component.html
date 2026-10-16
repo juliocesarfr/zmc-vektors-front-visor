@@ -59,9 +59,9 @@
         <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'manzana'" (click)="setTabBuscador('manzana')">
           Manzana
         </button>
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'caja_agua'" (click)="setTabBuscador('caja_agua')">
+        <!--<button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'caja_agua'" (click)="setTabBuscador('caja_agua')">
           Caja Agua/Ac.
-        </button>
+        </button>-->
         <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'categoria_usuario'" (click)="setTabBuscador('categoria_usuario')">
           Cat. Usuario
         </button>
@@ -282,7 +282,7 @@
       </div>
 
       <!-- 4. Pestaña Caja Agua/Acant. -->
-      <div *ngIf="tabActivaBuscador === 'caja_agua'" class="tab-content-vertical">
+     <!-- <div *ngIf="tabActivaBuscador === 'caja_agua'" class="tab-content-vertical">
         <div class="search-row">
           <fieldset class="search-fieldset">
             <legend class="search-legend">Nro. de Medidor / Ficha</legend>
@@ -318,7 +318,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div>-->
 
       <!-- 5. Pestaña Categoria Usuario (Image 2) -->
       <div *ngIf="tabActivaBuscador === 'categoria_usuario'" class="tab-content-filter">
