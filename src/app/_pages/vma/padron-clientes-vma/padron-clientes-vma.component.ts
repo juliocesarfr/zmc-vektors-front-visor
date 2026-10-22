@@ -167,6 +167,17 @@ export class PadronClientesVmaComponent implements OnInit {
     this.filtrosVisible = !this.filtrosVisible;
   }
 
+  /** Clic en la tarjeta "Sin Coord.": Excel de los clientes cargados que no se pintan en el mapa. */
+  async descargarSinCoordenadas(): Promise<void> {
+    if (this.totalSinCoordenadas === 0) return;
+    const cantidad = await (this.visor?.descargarSinCoordenadas() ?? Promise.resolve(0));
+    if (cantidad === 0) {
+      this.avisar("info", "Aviso", "Todos los registros cargados tienen coordenadas.");
+    } else {
+      this.avisar("success", "Excel descargado", `${cantidad} registros sin coordenadas.`);
+    }
+  }
+
   private avisar(
     severity: "success" | "info" | "warn" | "error",
     summary: string,

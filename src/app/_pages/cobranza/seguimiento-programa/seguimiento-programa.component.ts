@@ -870,11 +870,11 @@ export class SeguimientoProgramaComponent
 
   verMasInformacion(codcliente: string | number | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
       this.selectedSucursal?.codigo || this.corteSeleccionado?.codsuc,
-    );
+    ).then((referencia) => (this.ref = referencia));
   }
 
   // ============================================================
@@ -889,6 +889,17 @@ export class SeguimientoProgramaComponent
   // ============================================================
   // UTIL
   // ============================================================
+
+  /** Clic en la tarjeta "Sin Coord.": Excel de los clientes cargados que no se pintan en el mapa. */
+  async descargarSinCoordenadas(): Promise<void> {
+    if (this.totalSinCoordenadas === 0) return;
+    const cantidad = await (this.controladorGis?.descargarSinCoordenadas() ?? Promise.resolve(0));
+    if (cantidad === 0) {
+      this.avisar("info", "Aviso", "Todos los registros cargados tienen coordenadas.");
+    } else {
+      this.avisar("success", "Excel descargado", `${cantidad} registros sin coordenadas.`);
+    }
+  }
 
   private avisar(
     severity: "success" | "info" | "warn" | "error",

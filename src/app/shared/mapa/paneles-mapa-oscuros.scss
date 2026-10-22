@@ -876,6 +876,22 @@ $sombra-panel: 0 8px 32px rgba(0, 0, 0, 0.5);
         border-top-color: #fb923c;
       }
 
+      // Tarjeta "Sin Coord.": al hacer clic descarga el Excel de esos clientes.
+      &.descargable {
+        cursor: pointer;
+        transition: background 0.15s ease, transform 0.15s ease;
+
+        &:hover {
+          background: rgba(251, 146, 60, 0.22);
+          transform: translateY(-1px);
+        }
+
+        .titulo::after {
+          content: " \2913";
+          color: #fb923c;
+        }
+      }
+
       &.vivo {
         border-top-color: #60a5fa;
       }

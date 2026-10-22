@@ -88,7 +88,6 @@ import {
 import { InspectorLectura } from "@host/_models/vektors/InspectorLectura";
 import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLecturaInspector";
 import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
-import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 
 const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
@@ -150,7 +149,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
-  private readonly factArchService = inject(FactArchService);
   private readonly router = inject(Router);
 
   volverAlMain(): void {
@@ -499,16 +497,13 @@ export class SeguimientoDeLecturaXinspectorComponent
       .pipe(
         tap((response) => {
           this.fechaCiclos = response.data;
-          this.factArchService.recuperar_ultimo_periodo_comercial('001').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
-            const aniomes = res?.aniomes || '202609';
-            const anio = aniomes.substring(0, 4);
-            const mes = aniomes.substring(4, 6);
-            if (!this.listaYear.find(y => y.anio === anio)) {
-              this.listaYear.unshift({ anio: anio });
-            }
-            this.selectedAnio = anio;
-            this.selectedMes = mes;
-          });
+          const hoy = new Date();
+          const anio = String(hoy.getFullYear());
+          if (!this.listaYear.find(y => y.anio === anio)) {
+            this.listaYear.unshift({ anio: anio });
+          }
+          this.selectedAnio = anio;
+          this.selectedMes = String(hoy.getMonth() + 1).padStart(2, '0');
         }),
         switchMap(() =>
           this.sucursalesService.drop_sucursales_x_ciclo(
@@ -997,11 +992,11 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
       this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
-    );
+    ).then((referencia) => (this.ref = referencia));
   }
 
   // ============================================================

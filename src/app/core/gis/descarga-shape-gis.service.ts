@@ -1,8 +1,6 @@
 import { Injectable, inject } from "@angular/core";
 import { HttpBackend, HttpClient } from "@angular/common/http";
 import { firstValueFrom } from "rxjs";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
 import { transformExtent } from "ol/proj";
 import type { Extent } from "ol/extent";
 
@@ -50,6 +48,8 @@ export class DescargaShapeGisService {
   private readonly http = new HttpClient(inject(HttpBackend));
 
   async descargar(descarga: DescargaShape): Promise<ResultadoDescargaShape> {
+    // Se cargan recién aquí: las pantallas del mapa abren sin bajar el compresor.
+    const [{ default: JSZip }, { saveAs }] = await Promise.all([import("jszip"), import("file-saver")]);
     const zip = new JSZip();
     const capas: string[] = [];
 
@@ -74,6 +74,11 @@ export class DescargaShapeGisService {
       saveAs(archivo, `${descarga.nombreArchivo}.zip`);
     }
     return { capas };
+  }
+
+  /** Nombres de las capas de GeoServer que entrarían en el shape, para mostrarlos antes de descargar. */
+  etiquetasCapasGis(capas: CapaConsultable[]): string[] {
+    return Array.from(this.capasGisVisibles(capas).values(), (rol) => this.gis.etiquetaCapa(rol));
   }
 
   // Por nombre de GeoServer: dos roles pueden apuntar a la misma capa publicada.

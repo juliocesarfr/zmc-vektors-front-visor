@@ -251,6 +251,11 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.controladorGis?.descartarListado();
   }
 
+  /** Excel de los clientes cargados que no tienen coordenadas; devuelve cuántos salieron. */
+  descargarSinCoordenadas(): Promise<number> {
+    return this.controladorGis?.descargarSinCoordenadas() ?? Promise.resolve(0);
+  }
+
   ubicarFilaEnMapa(fila: FilaListado): void {
     const codigo = String(fila['codcliente'] ?? '').trim();
     const punto = this.customVectorLayers

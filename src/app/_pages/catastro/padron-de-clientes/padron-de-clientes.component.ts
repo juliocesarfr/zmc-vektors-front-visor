@@ -39,12 +39,19 @@ import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
-import { getCenter } from "ol/extent";
+import { containsCoordinate, createEmpty, extend, Extent, getCenter, isEmpty } from "ol/extent";
+import { transform } from "ol/proj";
 import Zoom from "ol/control/Zoom";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 
 import { ORIGENES_COORDENADA } from "../../../shared/constantes/coordenadas";
-import { ConsultaCapasGisService, GisConfigService } from "../../../core/gis";
+import {
+  CapaConsultable,
+  ConsultaCapasGisService,
+  DescargaShapeGisService,
+  GisConfigService,
+  WGS84,
+} from "../../../core/gis";
 import { observarTamanoMapa } from "../../../shared/mapa/observar-tamano-mapa";
 import {
   MapEstilosFactory,
@@ -62,6 +69,16 @@ import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../../shared/mapa/capas";
 import { coordenadaLonLat, abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 import { abrirConsultaUsuario } from "../../../shared/dialogos/consulta-usuario.dialog";
+import { abrirVistaPreviaShape } from "../../../shared/dialogos/vista-previa-shape.dialog";
+import { grupoDeEstadoServicio } from "../../../shared/constantes/estados-servicio";
+import {
+  contarPorGrupo,
+  EntradaLeyenda,
+  fondoMuestra,
+  GrupoLeyenda,
+  LeyendaGruposComponent,
+} from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
+import { CapaShape, ColumnaShape } from "../../../shared/utils/shapefile";
 
 const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
@@ -78,6 +95,22 @@ const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
   { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
 ];
 
+// Las mismas columnas del listado; los nombres de columna de un .dbf no pasan de 10 caracteres.
+const COLUMNAS_SHAPE_PADRON: ColumnaShape[] = [
+  { nombre: "codcliente", campo: "codcliente" },
+  { nombre: "titular", campo: "propietario" },
+  { nombre: "direccion", campo: "direccion" },
+  { nombre: "sector", campo: "codsector" },
+  { nombre: "manzana", campo: "codmza" },
+  { nombre: "lote", campo: "nrolote" },
+  { nombre: "medidor", campo: "nromed" },
+  { nombre: "categoria", campo: "tarifa" },
+  { nombre: "actividad", campo: "actividad" },
+  { nombre: "estado", campo: "estadoservicio" },
+  { nombre: "tipo_serv", campo: "tiposervicio" },
+  { nombre: "consumo", campo: "consumo" },
+];
+
 @Component({
   selector: "app-padron-de-clientes",
   standalone: true,
@@ -90,6 +123,7 @@ const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
     ToastModule,
     DropdownModule,
     InputTextModule,
+    LeyendaGruposComponent,
   ],
   templateUrl: "./padron-de-clientes.component.html",
   styleUrl: "./padron-de-clientes.component.scss",
@@ -105,6 +139,7 @@ export class PadronDeClientesComponent
   private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
   private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly descargaShapeGis = inject(DescargaShapeGisService);
   private readonly excelService = inject(ExcelService);
   private readonly router = inject(Router);
   controladorGis?: ControladorMapaGis;
@@ -134,10 +169,16 @@ export class PadronDeClientesComponent
   filtrosVisible = false;
   baseActive: string | null = "osm";
   cargando = false;
+  descargandoShape = false;
 
   resultadoBusquedaJson: any[] = [];
   totalClientes = 0;
   totalSinCoordenadas = 0;
+
+  entradasLeyenda: EntradaLeyenda[] = [];
+  /** Estado elegido en la leyenda: el mapa muestra solo ese y lo encuadra. `null` = todos. */
+  grupoFiltrado: string | null = null;
+  mostrarLeyenda = true;
 
   dataCiclos: any[] = [];
   listaSucursales: any[] = [];
@@ -506,13 +547,15 @@ export class PadronDeClientesComponent
     this.totalClientes = registros.length;
     if (registros.length === 0) return;
 
-    const puntos = (origen: keyof typeof ORIGENES_COORDENADA) =>
-      registros
-        .map((r) => crearFeaturePunto(r, ORIGENES_COORDENADA[origen]))
-        .filter((f): f is Feature => f !== null);
-
-    const featuresUsr = puntos("usuario");
+    const featuresUsr = registros
+      .map((registro) => {
+        const punto = crearFeaturePunto(registro, ORIGENES_COORDENADA.usuario);
+        punto?.set("_grupo", grupoDeEstadoServicio(registro.estadoservicio));
+        return punto;
+      })
+      .filter((f): f is Feature => f !== null);
     this.usuariosLayer.getSource()!.addFeatures(featuresUsr);
+    this.entradasLeyenda = contarPorGrupo(registros.map((registro) => grupoDeEstadoServicio(registro.estadoservicio)));
 
     this.totalSinCoordenadas = registros.length - featuresUsr.length;
 
@@ -549,6 +592,32 @@ export class PadronDeClientesComponent
     this.controladorGis?.descartarListado();
     this.totalClientes = 0;
     this.totalSinCoordenadas = 0;
+    this.entradasLeyenda = [];
+    this.grupoFiltrado = null;
+  }
+
+  /** Como los estados de Seguimiento de programa: clic filtra y lleva al grupo, otro clic vuelve a todos. */
+  filtrarPorGrupo(clave: string): void {
+    this.grupoFiltrado = this.grupoFiltrado === clave ? null : clave;
+    const grupoSeleccionado = this.featureSeleccionado?.get("_grupo") as GrupoLeyenda | undefined;
+    if (this.grupoFiltrado && grupoSeleccionado && grupoSeleccionado.clave !== this.grupoFiltrado) this.cerrarPopup();
+    this.refrescarCapasVector();
+
+    const extension = createEmpty();
+    this.usuariosLayer.getSource()!.getFeatures().forEach((punto) => {
+      const grupo = punto.get("_grupo") as GrupoLeyenda | undefined;
+      if (grupo && (!this.grupoFiltrado || grupo.clave === this.grupoFiltrado)) {
+        extend(extension, punto.getGeometry()!.getExtent());
+      }
+    });
+    if (!isEmpty(extension)) {
+      this.map.getView().fit(extension, { duration: 700, maxZoom: 18, padding: [120, 120, 120, 340] });
+    }
+  }
+
+  /** Muestra de color del estado de servicio, igual que en la leyenda del GIS. */
+  fondoEstado(codigo: unknown): string {
+    return fondoMuestra(grupoDeEstadoServicio(codigo));
   }
 
   ngAfterViewInit(): void {
@@ -742,9 +811,11 @@ export class PadronDeClientesComponent
       source: new VectorSource(),
       visible: true,
       style: (f) => {
+        const grupo = f.get("_grupo") as GrupoLeyenda | undefined;
+        if (this.grupoFiltrado && grupo?.clave !== this.grupoFiltrado) return undefined;
         return this.estilos.punto({
           forma: "circulo",
-          color: "#3b82f6",
+          color: grupo?.color ?? "#3b82f6",
           zoom: zoomActual(),
           seleccionado: f === this.featureSeleccionado,
           etiqueta: f.get("codcliente") || f.get("nroSuministro"),
@@ -784,12 +855,7 @@ export class PadronDeClientesComponent
     this.controladorGis = new ControladorMapaGis(this.map, {
       consulta: this.consultaCapasGis,
       gis: this.gis,
-      capasComerciales: () => [
-        { rol: "lotes", capa: this.lotesLayer },
-        { rol: "calles", capa: this.callesLayer },
-        { rol: "manzanas", capa: this.manzanasLayer },
-        { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
-      ],
+      capasComerciales: () => this.capasComercialesConsultables(),
       capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
       avisar: (detalle) => this.avisar("info", "Aviso", detalle),
       listado: {
@@ -809,6 +875,15 @@ export class PadronDeClientesComponent
     });
 
     this.initClick();
+  }
+
+  private capasComercialesConsultables(): CapaConsultable[] {
+    return [
+      { rol: "lotes", capa: this.lotesLayer },
+      { rol: "calles", capa: this.callesLayer },
+      { rol: "manzanas", capa: this.manzanasLayer },
+      { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+    ];
   }
 
   setBaseLayer(id: string): void {
@@ -898,16 +973,95 @@ export class PadronDeClientesComponent
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
       this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
-    );
+    ).then((referencia) => (this.ref = referencia));
+  }
+
+  // SHAPE
+
+  /** Muestra lo que tendrá el shape y descarga solo si el usuario confirma. */
+  descargarShape(): void {
+    if (this.descargandoShape) return;
+    const extension = this.map.getView().calculateExtent(this.map.getSize());
+    const capasGis = [
+      ...this.capasComercialesConsultables(),
+      ...(this.capasSidebar?.capasTecnicasConsultables() ?? []),
+    ];
+    const capasLocales = this.capasLocalesParaShape(extension);
+    const nombreArchivo = `padron_clientes_${new Date().toISOString().slice(0, 10)}`;
+
+    this.ref = abrirVistaPreviaShape(this.dialogService, {
+      nombreArchivo,
+      capasLocales,
+      capasGis: this.descargaShapeGis.etiquetasCapasGis(capasGis),
+    });
+    this.ref.onClose
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((confirmado) => {
+        if (confirmado) this.ejecutarDescargaShape(capasGis, capasLocales, extension, nombreArchivo);
+      });
+  }
+
+  private async ejecutarDescargaShape(
+    capasGis: CapaConsultable[],
+    capasLocales: CapaShape[],
+    extension: Extent,
+    nombreArchivo: string,
+  ): Promise<void> {
+    this.descargandoShape = true;
+    try {
+      const { capas } = await this.descargaShapeGis.descargar({ capasGis, capasLocales, extension, nombreArchivo });
+      if (capas.length === 0) {
+        this.avisar("warn", "Sin datos", "Encienda al menos una capa con elementos en la zona que se ve.");
+      } else {
+        this.avisar("success", "Shape descargado", `Capas: ${capas.join(", ")}.`);
+      }
+    } catch (error) {
+      this.avisar(
+        "error",
+        "No se pudo descargar",
+        error instanceof Error ? error.message : "GeoServer no respondió. Intente de nuevo.",
+      );
+    } finally {
+      this.descargandoShape = false;
+    }
+  }
+
+  // Desde los registros y no desde los puntos pintados: los clientes de un mismo predio comparten un punto.
+  private capasLocalesParaShape(extension: Extent): CapaShape[] {
+    const aLonLat = (coordenada: number[]) => transform(coordenada, this.gis.proyeccionMapa, WGS84);
+    const registros = this.usuariosLayer.getVisible() ? this.resultadoBusquedaJson ?? [] : [];
+    return [
+      {
+        nombre: "padron_clientes",
+        tipo: "punto",
+        columnas: COLUMNAS_SHAPE_PADRON,
+        elementos: registros.flatMap((registro) => {
+          const coordenada = extraerCoordenada(registro, ORIGENES_COORDENADA.usuario);
+          if (!coordenada || !containsCoordinate(extension, coordenada)) return [];
+          return [{ coordenadas: [aLonLat(coordenada)], atributos: this.aFilaTabla(registro) }];
+        }),
+      },
+    ];
   }
 
   // El backend responde 200 con success=false y el detalle en mensaje (p. ej. error SQL de la base GIS).
   private mensajeDeError(mensaje: string | undefined): string {
     return mensaje?.trim() || "Ocurrió un error al consultar el padrón de clientes";
+  }
+
+  /** Clic en la tarjeta "Sin Coord.": Excel de los clientes cargados que no se pintan en el mapa. */
+  async descargarSinCoordenadas(): Promise<void> {
+    if (this.totalSinCoordenadas === 0) return;
+    const cantidad = await (this.controladorGis?.descargarSinCoordenadas() ?? Promise.resolve(0));
+    if (cantidad === 0) {
+      this.avisar("info", "Aviso", "Todos los registros cargados tienen coordenadas.");
+    } else {
+      this.avisar("success", "Excel descargado", `${cantidad} registros sin coordenadas.`);
+    }
   }
 
   private avisar(severity: string, summary: string, detail: string): void {
