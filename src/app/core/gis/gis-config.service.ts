@@ -195,6 +195,7 @@ export class GisConfigService {
     lotes: "lotes",
     sectores: "sectoresComerciales",
     calles: "calles",
+    manzanas: "manzanas",
     rutaLectura: "rutaLectura",
     centroideFicha: "centroideFicha",
   };

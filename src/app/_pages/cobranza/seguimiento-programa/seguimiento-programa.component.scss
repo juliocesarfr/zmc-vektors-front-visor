@@ -1,4 +1,5 @@
 @import '../../../shared/mapa/mapa-estilos.scss';
+@import '../../../shared/mapa/paneles-mapa-oscuros.scss';
 
 :host {
   display: flex;
@@ -248,23 +249,8 @@
   .cd-filtros-inner {
     background: transparent;
     border-bottom: none;
-    padding: 8px 16px 12px;
-  }
-
-  .filtros-label {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-    color: #4f46e5;
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    text-transform: uppercase;
-
-    i {
-      font-size: 11px;
-    }
+    // Arriba deja sitio a la etiqueta flotante de los desplegables.
+    padding: 18px 16px 10px;
   }
 
   .cd-filtros {
@@ -413,81 +399,6 @@
   }
 }
 
-.cd-leyenda-toggle,
-.cd-search-toggle {
-  position: absolute;
-  bottom: 70px;
-  z-index: 5;
-  width: 38px;
-  height: 38px;
-  border: none;
-  border-radius: 50%;
-  background: #0ea5e9;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.4);
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s;
-
-  @media (max-width: 768px) {
-    z-index: 1001;
-    bottom: 80px;
-  }
-
-  &:hover {
-    background: #0284c7;
-  }
-}
-
-.cd-leyenda-toggle {
-  left: 12px;
-}
-
-.cd-search-toggle {
-  right: 12px;
-}
-
-.cd-search-panel {
-  position: absolute;
-  bottom: 70px;
-  right: 12px;
-  z-index: 5;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(4px);
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  padding: 12px 14px;
-  width: 280px;
-
-  @media (max-width: 768px) {
-    z-index: 1001;
-    bottom: 80px;
-  }
-
-  .search-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: 700;
-    margin-bottom: 8px;
-    color: #1e293b;
-    font-size: 12px;
-
-    .cerrar {
-      cursor: pointer;
-      color: #94a3b8;
-      font-size: 12px;
-
-      &:hover {
-        color: #ef4444;
-      }
-    }
-  }
-
-  .search-body {
-    display: flex;
-  }
-}
-
 .ol-popup {
   position: absolute;
   background: #fff;
@@ -506,382 +417,6 @@
     left: 48px;
     border: 10px solid transparent;
     border-top-color: #fff;
-  }
-}
-
-.user-popup {
-  position: absolute;
-  top: 58px;
-  right: 10px;
-  width: min(360px, calc(100vw - 20px));
-  min-width: 260px;
-  height: auto;
-  max-height: calc(100% - 75px) !important;
-  z-index: 1000;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
-  border: 1px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  font-family: "Segoe UI", Arial, sans-serif;
-  transition: all 0.3s ease;
-
-  @media (max-width: 768px) {
-    top: auto;
-    bottom: 10px;
-    width: calc(100vw - 20px);
-    max-height: calc(100% - 130px) !important;
-  }
-
-  .up-header {
-    background: #0284c7;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-
-    .up-header-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex: 1;
-      min-width: 0;
-    }
-
-    .up-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: #003cc2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-
-      img {
-        width: 24px;
-        height: 24px;
-        object-fit: contain;
-      }
-    }
-
-    .up-header-info {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-      gap: 1px;
-
-      .up-label {
-        font-size: 8.5px;
-        font-weight: 800;
-        color: #b3d1ff;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-      }
-
-      .up-name {
-        font-size: 13px;
-        font-weight: 800;
-        color: #ffffff;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-    }
-
-    .up-close {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      border-radius: 50%;
-      color: #ffffff;
-      width: 24px;
-      height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      font-size: 10px;
-      transition:
-        background 0.15s,
-        transform 0.15s;
-
-      &:hover {
-        background: #ff0044;
-        transform: scale(1.1);
-      }
-    }
-  }
-
-  .up-suministro {
-    display: flex;
-    align-items: stretch;
-    background: #012a71;
-    border-bottom: 2px solid #014671;
-    flex-shrink: 0;
-
-    .up-sum-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 6px 12px;
-      flex: 1;
-
-      i {
-        color: #ffe0cc;
-        font-size: 11px;
-      }
-
-      .up-sum-label {
-        font-size: 7.5px;
-        font-weight: 800;
-        letter-spacing: 0.8px;
-        color: #ffe0cc;
-        text-transform: uppercase;
-      }
-
-      .up-sum-value {
-        font-size: 13px;
-        font-weight: 900;
-        color: #ffffff;
-        margin-left: 2px;
-      }
-
-      &.primary .up-sum-value {
-        color: #ffffff;
-      }
-    }
-
-    .up-sum-sep {
-      width: 1px;
-      background: rgba(255, 255, 255, 0.3);
-      margin: 4px 0;
-    }
-  }
-
-  .up-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-
-    &::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-  }
-
-  .up-section {
-    border: 1px solid #f1f5f9;
-    border-radius: 6px;
-
-    .up-section-title {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 8.5px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      padding: 4px 8px;
-
-      .gif-icon {
-        width: 20px;
-        height: 20px;
-        object-fit: contain;
-      }
-
-      &.loc {
-        background: #eff6ff;
-        color: #1d4ed8;
-      }
-
-      &.predio {
-        background: #f0fdf4;
-        color: #15803d;
-      }
-
-      &.medidor {
-        background: #fff7ed;
-        color: #c2410c;
-      }
-
-      &.imgs {
-        background: #fdf4ff;
-        color: #480384;
-      }
-
-      .up-img-badge {
-        margin-left: auto;
-        background: #a855f7;
-        color: #fff;
-        border-radius: 10px;
-        padding: 1px 8px;
-        font-size: 9px;
-        font-weight: 800;
-      }
-    }
-  }
-
-  .up-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: #e2e8f0;
-    padding: 1px;
-
-    &.grid-3 {
-      grid-template-columns: repeat(3, 1fr);
-
-      .up-cell.full {
-        grid-column: span 3;
-      }
-
-      .up-cell.span-2 {
-        grid-column: span 2;
-      }
-    }
-
-    .up-cell {
-      background: #fff;
-      padding: 4px 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 0px;
-
-      &.full {
-        grid-column: span 2;
-      }
-
-      .uc-label {
-        font-size: 7.5px;
-        font-weight: 700;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.2px;
-      }
-
-      .uc-val {
-        font-size: 10.5px;
-        font-weight: 700;
-        color: #1e293b;
-        line-height: 1.15;
-        word-break: break-word;
-
-        &.badge-est {
-          display: inline-block;
-          background: #f1f5f9;
-          border-radius: 4px;
-          padding: 0px 5px;
-          font-size: 10px;
-          color: #0f172a;
-        }
-
-        &.obs {
-          color: #7c3aed;
-          font-style: italic;
-          font-weight: 600;
-        }
-
-        &.inspector-name {
-          color: #0369a1;
-          background: #e0f2fe;
-          padding: 2px 6px;
-          border-radius: 4px;
-          border: 1px solid #bae6fd;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          margin-top: 1px;
-
-          i {
-            font-size: 10px;
-            color: #0284c7;
-          }
-        }
-      }
-    }
-  }
-
-  .up-section-imgs {
-    .up-img-loading {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px;
-      font-size: 11px;
-      color: #64748b;
-
-      i {
-        color: #6e00b8;
-      }
-    }
-
-    .up-img-scroll {
-      display: flex;
-      gap: 5px;
-      overflow-x: auto;
-      padding: 6px 8px;
-
-      &::-webkit-scrollbar {
-        height: 3px;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: #e2e8f0;
-        border-radius: 3px;
-      }
-    }
-
-    .up-thumb {
-      position: relative;
-      flex-shrink: 0;
-      border-radius: 6px;
-      overflow: hidden;
-      border: 2px solid #e2e8f0;
-      cursor: pointer;
-      transition:
-        border-color 0.15s,
-        transform 0.15s;
-
-      &:hover {
-        border-color: #480384;
-        transform: scale(1.04);
-      }
-
-      img {
-        height: 58px;
-        width: 72px;
-        object-fit: cover;
-        display: block;
-      }
-    }
-
-    .up-noimg {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px;
-      color: #94a3b8;
-      font-size: 11px;
-
-      i {
-        font-size: 16px;
-      }
-    }
   }
 }
 
@@ -908,26 +443,6 @@
     opacity: 1;
     transform: translateX(0);
   }
-}
-
-.up-grid.grid-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.up-grid.grid-2 {
-  grid-template-columns: 1fr 1fr;
-}
-
-.up-grid.grid-3 .up-cell.full {
-  grid-column: span 3;
-}
-
-.up-grid.grid-3 .up-cell.span-2 {
-  grid-column: span 2;
-}
-
-.up-grid.grid-2 .up-cell.full {
-  grid-column: span 2;
 }
 
 @media (max-width: 768px) {
@@ -1109,7 +624,7 @@
 
     &.filtro-on {
       box-shadow:
-        0 0 0 2px #0f172a,
+        0 0 0 2px #00e5ff,
         0 2px 8px rgba(0, 0, 0, 0.25);
       transform: translateY(-1px);
     }
@@ -1117,20 +632,24 @@
 }
 
 /* --- Panel de inspectores (izquierda, junto al sidebar de capas) --- */
+// Al lado del panel de capas abierto (12 + 272 + 12) y bajo la fila de tarjetas de resumen (52 px de alto + 8).
 .cd-inspectores {
   position: absolute;
-  top: 58px;
-  left: 380px;
+  top: $alto-barra-pantalla + 12px + 60px;
+  left: 296px;
   z-index: 6;
   width: 300px;
-  max-height: calc(100% - 150px);
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(4px);
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  max-height: calc(100% - #{$alto-barra-pantalla + 12px + 60px} - #{$alto-pie-host + 16px});
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: 1px solid $borde-panel;
+  border-radius: 12px;
+  background: $panel-oscuro;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: $sombra-panel;
+  color: #e8edf2;
   font-family: "Segoe UI", Arial, sans-serif;
 
   @media (max-width: 768px) {
@@ -1142,37 +661,33 @@
 
   .insp-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    background: #012a71;
-    color: #fff;
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 800;
+    justify-content: space-between;
+    flex-shrink: 0;
+    padding: 10px 12px 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: $acento-mapa;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 
     .cerrar {
+      color: rgba(255, 255, 255, 0.5);
       cursor: pointer;
-      opacity: 0.85;
 
       &:hover {
-        color: #ff5470;
-        opacity: 1;
+        color: #ffffff;
       }
     }
   }
 
   .insp-body {
     overflow-y: auto;
-    padding: 4px;
-
-    &::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
+    padding: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
   }
 
   .insp-row {
@@ -1180,29 +695,27 @@
     flex-direction: column;
     gap: 4px;
     padding: 7px 9px;
-    border-radius: 7px;
-    cursor: pointer;
     border: 1px solid transparent;
-    transition:
-      background 0.12s,
-      border-color 0.12s;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
 
     &:hover {
-      background: #f1f5f9;
+      background: rgba(0, 229, 255, 0.06);
     }
 
     &.active {
-      background: #eff6ff;
-      border-color: #60a5fa;
+      border-color: rgba(0, 229, 255, 0.35);
+      background: rgba(0, 229, 255, 0.1);
     }
 
     .insp-name {
+      color: rgba(255, 255, 255, 0.75);
       font-size: 11px;
-      color: #334155;
       line-height: 1.15;
 
       strong {
-        color: #012a71;
+        color: $acento-mapa;
       }
     }
 
@@ -1211,58 +724,54 @@
       gap: 5px;
 
       .chip {
-        font-size: 10.5px;
-        font-weight: 800;
-        border-radius: 6px;
-        padding: 1px 8px;
         min-width: 30px;
+        padding: 1px 8px;
+        border-radius: 6px;
+        font-size: 10.5px;
+        font-weight: 700;
         text-align: center;
 
         &.total {
-          background: #e2e8f0;
-          color: #1e293b;
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
         }
 
+        // Cortados.
         &.exec {
-          background: #fee2e2;
-          color: #b91c1c;
+          background: rgba(248, 113, 113, 0.16);
+          color: #f87171;
         }
 
-        /* cortados  */
+        // Pendientes.
         &.pend {
-          background: #dcfce7;
-          color: #15803d;
+          background: rgba(74, 222, 128, 0.16);
+          color: #4ade80;
         }
 
-        /* pendientes */
         &.rend {
-          background: #ede9fe;
-          color: #6d28d9;
           margin-left: auto;
+          background: rgba(167, 139, 250, 0.18);
+          color: #c4b5fd;
         }
       }
     }
   }
 }
 
+// Junto al botón Capas: cuando el panel de capas se abre queda debajo, sin taparse.
 .cd-insp-toggle {
   position: absolute;
-  top: 58px;
-  left: 280px;
+  top: $alto-barra-pantalla + 12px;
+  left: 150px;
   z-index: 6;
-  width: 38px;
-  height: 38px;
-  border: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
   border-radius: 50%;
-  background: #012a71;
-  box-shadow: 0 2px 8px rgba(1, 42, 113, 0.4);
-  color: #fff;
   cursor: pointer;
-  transition: background 0.2s;
-
-  &:hover {
-    background: #013a8f;
-  }
+  transition: box-shadow 0.2s;
+  @include boton-flotante-oscuro;
 
   @media (max-width: 768px) {
     left: 8px;
@@ -1281,7 +790,7 @@
       background 0.12s;
 
     &:hover {
-      background: #f1f5f9;
+      background: rgba(255, 255, 255, 0.08);
     }
 
     &.off {
@@ -1313,13 +822,15 @@
       flex-direction: column;
       gap: 1px;
       padding: 3px 4px 2px;
-      background: #f8fafc;
-      border-top: 1px solid #e2e8f0;
+      position: static;
+      text-align: left;
+      background: rgba(0, 0, 0, 0.35);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
 
       .tn-nombre {
         font-size: 8px;
         font-weight: 700;
-        color: #1e293b;
+        color: #ffffff;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1327,7 +838,7 @@
 
       .tn-fecha {
         font-size: 7.5px;
-        color: #64748b;
+        color: rgba(255, 255, 255, 0.55);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1336,7 +847,7 @@
       .tn-tipo {
         font-size: 7px;
         font-weight: 700;
-        color: #7c3aed;
+        color: #c4b5fd;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -1359,7 +870,9 @@
     font-size: 10px;
     font-weight: 700;
     cursor: pointer;
-    color: #ffd7d7;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: none;
+    letter-spacing: 0;
     transition: color 0.15s;
 
     &:hover {
@@ -1377,12 +890,19 @@
 // urgente, al revés que en corte: se invierten los colores de los chips.
 :host(.modo-reapertura) .cd-inspectores .insp-row .insp-stats .chip {
   &.exec {
-    background: #dcfce7;
-    color: #15803d;
+    background: rgba(74, 222, 128, 0.16);
+    color: #4ade80;
   }
 
   &.pend {
-    background: #fee2e2;
-    color: #b91c1c;
+    background: rgba(248, 113, 113, 0.16);
+    color: #f87171;
   }
 }
+
+@include ficha-usuario-oscura;
+@include buscador-cliente-oscuro;
+@include botones-paneles-oscuros;
+@include leyenda-oscura;
+@include resumen-oscuro;
+@include carga-mapa-oscura;

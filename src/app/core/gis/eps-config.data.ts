@@ -57,7 +57,7 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       workspace: "emapa",
     },
     capas: {
-      lotes: "lotes_clientes",
+      lotes: "fcom_lote_poligonos",
       lotesPorSector: "fcom_sector_{sector}",
       sectoresComerciales: "fcom_sector",
       calles: "sm_sig_calles",
@@ -67,6 +67,7 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       fichaAgua: "v_com_fichas_catastrales",
       fichaAlcantarillado: "emapa_ficha_alcantarillado",
       rutaLectura: "rut_a_lectura",
+      manzanas: "sm_sig_manzanas",
     },
     // Completar con el nombre real publicado en GeoServer.
     capasTecnicas: {
@@ -140,6 +141,16 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       curvasNivel: {
         atributos: { elevation: "Elevación (m)", fuente: "Fuente" },
       },
+      manzanas: {
+        campoTitulo: "mz_comercial",
+        atributos: {
+          mz_comercial: "Manzana comercial",
+          nmanzana: "Nombre",
+          sectcom_gid: "Sector comercial (id)",
+          zona_trabajo_id: "Zona de trabajo",
+          fec_reg: "Fecha de registro",
+        },
+      },
       lotes: {
         campoTitulo: "codcatastral",
         campoCliente: "codcliente",
@@ -154,8 +165,9 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
         },
       },
     },
+    // Plaza Mayor de Tarapoto.
     vista: {
-      centro: [-76.3654, -6.4886],
+      centro: [-76.3601, -6.4874],
       zoom: 18,
     },
     proyecciones: {
@@ -247,7 +259,11 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       },
       calles: {
         campoTitulo: "nom_via",
-        atributos: { cat_via: "Categoría", estado: "Estado", distrito: "Distrito" },
+        atributos: {
+          cat_via: "Categoría",
+          estado: "Estado",
+          distrito: "Distrito",
+        },
       },
       rutaLectura: {
         campoTitulo: "codcatastral_rlectura",
@@ -267,8 +283,8 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       },
     },
     vista: {
-      centro: [-71.9675, -13.5226],
-      zoom: 16,
+      centro: [-71.9788, -13.5167],
+      zoom: 18,
     },
     proyecciones: {
       mapa: "EPSG:4326",

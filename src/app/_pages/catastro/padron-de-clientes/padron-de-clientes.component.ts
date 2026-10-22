@@ -124,6 +124,7 @@ export class PadronDeClientesComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
@@ -173,6 +174,7 @@ export class PadronDeClientesComponent
     { id: "usuarios", label: "Usuarios", active: true },
     { id: "lotes", label: "Lotes", active: true },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
 
@@ -732,6 +734,7 @@ export class PadronDeClientesComponent
       false,
     );
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -757,12 +760,14 @@ export class PadronDeClientesComponent
       lotes: this.lotesLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
     };
 
     this.map = new OlMap({
       layers: [
         this.osmLayer,
         this.satelitalLayer,
+        this.manzanasLayer,
         this.lotesLayer,
         this.sectoresComercialesLayer,
         this.callesLayer,
@@ -782,6 +787,7 @@ export class PadronDeClientesComponent
       capasComerciales: () => [
         { rol: "lotes", capa: this.lotesLayer },
         { rol: "calles", capa: this.callesLayer },
+        { rol: "manzanas", capa: this.manzanasLayer },
         { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
       ],
       capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],

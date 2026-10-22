@@ -1,4 +1,54 @@
-/* Estilos compartidos del popup. 
-   Actualmente los estilos residen en mapa-visor.component.scss (.user-popup)
-   para mantener compatibilidad con componentes no migrados.
-   Eventualmente se moverán aquí. */
+@import '../../mapa/paneles-mapa-oscuros.scss';
+
+@include ficha-usuario-oscura;
+
+.user-popup {
+  .up-section-title.vma .gif-icon,
+  .up-section-title.vma i {
+    color: #fb923c;
+  }
+
+  .up-subtitulo {
+    margin: 8px 0 4px;
+    color: var(--suave);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+
+    &.exceso {
+      color: #fb923c;
+    }
+  }
+
+  // Bajo .up-grid .up-cell para ganarle al color cian por defecto de la ficha común.
+  .up-grid .up-cell .uc-val {
+    &.exceso,
+    &.badge-est.alerta {
+      color: #fb923c;
+    }
+
+    &.badge-est.alerta {
+      background: rgba(251, 146, 60, 0.14);
+    }
+
+    &.badge-est.peligro {
+      background: rgba(248, 113, 113, 0.14);
+      color: #f87171;
+    }
+
+    &.badge-est.estado-activo {
+      background: rgba(74, 222, 128, 0.14);
+      color: #4ade80;
+    }
+
+    &.badge-est.estado-cortado {
+      background: rgba(248, 113, 113, 0.14);
+      color: #f87171;
+    }
+
+    &.badge-est.estado-otro {
+      background: rgba(250, 204, 21, 0.14);
+      color: #facc15;
+    }
+  }
+}

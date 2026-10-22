@@ -55,7 +55,6 @@
 
   <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
     <div class="cd-filtros-inner">
-      <div class="filtros-label"><i class="pi pi-filter"></i> FILTROS DE BÚSQUEDA</div>
       <div class="cd-filtros">
         <span class="p-float-label">
           <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
@@ -277,8 +276,7 @@
           <div class="up-grid grid-2">
             <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est">{{
                 clienteSeleccionado.estadoservicio || '-' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est"
-                style="background:#f0fdf4; color:#15803d;">{{ clienteSeleccionado.tiposervicio || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est">{{ clienteSeleccionado.tiposervicio || '-' }}</span></div>
 
             <div class="up-cell full"><span class="uc-label">Fecha Ingreso</span><span class="uc-val">{{
                 clienteSeleccionado.flagnuevousu ? (clienteSeleccionado.flagnuevousu | date:'dd/MM/yyyy') :

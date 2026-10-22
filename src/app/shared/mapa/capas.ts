@@ -18,6 +18,8 @@ const MS_OLVIDAR_REINTENTOS = 60000;
 export const CAPAS_BASE_UI: CapaBaseUi[] = [
   { id: "osm", label: "OSM", iconUrl: "assets/images/img-georeferencia/capa-osm-icon.gif" },
   { id: "satelital", label: "Satelital", iconUrl: "assets/images/img-georeferencia/satellital-icon.gif" },
+  // Ninguna pantalla crea una capa con este id: elegirlo apaga OSM y satelital.
+  { id: "ninguno", label: "Sin fondo", iconUrl: "" },
 ];
 
 export function crearCapaOsm(visible = true): TileLayer<OSM> {

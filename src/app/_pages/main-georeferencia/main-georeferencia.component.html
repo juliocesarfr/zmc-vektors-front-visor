@@ -2,428 +2,186 @@
 <div class="main-geo">
   <div #mapa class="main-geo-mapa"></div>
 
-  <!-- Loading indicator flotante cuando se cargan datos -->
-  <div class="map-loading-indicator" *ngIf="cargando">
+  <div class="map-loading-indicator" *ngIf="cargando" role="status">
     <i class="pi pi-spin pi-spinner"></i>
-    <span>Cargando usuarios en el mapa...</span>
+    <span>{{ mensajeCarga }}</span>
   </div>
 
-  <div class="main-geo-titulo">
-    <span class="main-geo-modulo">GEORREFERENCIA</span>
-    <span class="main-geo-eps">{{ gis.config.descripcion }}</span>
+  <div class="cd-toolbar">
+    <div class="cd-title">
+      <i class="pi pi-globe cd-title-icono"></i>
+      <h3>GEORREFERENCIA <span>| {{ gis.config.descripcion }}</span></h3>
+    </div>
+
+    <div class="cd-toolbar-actions">
+      <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
+        <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
+          <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
+        </span>
+        <span class="filtro-chip usuarios" *ngIf="totalLecturas > 0">
+          <i class="pi pi-users"></i> {{ totalLecturas }} {{ isBusquedaActiva ? 'encontrados' : 'usuarios' }}
+        </span>
+      </div>
+
+      <button type="button" class="cd-toggle-filtros" (click)="filtrosVisible = !filtrosVisible"
+        [class.active]="filtrosVisible" [attr.aria-expanded]="filtrosVisible" aria-controls="filtrosMain">
+        <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
+      </button>
+    </div>
   </div>
 
-  <div class="main-geo-filtros">
-    <span class="p-float-label">
-      <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
-        [style]="{ width: '160px' }" placeholder="Sucursal" [appendTo]="'body'"
-        (onChange)="onSucursalChange()"></p-dropdown>
-      <label>Sucursal</label>
-    </span>
-
-    <span class="p-float-label">
-      <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
-        [style]="{ width: '130px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
-      <label>Mes</label>
-    </span>
-
-    <span class="p-float-label">
-      <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
-        [style]="{ width: '100px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
-      <label>Año</label>
-    </span>
+  <div class="cd-filtros-panel" id="filtrosMain" [class.visible]="filtrosVisible">
+    <div class="cd-filtros">
+      <span class="p-float-label">
+        <p-dropdown inputId="sucursalMain" [options]="listaSucursales" [(ngModel)]="selectedSucursal"
+          optionLabel="nombre" [style]="{ width: '200px' }" placeholder="Sucursal" [appendTo]="'body'"
+          (onChange)="onSucursalChange()"></p-dropdown>
+        <label for="sucursalMain">Sucursal</label>
+      </span>
+    </div>
   </div>
 
   <div class="cd-search-panel light-tabs-panel" *ngIf="mostrarSearchPanel">
-    <!-- Header de Pestañas de Búsqueda -->
     <div class="search-tabs-header">
       <div class="search-tabs-top-bar">
-        <span class="search-tabs-title"><i class="pi pi-compass"></i> BÚSQUEDA Y FILTROS</span>
+        <span class="search-tabs-title"><i class="pi pi-compass"></i> BÚSQUEDA DE CLIENTES</span>
         <div class="tabs-header-actions">
-          <span class="limpiar-link" *ngIf="isBusquedaActiva || searchSuministro || searchDniRuc || searchNombre || searchCatastral || searchNombreCalle || searchManzana || searchMedidor" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
+          <span class="limpiar-link" *ngIf="isBusquedaActiva || resultadosTab.length > 0" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
             <i class="pi pi-filter-slash"></i> Limpiar
           </span>
-          <button type="button" class="btn-cerrar-busqueda" (click)="cerrarBusqueda()" title="Cerrar">
+          <button type="button" class="btn-cerrar-busqueda" (click)="cerrarBusqueda()" title="Cerrar" aria-label="Cerrar búsqueda">
             <i class="pi pi-times"></i>
           </button>
         </div>
       </div>
 
-      <div class="search-tabs-nav">
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'usuario'" (click)="setTabBuscador('usuario')">
-          Usuario
-        </button>
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'calles'" (click)="setTabBuscador('calles')">
-          Calles
-        </button>
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'manzana'" (click)="setTabBuscador('manzana')">
-          Manzana
-        </button>
-        <!--<button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'caja_agua'" (click)="setTabBuscador('caja_agua')">
-          Caja Agua/Ac.
-        </button>-->
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'categoria_usuario'" (click)="setTabBuscador('categoria_usuario')">
-          Cat. Usuario
-        </button>
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'tipo_usuario'" (click)="setTabBuscador('tipo_usuario')">
-          Tipo Usuario
-        </button>
-        <button type="button" class="tab-item" [class.active]="tabActivaBuscador === 'est_conexion'" (click)="setTabBuscador('est_conexion')">
-          Est. Conexión
-        </button>
+      <div class="search-tabs-nav" role="tablist">
+        <button type="button" role="tab" class="tab-item" [class.active]="tabActivaBuscador === 'usuario'"
+          [attr.aria-selected]="tabActivaBuscador === 'usuario'" (click)="setTabBuscador('usuario')">Usuario</button>
+        <button type="button" role="tab" class="tab-item" [class.active]="tabActivaBuscador === 'calles'"
+          [attr.aria-selected]="tabActivaBuscador === 'calles'" (click)="setTabBuscador('calles')">Calles</button>
+        <button type="button" role="tab" class="tab-item" [class.active]="tabActivaBuscador === 'manzana'"
+          [attr.aria-selected]="tabActivaBuscador === 'manzana'" (click)="setTabBuscador('manzana')">Manzana</button>
       </div>
     </div>
 
-    <!-- Contenido de las Pestañas -->
     <div class="search-tab-body">
-      <!-- 1. Pestaña Usuario -->
-      <div *ngIf="tabActivaBuscador === 'usuario'" class="tab-content-vertical">
-        <div class="search-rows-container">
-          <div class="search-row">
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">Nro. Suministro</legend>
-              <div class="input-content">
-                <i class="pi pi-tint icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchSuministro" placeholder="Ej: 12345" (keyup.enter)="buscarPorOpcion(1)">
-                <i *ngIf="searchSuministro" class="pi pi-times-circle clear-text-btn" (click)="searchSuministro = ''"></i>
-              </div>
-            </fieldset>
-            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(1)" [disabled]="cargando">
-              BUSCAR
-            </button>
-          </div>
-
-          <div class="search-row">
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">DNI / RUC</legend>
-              <div class="input-content">
-                <i class="pi pi-id-card icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchDniRuc" placeholder="Ej: 12345678" (keyup.enter)="buscarPorOpcion(2)">
-                <i *ngIf="searchDniRuc" class="pi pi-times-circle clear-text-btn" (click)="searchDniRuc = ''"></i>
-              </div>
-            </fieldset>
-            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(2)" [disabled]="cargando">
-              BUSCAR
-            </button>
-          </div>
-
-          <div class="search-row">
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">Apellidos y nombres</legend>
-              <div class="input-content">
-                <i class="pi pi-user icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchNombre" placeholder="Ej: Juan Perez" (keyup.enter)="buscarPorOpcion(3)">
-                <i *ngIf="searchNombre" class="pi pi-times-circle clear-text-btn" (click)="searchNombre = ''"></i>
-              </div>
-            </fieldset>
-            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(3)" [disabled]="cargando">
-              BUSCAR
-            </button>
-          </div>
-
-         <!--- <div class="search-row">
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">Nro. Catastral</legend>
-              <div class="input-content">
-                <i class="pi pi-compass icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchCatastral" placeholder="Ej: 0010010011791150" (keyup.enter)="buscarPorOpcion(4)">
-                <i *ngIf="searchCatastral" class="pi pi-times-circle clear-text-btn" (click)="searchCatastral = ''"></i>
-              </div>
-            </fieldset>
-            <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(4)" [disabled]="cargando">
-              BUSCAR
-            </button>
-          </div>-->
-
-        </div>
-
-        <div class="calle-results-wrapper mt-2" *ngIf="resultadosTab.length > 0">
-          <div class="results-header-info">
-            <span>{{ resultadosTab.length }} cliente(s) encontrado(s)</span>
-          </div>
-          <div class="results-scroll compact">
-            <div class="result-item-row" *ngFor="let r of resultadosTab" (click)="seleccionarResultadoTab(r)">
-              <div class="rir-left">
-                <span class="rir-suministro">{{ r.codcliente }}</span>
-                <div class="rir-datos">
-                  <span class="rir-nombre">{{ r.propietario || '-' }}</span>
-                  <span class="rir-dir">{{ r.descripcioncorta }} {{ r.descripcioncalle }} {{ r.nrocalle ? 'N° ' + r.nrocalle : '' }}</span>
-                </div>
-              </div>
-              <div class="rir-right">
-                <button type="button" class="btn-ubicar-mini" title="Ubicar en mapa">
-                  <i class="pi pi-map-marker"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. Pestaña Calles (con paginación y filtro rápido) -->
-      <div *ngIf="tabActivaBuscador === 'calles'" class="tab-content-vertical">
+      <div *ngIf="tabActivaBuscador === 'usuario'" class="search-rows-container">
         <div class="search-row">
           <fieldset class="search-fieldset">
-            <legend class="search-legend">Nombre de la calle</legend>
+            <legend class="search-legend">Nro. Suministro</legend>
             <div class="input-content">
-              <i class="pi pi-map icon-cyan"></i>
-              <input type="text" [(ngModel)]="searchNombreCalle" placeholder="Ej: Amazonas" (keyup.enter)="buscarPorCalle()">
-              <i *ngIf="searchNombreCalle" class="pi pi-times-circle clear-text-btn" (click)="searchNombreCalle = ''"></i>
+              <i class="pi pi-hashtag icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchSuministro" placeholder="Ej: 12345" (keyup.enter)="buscarPorOpcion(1)">
+              <i *ngIf="searchSuministro" class="pi pi-times-circle clear-text-btn" (click)="searchSuministro = ''"></i>
             </div>
           </fieldset>
-          <button type="button" class="btn-cyan-pill" (click)="buscarPorCalle()" [disabled]="cargando">
-            BUSCAR
-          </button>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(1)" [disabled]="cargando">BUSCAR</button>
         </div>
 
-        <div class="calle-results-wrapper" [class.has-results]="resultadosTab.length > 0">
-          <div *ngIf="resultadosTab.length === 0" class="empty-results-hint">
-            <i class="pi pi-search me-1"></i> Ingrese el nombre de la calle para ubicar suministros
-          </div>
-
-          <div *ngIf="resultadosTab.length > 0" class="results-quick-list">
-            <!-- Barra de Filtro Rápido e Info -->
-            <div class="calle-filter-toolbar">
-              <div class="results-header-info">
-                <span>{{ resultadosCalleFiltrados.length }} de {{ resultadosTab.length }} cliente(s)</span>
-              </div>
-              <div class="calle-filter-input">
-                <i class="pi pi-search"></i>
-                <input type="text" [(ngModel)]="filtroTextoCalle" (input)="filtrarResultadosCalle()" placeholder="Filtrar titular, N°, Mz...">
-                <i *ngIf="filtroTextoCalle" class="pi pi-times" (click)="filtroTextoCalle = ''; filtrarResultadosCalle()"></i>
-              </div>
+        <div class="search-row">
+          <fieldset class="search-fieldset tipo-documento">
+            <legend class="search-legend">Tipo de documento</legend>
+            <p-dropdown [options]="tiposDocumento" [(ngModel)]="tipoDocumentoElegido" optionValue="tipodocident"
+              optionLabel="descripcion" placeholder="Elegir" [showClear]="true" appendTo="body"
+              styleClass="selector-oscuro"></p-dropdown>
+          </fieldset>
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Nro. de documento</legend>
+            <div class="input-content">
+              <i class="pi pi-id-card icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchDniRuc" [disabled]="!tipoDocumentoElegido"
+                [placeholder]="tipoDocumentoElegido ? 'Ej: 12345678' : 'Elija el tipo primero'" (keyup.enter)="buscarPorOpcion(2)">
+              <i *ngIf="searchDniRuc" class="pi pi-times-circle clear-text-btn" (click)="searchDniRuc = ''"></i>
             </div>
-
-            <!-- Lista Paginada de Clientes -->
-            <div class="results-scroll">
-              <div class="result-item-row" *ngFor="let r of getClientesCallePaginados()" (click)="seleccionarResultadoTab(r)">
-                <div class="rir-left">
-                  <span class="rir-suministro">{{ r.codcliente }}</span>
-                  <div class="rir-datos">
-                    <span class="rir-nombre">{{ r.propietario || '-' }}</span>
-                    <span class="rir-dir">
-                      {{ r.descripcioncorta }} {{ r.descripcioncalle }} {{ r.nrocalle ? 'N° ' + r.nrocalle : '' }}
-                      <span *ngIf="r.codmza || r.nrolote"> | Mz. {{ r.codmza || '-' }} Lt. {{ r.nrolote || '-' }}</span>
-                    </span>
-                  </div>
-                </div>
-                <div class="rir-right">
-                  <button type="button" class="btn-ubicar-mini" title="Ubicar en mapa">
-                    <i class="pi pi-map-marker"></i>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Barra de Paginación Elegante -->
-            <div class="calle-pagination-bar" *ngIf="totalPaginasCalle > 1">
-              <button type="button" class="btn-page" [disabled]="paginaCalleActual <= 1" (click)="cambiarPaginaCalle(-1)" title="Página anterior">
-                <i class="pi pi-chevron-left"></i>
-              </button>
-              <span class="page-info">Pág. {{ paginaCalleActual }} de {{ totalPaginasCalle }}</span>
-              <button type="button" class="btn-page" [disabled]="paginaCalleActual >= totalPaginasCalle" (click)="cambiarPaginaCalle(1)" title="Página siguiente">
-                <i class="pi pi-chevron-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 3. Pestaña Manzana -->
-      <div *ngIf="tabActivaBuscador === 'manzana'" class="tab-content-vertical">
-        <div class="search-rows-container">
-          <div class="search-row">
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">Sector</legend>
-              <div class="input-content">
-                <i class="pi pi-th-large icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchSector" placeholder="Ej: 001" (keyup.enter)="buscarPorManzana()">
-              </div>
-            </fieldset>
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">Manzana</legend>
-              <div class="input-content">
-                <i class="pi pi-table icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchManzana" placeholder="Ej: 002" (keyup.enter)="buscarPorManzana()">
-              </div>
-            </fieldset>
-            <fieldset class="search-fieldset">
-              <legend class="search-legend">Lote</legend>
-              <div class="input-content">
-                <i class="pi pi-map-marker icon-cyan"></i>
-                <input type="text" [(ngModel)]="searchLote" placeholder="Ej: 003" (keyup.enter)="buscarPorManzana()">
-              </div>
-            </fieldset>
-          </div>
-          <button type="button" class="btn-cyan-pill w-full mt-1" (click)="buscarPorManzana()" [disabled]="cargando">
-            BUSCAR MANZANA / LOTE
-          </button>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(2)" [disabled]="cargando || !tipoDocumentoElegido">BUSCAR</button>
         </div>
 
-        <div class="calle-results-wrapper mt-2" *ngIf="resultadosTab.length > 0">
-          <div class="results-header-info">
-            <span>{{ resultadosTab.length }} cliente(s) en Manzana</span>
-          </div>
-          <div class="results-scroll compact">
-            <div class="result-item-row" *ngFor="let r of resultadosTab" (click)="seleccionarResultadoTab(r)">
-              <div class="rir-left">
-                <span class="rir-suministro">{{ r.codcliente }}</span>
-                <div class="rir-datos">
-                  <span class="rir-nombre">{{ r.propietario || '-' }}</span>
-                  <span class="rir-dir">Mz. {{ r.codmza }} Lt. {{ r.nrolote }}</span>
-                </div>
-              </div>
-              <div class="rir-right">
-                <button type="button" class="btn-ubicar-mini" title="Ubicar en mapa"><i class="pi pi-map-marker"></i></button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 4. Pestaña Caja Agua/Acant. -->
-     <!-- <div *ngIf="tabActivaBuscador === 'caja_agua'" class="tab-content-vertical">
         <div class="search-row">
           <fieldset class="search-fieldset">
-            <legend class="search-legend">Nro. de Medidor / Ficha</legend>
+            <legend class="search-legend">Apellidos y nombres</legend>
             <div class="input-content">
-              <i class="pi pi-tachometer icon-cyan"></i>
-              <input type="text" [(ngModel)]="searchMedidor" placeholder="Ej: M12345" (keyup.enter)="buscarPorCajaAgua()">
-              <i *ngIf="searchMedidor" class="pi pi-times-circle clear-text-btn" (click)="searchMedidor = ''"></i>
+              <i class="pi pi-user icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchNombre" placeholder="Ej: Juan Perez" (keyup.enter)="buscarPorOpcion(3)">
+              <i *ngIf="searchNombre" class="pi pi-times-circle clear-text-btn" (click)="searchNombre = ''"></i>
             </div>
           </fieldset>
-          <button type="button" class="btn-cyan-pill" (click)="buscarPorCajaAgua()" [disabled]="cargando">
-            BUSCAR
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(3)" [disabled]="cargando">BUSCAR</button>
+        </div>
+      </div>
+
+      <div *ngIf="tabActivaBuscador === 'calles'" class="search-rows-container">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Calle</legend>
+            <p-autoComplete [(ngModel)]="calleElegida" [suggestions]="callesSugeridas" (completeMethod)="sugerirCalles($event)"
+              [forceSelection]="true" [dropdown]="true" [virtualScroll]="true" [virtualScrollItemSize]="34"
+              optionLabel="descripcioncalle" placeholder="Escriba y elija la calle" appendTo="body"
+              styleClass="selector-oscuro" (onSelect)="buscarPorCalle()">
+              <ng-template let-calle pTemplate="item">
+                <span>{{ calle.destipocalle }} {{ calle.descripcioncalle }}</span>
+              </ng-template>
+            </p-autoComplete>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorCalle()" [disabled]="cargando || !calleElegida">BUSCAR</button>
+        </div>
+      </div>
+
+      <div *ngIf="tabActivaBuscador === 'manzana'" class="search-rows-container">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Sector</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchSector" placeholder="Ej: 001" (keyup.enter)="buscarPorManzana()">
+            </div>
+          </fieldset>
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Manzana</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchManzana" placeholder="Ej: 002" (keyup.enter)="buscarPorManzana()">
+            </div>
+          </fieldset>
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Lote</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchLote" placeholder="Ej: 003" (keyup.enter)="buscarPorManzana()">
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorManzana()" [disabled]="cargando">BUSCAR</button>
+        </div>
+      </div>
+
+      <div class="tabla-resultados" *ngIf="resultadosTab.length > 1">
+        <div class="tabla-resultados-barra">
+          <span>{{ resultadosFiltrados.length }} de {{ resultadosTab.length }} clientes · elija uno para verlo en el mapa</span>
+          <button type="button" class="btn-agregar-mapa" (click)="agregarTodoAlMapa()" [disabled]="resultadosFiltrados.length === 0"
+            title="Pone en el mapa todos los clientes de la tabla">
+            <i class="pi pi-map"></i> Agregar todo al mapa
           </button>
-        </div>
-
-        <div class="calle-results-wrapper" [class.has-results]="resultadosTab.length > 0">
-          <div *ngIf="resultadosTab.length === 0" class="empty-results-hint">
-            <i class="pi pi-box me-1"></i> Ingrese el nro. de medidor para ubicar fichas de agua / alcantarillado
-          </div>
-          <div *ngIf="resultadosTab.length > 0" class="results-quick-list">
-            <div class="results-scroll compact">
-              <div class="result-item-row" *ngFor="let r of resultadosTab" (click)="seleccionarResultadoTab(r)">
-                <div class="rir-left">
-                  <span class="rir-suministro">{{ r.codcliente }}</span>
-                  <div class="rir-datos">
-                    <span class="rir-nombre">Medidor: {{ r.nromed || '-' }}</span>
-                    <span class="rir-dir">{{ r.descripcioncorta }} {{ r.descripcioncalle }}</span>
-                  </div>
-                </div>
-                <div class="rir-right">
-                  <button type="button" class="btn-ubicar-mini"><i class="pi pi-map-marker"></i></button>
-                </div>
-              </div>
-            </div>
+          <div class="calle-filter-input">
+            <i class="pi pi-search"></i>
+            <input type="text" [(ngModel)]="filtroResultados" placeholder="Filtrar código, titular, dirección...">
+            <i *ngIf="filtroResultados" class="pi pi-times" (click)="filtroResultados = ''"></i>
           </div>
         </div>
-      </div>-->
-
-      <!-- 5. Pestaña Categoria Usuario (Image 2) -->
-      <div *ngIf="tabActivaBuscador === 'categoria_usuario'" class="tab-content-filter">
-        <div class="filter-header-row">
-          <span class="filter-title">Filtrar por Tarifa (activar la capa usuario):</span>
-          <span class="filter-clear-link" (click)="limpiarFiltrosTarifa()">Limpiar Filtros</span>
-        </div>
-        <div class="filter-box-dark">
-          <div class="filter-grid-cols-2">
-            <label class="custom-filter-checkbox" *ngFor="let item of tarifasFiltro">
-              <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
-              <span class="color-dot" [style.background-color]="item.dot"></span>
-              <span class="checkbox-text">{{ item.label }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Indicador de carga de puntos -->
-        <div *ngIf="cargandoFiltros" class="filter-status-loading">
-          <i class="pi pi-spin pi-spinner"></i>
-          <span>Cargando puntos en el mapa...</span>
-        </div>
-
-        <!-- Mensaje cuando no encuentra -->
-        <div *ngIf="sinResultadosFiltros && !cargandoFiltros" class="filter-status-empty">
-          <i class="pi pi-exclamation-circle"></i>
-          <span>No se encontraron clientes con los filtros seleccionados.</span>
-        </div>
-      </div>
-
-      <!-- 6. Pestaña Tipo Usuario (Image 3) -->
-      <div *ngIf="tabActivaBuscador === 'tipo_usuario'" class="tab-content-filter">
-        <div class="filter-header-row">
-          <span class="filter-title">Filtrar por Tipo (activar la capa usuario):</span>
-          <span class="filter-clear-link" (click)="limpiarFiltrosTipo()">Limpiar Filtros</span>
-        </div>
-        <div class="filter-box-dark">
-          <div class="filter-grid-cols-2">
-            <label class="custom-filter-checkbox" *ngFor="let item of tiposUsuarioFiltro">
-              <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
-              <span class="color-dot" [style.background-color]="item.dot"></span>
-              <span class="checkbox-text">{{ item.label }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Indicador de carga de puntos -->
-        <div *ngIf="cargandoFiltros" class="filter-status-loading">
-          <i class="pi pi-spin pi-spinner"></i>
-          <span>Cargando puntos en el mapa...</span>
-        </div>
-
-        <!-- Mensaje cuando no encuentra -->
-        <div *ngIf="sinResultadosFiltros && !cargandoFiltros" class="filter-status-empty">
-          <i class="pi pi-exclamation-circle"></i>
-          <span>No se encontraron clientes con los filtros seleccionados.</span>
-        </div>
-      </div>
-
-      <!-- 8. Pestaña Est. Conexión (Image 4) -->
-      <div *ngIf="tabActivaBuscador === 'est_conexion'" class="tab-content-split-filters">
-        <!-- Bloque 1: Estado Agua -->
-        <div class="split-filter-col">
-          <div class="filter-header-row">
-            <span class="filter-title">Estado Agua (Activar ficha Agua)</span>
-            <span class="filter-clear-link" (click)="limpiarFiltrosAgua()">Limpiar Filtros</span>
-          </div>
-          <div class="filter-box-dark scrollable-box">
-            <div class="filter-grid-cols-2">
-              <label class="custom-filter-checkbox" *ngFor="let item of estadosAguaFiltro">
-                <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
-                <span class="color-dot" [style.background-color]="item.dot"></span>
-                <span class="checkbox-text">{{ item.label }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bloque 2: Estado Desagüe -->
-        <div class="split-filter-col">
-          <div class="filter-header-row">
-            <span class="filter-title">Estado Desagüe (Activar Ficha Alcantarillado)</span>
-            <span class="filter-clear-link" (click)="limpiarFiltrosDesague()">Limpiar Filtros</span>
-          </div>
-          <div class="filter-box-dark scrollable-box">
-            <div class="filter-grid-cols-2">
-              <label class="custom-filter-checkbox" *ngFor="let item of estadosDesagueFiltro">
-                <input type="checkbox" [(ngModel)]="item.checked" (change)="aplicarFiltrosCapas()">
-                <span class="color-dot" [style.background-color]="item.dot"></span>
-                <span class="checkbox-text">{{ item.label }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Indicador de carga de puntos -->
-        <div *ngIf="cargandoFiltros" class="filter-status-loading">
-          <i class="pi pi-spin pi-spinner"></i>
-          <span>Cargando puntos en el mapa...</span>
-        </div>
-
-        <!-- Mensaje cuando no encuentra -->
-        <div *ngIf="sinResultadosFiltros && !cargandoFiltros" class="filter-status-empty">
-          <i class="pi pi-exclamation-circle"></i>
-          <span>No se encontraron clientes con los filtros seleccionados.</span>
+        <div class="tabla-resultados-scroll">
+          <table>
+            <thead>
+              <tr><th>Código</th><th>Titular</th><th>Dirección</th><th>Mz / Lt</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let registro of resultadosFiltrados" tabindex="0" (click)="elegirResultado(registro)"
+                (keyup.enter)="elegirResultado(registro)" [title]="'Ver ' + registro.codcliente + ' en el mapa'">
+                <td class="codigo">{{ registro.codcliente }}</td>
+                <td>{{ registro.propietario || '-' }}</td>
+                <td>{{ registro.descripcioncorta }} {{ registro.descripcioncalle }} {{ registro.nrocalle }}</td>
+                <td class="mz-lt">{{ registro.codmza || '-' }} / {{ registro.nrolote || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -433,45 +191,41 @@
     <i [class]="mostrarSearchPanel ? 'pi pi-times' : 'pi pi-search'"></i>
   </button>
 
-  <div class="user-popup" *ngIf="lecturaSeleccionada">
-    <div class="up-header">
-      <div class="up-header-left">
-        <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
-        <div class="up-header-info">
-          <span class="up-label">TITULAR </span>
-          <strong class="up-name">{{ lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
-        </div>
-      </div>
-      <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
-    </div>
-
-    <div class="up-suministro">
-      <div class="up-sum-item primary">
-        <i class="pi pi-bolt"></i>
-        <span class="up-sum-label">SUMINISTRO</span>
-        <span class="up-sum-value">{{ lecturaSeleccionada.codcliente || '-' }}</span>
-      </div>
-      <div class="up-sum-sep"></div>
-      <div class="up-sum-item">
-        <i class="pi pi-id-card"></i>
-        <span class="up-sum-label">DNI</span>
-        <span class="up-sum-value">{{ datosClientePopup?.nrodocident || '-' }}</span>
-      </div>
+  <aside class="user-popup" *ngIf="lecturaSeleccionada" aria-label="Información del usuario">
+    <div class="up-barra">
+      <i class="pi pi-user up-barra-icono"></i>
+      <span class="up-barra-titulo">Usuario</span>
+      <button type="button" class="up-close" (click)="cerrarPopup()" title="Cerrar" aria-label="Cerrar ficha">
+        <i class="pi pi-times"></i>
+      </button>
     </div>
 
     <div class="up-body">
-      <div class="up-section">
-        <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> DETALLES DE LA CONEXIÓN
+      <div class="up-sin-ubicacion" *ngIf="sinUbicacion" role="status">
+        <i class="pi pi-map-marker"></i>
+        <span><strong>Sin ubicación en el mapa.</strong> Este cliente no tiene coordenadas registradas; el mapa no lo puede señalar.</span>
+      </div>
+
+      <section class="up-section up-titular">
+        <div class="up-header">
+          <div class="up-avatar"><i class="pi pi-user"></i></div>
+          <div class="up-header-info">
+            <span class="up-label">Titular</span>
+            <strong class="up-name" [title]="lecturaSeleccionada.propietario || 'SIN REGISTRO'">{{ lecturaSeleccionada.propietario || 'SIN REGISTRO' }}</strong>
           </div>
-          <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
-            title="Ver en Google Street View"
-            (click)="abrirStreetView(lecturaSeleccionada?.lon ?? lecturaSeleccionada?.longitud ?? datosClientePopup?.lon ?? datosClientePopup?._predio?.lonpredio, lecturaSeleccionada?.lat ?? lecturaSeleccionada?.latitud ?? datosClientePopup?.lat ?? datosClientePopup?._predio?.latpredio)"
-            style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-            <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
-              alt="Street View">
-            <span style="font-weight: 900;">Ver en Maps</span>
+        </div>
+        <div class="up-grid grid-2">
+          <div class="up-cell resaltada"><span class="uc-label">Suministro</span><span class="uc-val">{{ lecturaSeleccionada.codcliente || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">DNI</span><span class="uc-val">{{ datosClientePopup?.nrodocident || '-' }}</span></div>
+        </div>
+      </section>
+
+      <section class="up-section">
+        <div class="up-section-title loc">
+          <span class="marca"></span>Detalles de la conexión
+          <button type="button" class="up-accion" title="Ver en Google Street View" *ngIf="!sinUbicacion"
+            (click)="abrirStreetView(lecturaSeleccionada?.lon ?? lecturaSeleccionada?.longitud ?? datosClientePopup?.lon ?? datosClientePopup?._predio?.lonpredio, lecturaSeleccionada?.lat ?? lecturaSeleccionada?.latitud ?? datosClientePopup?.lat ?? datosClientePopup?._predio?.latpredio)">
+            <i class="pi pi-map"></i> Street View
           </button>
         </div>
         <div class="up-grid grid-3">
@@ -482,53 +236,49 @@
           <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ ((lecturaSeleccionada.descripcioncorta || '') + ' ' + (lecturaSeleccionada.descripcioncalle || '') + ' ' + (lecturaSeleccionada.nrocalle || '')) }}</span></div>
 
           <div class="up-cell"><span class="uc-label">Piso</span><span class="uc-val">{{ datosClientePopup?.unidaddom ?? '1' }}</span></div>
-          <div class="up-cell span-2"><span class="uc-label">Tipo de Servicio</span>
-            <span class="uc-val">{{datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA') }}</span>
+          <div class="up-cell span-2"><span class="uc-label">Tipo de servicio</span>
+            <span class="uc-val">{{ datosClientePopup?.servicio || lecturaSeleccionada.servicio || (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA') }}</span>
           </div>
 
-          <div class="up-cell span-2">
+          <div class="up-cell">
             <span class="uc-label">Tarifa / Inmueble</span>
-            <span class="uc-val">
-              {{ lecturaSeleccionada.tarifas || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}
-            </span>
+            <span class="uc-val">{{ lecturaSeleccionada.tarifas || '-' }} / {{ datosClientePopup?._predio?.tipopredio || '-' }}</span>
           </div>
-          <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{ datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
+          <div class="up-cell span-2"><span class="uc-label">Almacenaje</span><span class="uc-val">{{ datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO' }}</span></div>
 
-          <div class="up-cell full"><span class="uc-label">Actividad Económica</span><span class="uc-val">{{ lecturaSeleccionada.tipoactividad || '-' }}</span></div>
-          
-          <div class="up-cell"><span class="uc-label">Diam. Agua</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_a || '-' }}</span></div>
-          <div class="up-cell"><span class="uc-label">Diam. Desagüe</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_d || '-' }}</span></div>
+          <div class="up-cell full"><span class="uc-label">Actividad económica</span><span class="uc-val">{{ lecturaSeleccionada.tipoactividad || '-' }}</span></div>
+
+          <div class="up-cell"><span class="uc-label">Diam. agua</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_a || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Diam. desagüe</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_d || '-' }}</span></div>
           <div class="up-cell"><span class="uc-label">Est. VMA</span><span class="uc-val">{{ lecturaSeleccionada.estadovma == '1' ? 'ACTIVO' : 'INACTIVO' }}</span></div>
-          
-          <div class="up-cell full"><span class="uc-label">Unidades de Uso</span><span class="uc-val">Doméstico: {{ lecturaSeleccionada.unidaddom || '0' }} | Comercial: {{ lecturaSeleccionada.unidadcom || '0' }} | Industrial: {{ lecturaSeleccionada.unidadind || '0' }}</span></div>
-          
-          <div class="up-cell full"><span class="uc-label">Fecha de Contrato</span><span class="uc-val">{{ lecturaSeleccionada.fechacontrato || '-' }}</span></div>
-        </div>
-      </div>
 
-      <div class="up-section">
+          <div class="up-cell full"><span class="uc-label">Unidades de uso</span><span class="uc-val">Doméstico: {{ lecturaSeleccionada.unidaddom || '0' }} | Comercial: {{ lecturaSeleccionada.unidadcom || '0' }} | Industrial: {{ lecturaSeleccionada.unidadind || '0' }}</span></div>
+
+          <div class="up-cell full"><span class="uc-label">Fecha de contrato</span><span class="uc-val">{{ lecturaSeleccionada.fechacontrato || '-' }}</span></div>
+        </div>
+      </section>
+
+      <section class="up-section">
         <div class="up-section-title medidor">
-          <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Medidor"> NRO. MEDIDOR: {{
-          datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR' }}
+          <span class="marca"></span>Medidor
+          <span class="up-titulo-valor">{{ datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR' }}</span>
         </div>
 
         <div class="up-lecturas-row">
-          <div class="up-lec-badge prev"><span class="ulb-label">LECT ANT.</span><span class="ulb-val">{{
-              lecturaSeleccionada.lecturaanterior ?? datosClientePopup?._medidor?.lecturaanterior ?? '-' }}</span>
+          <div class="up-lec-badge prev">
+            <span class="ulb-label">Lect. ant.</span>
+            <span class="ulb-val">{{ lecturaSeleccionada.lecturaanterior ?? datosClientePopup?._medidor?.lecturaanterior ?? '-' }}</span>
           </div>
           <i class="pi pi-arrow-right up-lec-arrow"></i>
-          <div class="up-lec-badge curr"><span class="ulb-label"> LECT ACT.</span><span class="ulb-val">{{
-              lecturaSeleccionada.lecturaultima ?? lecturaSeleccionada.lectura ?? lecturaSeleccionada.lecturaactual ?? '-' }}</span></div>
+          <div class="up-lec-badge curr">
+            <span class="ulb-label">Lect. act.</span>
+            <span class="ulb-val">{{ lecturaSeleccionada.lecturaultima ?? lecturaSeleccionada.lectura ?? lecturaSeleccionada.lecturaactual ?? '-' }}</span>
+          </div>
         </div>
 
         <div class="up-grid grid-2">
-          <div class="up-cell"><span class="uc-label">Est. Lect.</span><span class="uc-val badge-est">{{ lecturaSeleccionada.estadolectura ?? datosClientePopup?._medidor?.estadolectura ?? '-' }}</span></div>
-          <div class="up-cell">
-            <span class="uc-label">Est. Med.</span>
-            <span class="uc-val badge-est">
-              {{ lecturaSeleccionada.estadomedidor || '-' }}
-            </span>
-          </div>
+          <div class="up-cell"><span class="uc-label">Est. lect.</span><span class="uc-val badge-est">{{ lecturaSeleccionada.estadolectura ?? datosClientePopup?._medidor?.estadolectura ?? '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Est. med.</span><span class="uc-val badge-est">{{ lecturaSeleccionada.estadomedidor || '-' }}</span></div>
 
           <div class="up-cell full">
             <span class="uc-label">{{ getEtiquetaMovimientoMedidor() }}</span>
@@ -538,58 +288,47 @@
           <div class="up-cell full"
             *ngIf="lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion">
             <span class="uc-label">Obs.</span>
-            <span class="uc-val obs">{{ lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura ||
-              datosClientePopup?._medidor?.observacion }}</span>
+            <span class="uc-val obs">{{ lecturaSeleccionada.obslectura || datosClientePopup?._medidor?.obslectura || datosClientePopup?._medidor?.observacion }}</span>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
-
-      <div class="up-section">
-        <div class="up-section-title contacto">
-          <i class="pi pi-id-card" style="font-size: 1.1rem; margin-right: 5px;"></i> CONTACTO E INFORMACIÓN
-        </div>
+      <section class="up-section">
+        <div class="up-section-title contacto"><span class="marca"></span>Contacto e información</div>
         <div class="up-grid grid-2">
           <div class="up-cell"><span class="uc-label">Teléfono</span><span class="uc-val">{{ lecturaSeleccionada.telefono || '-' }}</span></div>
-          <div class="up-cell"><span class="uc-label">Email</span><span class="uc-val" style="text-transform: lowercase;">{{ lecturaSeleccionada.email || '-' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Email</span><span class="uc-val minusculas">{{ lecturaSeleccionada.email || '-' }}</span></div>
           <div class="up-cell"><span class="uc-label">Inquilino</span><span class="uc-val">{{ lecturaSeleccionada.inquilino || '-' }}</span></div>
           <div class="up-cell"><span class="uc-label">RUC</span><span class="uc-val">{{ lecturaSeleccionada.ruc || '-' }}</span></div>
         </div>
-      </div>
+      </section>
 
-      <div class="up-section">
-        <div class="up-section-title facturacion">
-          <i class="pi pi-wallet" style="font-size: 1.1rem; margin-right: 5px;"></i> FACTURACIÓN Y DEUDA
-        </div>
+      <section class="up-section">
+        <div class="up-section-title facturacion"><span class="marca"></span>Facturación y deuda</div>
         <div class="up-grid grid-3">
-          <div class="up-cell"><span class="uc-label">Meses Deuda</span><span class="uc-val" style="color: #dc2626; font-weight: bold;">{{ lecturaSeleccionada.mesesdeuda || '0' }}</span></div>
-          <div class="up-cell span-2"><span class="uc-label">Total a Pagar</span><span class="uc-val" style="color: #dc2626; font-weight: bold; font-size: 1.1em;">S/ {{ (lecturaSeleccionada.impmestotal | number:'1.2-2') || '0.00' }}</span></div>
-          
+          <div class="up-cell"><span class="uc-label">Meses deuda</span><span class="uc-val deuda">{{ lecturaSeleccionada.mesesdeuda || '0' }}</span></div>
+          <div class="up-cell span-2"><span class="uc-label">Total a pagar</span><span class="uc-val deuda grande">S/ {{ (lecturaSeleccionada.impmestotal | number:'1.2-2') || '0.00' }}</span></div>
+
           <div class="up-cell"><span class="uc-label">Intereses</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impintereses | number:'1.2-2') || '0.00' }}</span></div>
-          <div class="up-cell"><span class="uc-label">Cuota Refin.</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impsaldorefin | number:'1.2-2') || '0.00' }}</span></div>
-          <div class="up-cell"><span class="uc-label">Deuda Total</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impdeudatotal | number:'1.2-2') || '0.00' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Cuota refin.</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impsaldorefin | number:'1.2-2') || '0.00' }}</span></div>
+          <div class="up-cell"><span class="uc-label">Deuda total</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impdeudatotal | number:'1.2-2') || '0.00' }}</span></div>
         </div>
-      </div>
+      </section>
 
-      </div>
-
-      <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
-        <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
-          class="p-button-sm w-full btn-ver-mas"
-          (click)="verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)"></button>
-      </div>
-
-      
+      <button type="button" class="btn-ver-mas"
+        (click)="verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)">
+        <i class="pi pi-search-plus"></i> Ver más información
+      </button>
     </div>
-  </div>
+  </aside>
 
-  <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
+  <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive" [abierto]="false"
     [commercialLayers]="commercialLayers"
     (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleLayer($event)">
   </app-capas-sidebar>
 
-  <app-paneles-mapa-gis [controlador]="controladorGis"></app-paneles-mapa-gis>
+  <app-paneles-mapa-gis [controlador]="controladorGis" [hayPanelDerecho]="!!lecturaSeleccionada || mostrarSearchPanel"
+    (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
 
   
 </div>

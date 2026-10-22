@@ -1,195 +1,386 @@
-// La posición del panel sobre el mapa está en shared/mapa/mapa-estilos.scss.
+// La posición del panel sobre el mapa está en shared/mapa/mapa-estilos.scss y cada pantalla puede ajustarla.
 :host {
   display: contents;
+
+  // Colores medidos píxel a píxel en el panel de GIS Loreto (su textura con el velo del 40 %), a la misma altura.
+  --vidrio: linear-gradient(180deg, rgba(3, 7, 59, 0.97) 0, rgba(3, 24, 72, 0.97) 22px, rgba(4, 76, 125, 0.97) 40px,
+    rgba(3, 60, 114, 0.97) 110px, rgba(3, 48, 104, 0.97) 165px, rgba(4, 38, 97, 0.97) 220px,
+    rgba(2, 33, 90, 0.97) 275px, rgba(2, 20, 80, 0.97) 330px, rgba(2, 11, 70, 0.97) 385px,
+    rgba(3, 10, 68, 0.97) 440px, rgba(2, 5, 56, 0.97) 530px);
+  // La textura se oscurece hacia la derecha.
+  --vidrio-brillo: linear-gradient(90deg, transparent 35%, rgba(0, 0, 30, 0.18) 100%);
+  // Panal de hexágonos tenue en lugar de la foto de stock de Loreto.
+  --vidrio-panal: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='17.32'%3E%3Cpath d='M0 8.66 5 0h10l5 8.66-5 8.66H5ZM20 8.66h10' fill='none' stroke='%23ffffff' stroke-opacity='0.06' stroke-width='1'/%3E%3C/svg%3E");
+  --vidrio-borde: rgba(255, 255, 255, 0.2);
+  --texto: #e8edf2;
+  --suave: #9aa6b5;
+  --apagado: #8a97a8;
+  --acento: #00e5ff;
+  --tecnica: #e8b44c;
+}
+
+@mixin vidrio {
+  // Como en Loreto, el degradado mide lo que su textura (unos 530 px): un panel corto solo muestra la parte de arriba.
+  background: var(--vidrio-panal), var(--vidrio-brillo), var(--vidrio) 0 0 / 100% 530px no-repeat;
+  background-color: rgba(2, 5, 56, 0.97);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  border: 1px solid var(--vidrio-borde);
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+  color: var(--texto);
 }
 
 .gis-sidebar-container {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 272px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  pointer-events: none;
 
-  @media (max-width: 768px) {
-    z-index: 1001;
-    margin-left: 0;
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.boton-capas {
+  @include vidrio;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 11px;
+  border-radius: 18px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: rgba(0, 229, 255, 0.55);
   }
 
-  .gis-sidebar-panel {
-    width: 240px;
+  .icono-capas {
+    color: var(--acento);
+  }
+}
+
+.insignia {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--acento);
+  color: #0f1823;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+
+.chevron {
+  color: var(--suave);
+  transform: rotate(180deg);
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  .cerrado & {
+    transform: rotate(0);
+  }
+}
+
+.panel-capas {
+  @include vidrio;
+  width: 100%;
+  max-height: var(--alto-maximo-capas, calc(100vh - 260px));
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 12px;
+  transform-origin: 24px -8px;
+  clip-path: inset(0 0 0 0 round 12px);
+  transition:
+    opacity 0.22s ease,
+    transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    clip-path 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 0s linear 0s;
+
+  .cerrado & {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+    clip-path: inset(0 0 100% 0 round 12px);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.18s ease,
+      transform 0.22s ease,
+      clip-path 0.22s ease,
+      visibility 0s linear 0.22s;
+  }
+}
+
+.titulo-clase {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 10px 5px;
+  border: 0;
+  border-bottom: 1px solid var(--vidrio-borde);
+  background: transparent;
+  color: var(--acento);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+
+  &.fijo {
+    margin-top: 0;
+    cursor: default;
+  }
+
+  .marca {
+    width: 4px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--acento);
+    flex-shrink: 0;
+  }
+
+  &.tecnicas {
+    color: var(--tecnica);
+
+    .marca {
+      background: var(--tecnica);
+    }
+  }
+
+  em {
+    margin-left: auto;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--suave);
+  }
+
+  .flecha {
+    width: 10px;
+    font-size: 10px;
+    color: var(--suave);
+    transition: transform 0.2s;
+
+    &.plegada {
+      transform: rotate(-90deg);
+    }
+  }
+}
+
+.lista-capas .titulo-clase {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.bases {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px 10px 4px;
+}
+
+.base {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  color: #ffffff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &[aria-checked="true"] {
+    color: var(--texto);
+    border-color: var(--acento);
+  }
+}
+
+.muestra {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+  background: #ece6dc;
+
+  &.muestra-satelital {
+    background: linear-gradient(135deg, #3d4f33, #8a8270);
+  }
+
+  &.muestra-ninguno {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px 0 0 8px;
-    box-shadow: 4px 4px 16px rgba(0, 0, 0, 0.15);
-    display: flex;
-    flex-direction: column;
-    max-height: calc(100vh - 200px);
+  }
+}
+
+.lista-capas {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 6px 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.filas {
+  display: grid;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.fila {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 10px 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: rgba(0, 229, 255, 0.35);
+  }
+
+  &[aria-checked="true"] {
+    border-color: rgba(0, 229, 255, 0.25);
+  }
+
+  .nombre {
+    min-width: 0;
     overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.simbolo {
+  width: 20px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+
+  i {
+    display: block;
+    box-sizing: border-box;
+    background: var(--color-simbolo);
   }
 
-  .gif-icon {
-    width: 25px;
-    height: 25px;
-    object-fit: contain;
+  .forma-punto {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
   }
 
-  .sidebar-title {
-    border-left: 4px solid #012a71;
-    padding-left: 12px;
-    margin: 14px 0 8px;
-    font-size: 11px;
-    font-weight: 800;
-    color: #012a71;
-    letter-spacing: 1.2px;
+  .forma-rombo {
+    width: 9px;
+    height: 9px;
+    border-radius: 1.5px;
+    transform: rotate(45deg);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
   }
 
-  .base-layers {
-    display: flex;
-    gap: 5px;
-    padding: 0 8px 10px;
-
-    button {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid #e2e8f0;
-      background: #f8fafc;
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-
-      .icon {
-        font-size: 10px;
-        height: 22px;
-        width: 22px;
-      }
-
-      &.active {
-        border-color: #6366f1;
-        background: #eef2ff;
-        color: #4338ca;
-        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.2);
-      }
-    }
+  .forma-linea {
+    width: 18px;
+    height: 3px;
+    border-radius: 2px;
   }
 
-  .divider {
-    height: 1px;
-    background: #e0eaf0;
+  .forma-area {
+    width: 16px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1.5px solid var(--color-simbolo);
+    background: color-mix(in srgb, var(--color-simbolo) 22%, transparent);
+  }
+}
+
+// Delgado como el de GIS Loreto: riel fino y perilla redonda que sobresale.
+.interruptor {
+  position: relative;
+  width: 30px;
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.15s;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: -3px;
+    left: -2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #c3cad4;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    transition: left 0.15s, background 0.15s;
   }
 
-  .commercial-layers {
-    overflow-y: auto;
+  .fila[aria-checked="true"] & {
+    background: rgba(0, 229, 255, 0.55);
 
-    &::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-
-    .c-layer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 6px 10px;
-      border-bottom: 1px solid #edf2f5;
-      cursor: pointer;
-
-      span {
-        font-size: 11px;
-        font-weight: 500;
-        color: #617985;
-
-        &.active-text {
-          color: #1a2d3e;
-        }
-      }
-
-      .custom-toggle {
-        width: 38px;
-        height: 20px;
-        border-radius: 10px;
-        background: #cbd5e1;
-        border: 1px solid #94a3b8;
-        position: relative;
-        flex-shrink: 0;
-        transition:
-          background 0.18s,
-          border-color 0.18s;
-
-        .toggle-circle {
-          position: absolute;
-          top: 1px;
-          left: 1px;
-          width: 16px;
-          height: 16px;
-          border-radius: 50%;
-          background: #fff;
-          transition: left 0.18s;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        }
-
-        &.on {
-          background: #0284c7; 
-          border-color: #0369a1;
-
-          .toggle-circle {
-            left: 19px;
-          }
-        }
-      }
+    &::after {
+      left: 14px;
+      background: #ffffff;
     }
   }
+}
 
-  .sidebar-toggle-btn {
-    width: 28px;
-    align-self: stretch;
-    background: #0284c7;
-    border: none;
-    border-radius: 0 6px 6px 0;
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 700;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    padding: 10px 0;
-    transition: all 0.2s;
-    box-shadow: 2px 0 8px rgba(2, 132, 199, 0.3);
+.vacio {
+  padding: 8px 6px 10px;
+  font-size: 11.5px;
+  color: var(--suave);
+}
 
-    .stb-text {
-      writing-mode: vertical-lr;
-      letter-spacing: 2px;
-    }
+.boton-capas:focus-visible,
+.base:focus-visible,
+.titulo-clase:focus-visible,
+.fila:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 1px;
+}
 
-    i {
-      font-size: 12px;
-    }
-
-    &:hover {
-      background: #0369a1;
-    }
-
-    &.closed {
-      border-radius: 6px;
-    }
+@media (max-width: 768px) {
+  .gis-sidebar-container {
+    width: 240px;
   }
+}
 
-  @media (max-width: 768px) {
-    top: 130px !important;
-
-    .gis-sidebar-panel {
-      width: 180px;
-      max-height: calc(100vh - 400px);
-    }
+@media (prefers-reduced-motion: reduce) {
+  .panel-capas,
+  .chevron,
+  .interruptor,
+  .interruptor::after {
+    transition: none !important;
   }
 }

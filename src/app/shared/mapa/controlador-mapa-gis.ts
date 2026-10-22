@@ -4,7 +4,8 @@ import Circle from "ol/geom/Circle";
 import type Geometry from "ol/geom/Geometry";
 import type { Coordinate } from "ol/coordinate";
 import type { Extent } from "ol/extent";
-import type { Subscription } from "rxjs";
+import { of, type Subscription } from "rxjs";
+import { switchMap } from "rxjs/operators";
 import type { ExcelService } from "@host/_servicios/reportes/excel.service";
 
 import type {
@@ -18,6 +19,7 @@ import { agregarHerramientasMapa } from "./herramientas-medicion";
 import { InteraccionGis } from "./interaccion-gis";
 import { AccionDibujo, MenuDibujos } from "./menu-dibujos";
 import { PredioBuscado } from "./predio-buscado";
+import { CalleBuscada } from "./calle-buscada";
 import { registrosDentroDeArea } from "./geo.utils";
 import {
   ColumnaListado,
@@ -83,6 +85,8 @@ export class ControladorMapaGis {
 
   private readonly interaccion: InteraccionGis;
   private readonly predio: PredioBuscado;
+  private readonly calle: CalleBuscada;
+  private busquedaCalle?: Subscription;
   private readonly menuDibujos?: MenuDibujos;
   private busquedaPredio?: Subscription;
   /** Dibujo cuyo listado está en la tabla, para descartarlo si se borra ese dibujo. */
@@ -121,6 +125,7 @@ export class ControladorMapaGis {
         esAreaDibujada(this.menuDibujos?.dibujoEn(pixel)?.getGeometry()),
     });
     this.predio = new PredioBuscado(map);
+    this.calle = new CalleBuscada(map);
   }
 
   get columnasListado(): ColumnaListado[] {
@@ -154,16 +159,48 @@ export class ControladorMapaGis {
 
   // ---------- Predio del cliente buscado ----------
 
-  /** Pinta el lote del cliente buscado y lo encuadra de cerca, en la parte del mapa que queda libre. */
-  marcarPredio(codcliente: string): void {
+  /**
+   * Pinta el lote del cliente buscado y lo encuadra de cerca, en la parte del mapa que queda libre.
+   * Si la EPS no guarda el código de cliente en sus lotes, se usa el lote donde cae `puntoCliente`.
+   */
+  marcarPredio(codcliente: string, puntoCliente?: Coordinate): void {
     this.quitarPredio();
-    this.busquedaPredio = this.opciones.consulta
-      .buscarPredioDeCliente(codcliente, this.opciones.gis.proyeccionMapa)
+    const { consulta, gis } = this.opciones;
+    this.busquedaPredio = consulta
+      .buscarPredioDeCliente(codcliente, gis.proyeccionMapa)
+      .pipe(
+        switchMap((geometria) =>
+          geometria || !puntoCliente
+            ? of(geometria)
+            : consulta.buscarPredioEnPunto(puntoCliente, gis.proyeccionMapa),
+        ),
+      )
       .subscribe((geometria) => {
         if (!geometria) return;
         this.predio.mostrar(geometria, codcliente);
         this.predio.encuadrar();
       });
+  }
+
+  /**
+   * Pinta la calle buscada y la encuadra de cerca, en la parte del mapa que queda libre.
+   * `alNoEncontrar` corre si la EPS no la publica o GeoServer no la tiene, para que la pantalla encuadre otra cosa.
+   */
+  marcarCalle(nombre: string, alNoEncontrar?: () => void): void {
+    this.quitarCalle();
+    this.busquedaCalle = this.opciones.consulta
+      .buscarCalle(nombre, this.opciones.gis.proyeccionMapa)
+      .subscribe((tramos) => {
+        this.calle.mostrar(tramos);
+        const extension = this.calle.extension();
+        if (extension) this.encuadrarEnZonaLibre(extension);
+        else alNoEncontrar?.();
+      });
+  }
+
+  quitarCalle(): void {
+    this.busquedaCalle?.unsubscribe();
+    this.calle.limpiar();
   }
 
   quitarPredio(): void {
@@ -199,6 +236,8 @@ export class ControladorMapaGis {
 
   destruir(): void {
     this.quitarPredio();
+    this.quitarCalle();
+    this.calle.destruir();
     this.interaccion.destruir();
     this.menuDibujos?.destruir();
     this.predio.destruir();

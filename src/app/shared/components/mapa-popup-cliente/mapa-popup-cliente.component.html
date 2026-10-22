@@ -99,10 +99,11 @@
 
       <div class="up-grid grid-2" style="margin-top: 5px;">
         <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est"
-            [ngStyle]="{'background': clienteSeleccionado.estservicio === 'A' ? '#f0fdf4' : (clienteSeleccionado.estservicio === 'C' ? '#fef2f2' : '#fefce8'), 'color': clienteSeleccionado.estservicio === 'A' ? '#15803d' : (clienteSeleccionado.estservicio === 'C' ? '#b91c1c' : '#a16207')}">
+            [class.estado-activo]="clienteSeleccionado.estservicio === 'A'"
+            [class.estado-cortado]="clienteSeleccionado.estservicio === 'C'"
+            [class.estado-otro]="clienteSeleccionado.estservicio !== 'A' && clienteSeleccionado.estservicio !== 'C'">
             {{ clienteSeleccionado.estadoservicio || clienteSeleccionado.desestadoservicio || clienteSeleccionado.desestservicio || '-' }}</span></div>
-        <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est"
-            style="background:#f0fdf4; color:#15803d;">{{ clienteSeleccionado.tiposervicio || clienteSeleccionado.destiposervicio || '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est">{{ clienteSeleccionado.tiposervicio || clienteSeleccionado.destiposervicio || '-' }}</span></div>
 
         <div class="up-cell full"><span class="uc-label">Fecha Ingreso</span><span class="uc-val">{{
             clienteSeleccionado.flagnuevousu ? (clienteSeleccionado.flagnuevousu | date:'dd/MM/yyyy') :
@@ -116,7 +117,7 @@
         <i class="pi pi-chart-bar" style="margin-right: 5px;"></i> HISTORIAL CONSUMOS
       </div>
       <div class="up-grid grid-3" style="text-align: center;">
-        <div class="up-cell"><span class="uc-label" style="color:#0369a1;">Actual</span><span class="uc-val" style="background:#e0f2fe; color:#0369a1; padding: 2px 4px; border-radius: 4px; font-weight: 700; display: inline-block;">{{ clienteSeleccionado.consumo_6 ?? '-' }}</span></div>
+        <div class="up-cell resaltada"><span class="uc-label">Actual</span><span class="uc-val">{{ clienteSeleccionado.consumo_6 ?? '-' }}</span></div>
         <div class="up-cell"><span class="uc-label">Mes -1</span><span class="uc-val">{{ clienteSeleccionado.consumo_5 ?? '-' }}</span></div>
         <div class="up-cell"><span class="uc-label">Mes -2</span><span class="uc-val">{{ clienteSeleccionado.consumo_4 ?? '-' }}</span></div>
         <div class="up-cell"><span class="uc-label">Mes -3</span><span class="uc-val">{{ clienteSeleccionado.consumo_3 ?? '-' }}</span></div>
@@ -127,16 +128,16 @@
 
     <!-- DATOS VMA -->
     <div class="up-section" *ngIf="clienteSeleccionado.nvma !== undefined || clienteSeleccionado.factortotal !== undefined || clienteSeleccionado.dbo5_f !== undefined">
-      <div class="up-section-title medidor" style="color: #ea580c; border-bottom-color: #ea580c;">
+      <div class="up-section-title vma">
         <i class="pi pi-filter" style="margin-right: 5px;"></i> PARÁMETROS VMA
       </div>
       <div class="up-grid grid-2">
         <div class="up-cell"><span class="uc-label">N° VMA</span><span class="uc-val">{{ clienteSeleccionado.nvma ?? '-' }}</span></div>
-        <div class="up-cell"><span class="uc-label">Factor Total</span><span class="uc-val badge-est" style="background:#fff7ed; color:#ea580c;">{{ clienteSeleccionado.factortotal ?? '-' }}</span></div>
+        <div class="up-cell"><span class="uc-label">Factor Total</span><span class="uc-val badge-est alerta">{{ clienteSeleccionado.factortotal ?? '-' }}</span></div>
       </div>
       
       <!-- Valores Muestra (m) -->
-      <div class="up-section-title medidor" style="font-size: 10px; margin-top: 5px; color: #64748b; border: none; padding: 0;">MUESTRA (m)</div>
+      <div class="up-subtitulo">MUESTRA (m)</div>
       <div class="up-grid grid-4" style="margin-top: 2px;">
         <ng-container *ngFor="let p of vmaParamsList">
           <div class="up-cell" *ngIf="clienteSeleccionado[p.key + '_m'] !== undefined">
@@ -147,7 +148,7 @@
       </div>
 
       <!-- Valores Límite (v) -->
-      <div class="up-section-title medidor" style="font-size: 10px; margin-top: 8px; color: #64748b; border: none; padding: 0;">LÍMITE (v)</div>
+      <div class="up-subtitulo">LÍMITE (v)</div>
       <div class="up-grid grid-4" style="margin-top: 2px;">
         <ng-container *ngFor="let p of vmaParamsList">
           <div class="up-cell" *ngIf="clienteSeleccionado[p.key + '_v'] !== undefined">
@@ -158,18 +159,18 @@
       </div>
 
       <!-- Excesos (f) -->
-      <div class="up-section-title medidor" style="font-size: 10px; margin-top: 8px; color: #ea580c; border: none; padding: 0;">EXCESOS (f)</div>
+      <div class="up-subtitulo exceso">EXCESOS (f)</div>
       <div class="up-grid grid-4" style="margin-top: 2px;">
         <ng-container *ngFor="let p of vmaParamsList">
           <div class="up-cell" *ngIf="clienteSeleccionado[p.key + '_f'] !== undefined">
             <span class="uc-label">{{ p.label }}</span>
-            <span class="uc-val" style="color: #ea580c; font-weight: 700;">{{ clienteSeleccionado[p.key + '_f'] ?? '-' }}</span>
+            <span class="uc-val exceso">{{ clienteSeleccionado[p.key + '_f'] ?? '-' }}</span>
           </div>
         </ng-container>
       </div>
 
       <div class="up-grid grid-2" style="margin-top: 5px;">
-        <div class="up-cell full"><span class="uc-label">FA (Suma Excesos)</span><span class="uc-val badge-est" style="background:#fef2f2; color:#b91c1c;">{{ clienteSeleccionado.fa !== undefined ? clienteSeleccionado.fa : (clienteSeleccionado.dbo5_f || 0) + (clienteSeleccionado.dqo_f || 0) + (clienteSeleccionado.sst_f || 0) + (clienteSeleccionado.ayg_f || 0) }}</span></div>
+        <div class="up-cell full"><span class="uc-label">FA (Suma Excesos)</span><span class="uc-val badge-est peligro">{{ clienteSeleccionado.fa !== undefined ? clienteSeleccionado.fa : (clienteSeleccionado.dbo5_f || 0) + (clienteSeleccionado.dqo_f || 0) + (clienteSeleccionado.sst_f || 0) + (clienteSeleccionado.ayg_f || 0) }}</span></div>
       </div>
 
       <div class="up-grid grid-2" style="margin-top: 5px;" *ngIf="clienteSeleccionado.impmesagu !== undefined || clienteSeleccionado.consumofac !== undefined">

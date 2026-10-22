@@ -175,6 +175,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private capasVector: VectorLayer<VectorSource>[] = [];
@@ -228,6 +229,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     { id: "lineas", label: "Líneas Usuario → Toma", active: true },
     { id: "lotes", label: "Lotes", active: true },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
 
@@ -790,6 +792,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       false,
     );
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -838,6 +841,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       lotes: this.lotesLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
     };
 
     this.map = new OlMap({
@@ -845,6 +849,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.lineasLayer,
@@ -881,6 +886,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     return [
       { rol: "lotes", capa: this.lotesLayer },
       { rol: "calles", capa: this.callesLayer },
+      { rol: "manzanas", capa: this.manzanasLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
     ];
   }

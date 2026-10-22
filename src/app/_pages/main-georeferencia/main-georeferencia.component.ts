@@ -18,8 +18,8 @@ import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { MessageService } from 'primeng/api';
 import { DialogService, DynamicDialogRef } from 'primeng/dynamicdialog';
-import { forkJoin, of, Observable } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { forkJoin, of, Observable, Subscription, TimeoutError } from 'rxjs';
+import { catchError, finalize, map, timeout } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import OlMap from 'ol/Map';
@@ -43,15 +43,14 @@ import { ControladorMapaGis } from '../../shared/mapa/controlador-mapa-gis';
 import { MARCA_CAPA_RESALTADO } from '../../shared/mapa/interaccion-gis';
 import { PanelesMapaGisComponent } from '../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component';
 import { FormaPunto, MapEstilosFactory, RADIOS_LECTURA, RADIOS_FICHA } from '../../shared/mapa/mapa-estilos';
-import { colorPorEstadoLectura, COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from '../../shared/constantes/colores-mapa';
+import { colorPorEstadoLectura, COLORES_LECTURA, COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from '../../shared/constantes/colores-mapa';
 import { observarTamanoMapa } from '../../shared/mapa/observar-tamano-mapa';
-import { CapasSidebarComponent } from '../../shared/components/capas-sidebar/capas-sidebar.component';
+import { CapasSidebarComponent, CapaSwitchUi } from '../../shared/components/capas-sidebar/capas-sidebar.component';
 import { CAPAS_BASE_UI, crearCapaOsm, crearCapaSatelital, crearCapaWms } from '../../shared/mapa/capas';
 import { MicromedicionService } from '@host/_servicios/vektors/micromedicion.service';
 import { SucursalesService } from '@host/_servicios/seguridad/sucursales.service';
-import { FactArchService } from '@host/_servicios/facturacion/fact-arch.service';
 import { DISTANCIA_MAX_ACOMETIDA_M, ORIGENES_COORDENADA } from '../../shared/constantes/coordenadas';
-import { LISTA_MESES, TIPOS_RECEPCION_FOTOS_LECTURA } from '../../shared/constantes/lecturas';
+import { TIPOS_RECEPCION_FOTOS_LECTURA } from '../../shared/constantes/lecturas';
 import { coordenadaLonLat, abrirGoogleStreetView } from '../../shared/mapa/street-view';
 import { RegistroLectura } from '@host/_models/vektors/RegistroLectura';
 import { abrirConsultaUsuario } from '../../shared/dialogos/consulta-usuario.dialog';
@@ -62,11 +61,38 @@ import { CatastroService } from '@host/_servicios/vektors/catastro.service';
 import { crearFeaturePunto, crearFeatureLinea, extraerCoordenada } from '../../shared/mapa/geo.utils';
 import { estaUsandoHerramientas } from '../../shared/mapa/herramientas-medicion';
 import { ZOOM_PREDIO } from '../../shared/mapa/predio-buscado';
+import { ColumnaListado, FilaListado, direccionDe } from '../../shared/utils/listado-excel';
+import { ExcelService } from '@host/_servicios/reportes/excel.service';
+import { CallesService } from '@host/_servicios/catastro/calles.service';
+import { TipodocidentService } from '@host/_servicios/catastro/tipodocident.service';
+import { Calles } from '@host/_models/catastro/calles';
+import { TipoDocIdent } from '@host/_models/catastro/tipodocident';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 import { BusquedaAvanzadaClientesComponent } from '../../shared/components/busqueda-avanzada-clientes/busqueda-avanzada-clientes.component';
 import { BusquedaAvanzadaClientesService } from '../../../../../host/src/app/_servicios/vektors/busqueda-avanzada-clientes.service';
 import { BusquedaAvanzadaClientesRequest, BusquedaAvanzadaClienteResponse } from '../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models';
 
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
+
+/** Columnas de la tabla y del Excel de los clientes que caen en el área dibujada. */
+const COLUMNAS_LISTADO_AREA: ColumnaListado[] = [
+  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsector", titulo: "Sector", anchoExcel: 8 },
+  { campo: "codmza", titulo: "Mza", anchoExcel: 8 },
+  { campo: "nrolote", titulo: "Lote", anchoExcel: 8 },
+  { campo: "nromed", titulo: "Medidor", anchoExcel: 15 },
+  { campo: "descatetar", titulo: "Categoría", anchoExcel: 22 },
+  { campo: "tipoactividad", titulo: "Actividad", anchoExcel: 22 },
+];
+
+/** Capas que quedan encendidas al buscar: el resto se apaga para que se vea solo el cliente y su lote. */
+const CAPAS_DE_BUSQUEDA = ["usuarios", "lotes"];
+// Sin respuesta en este tiempo se avisa y se libera la pantalla en vez de quedarse cargando.
+const MS_ESPERA_SERVIDOR = 40000;
+// Es el valor por defecto del backend (usp_vektors_busqueda_avanzada_clientes): en la práctica, sin tope.
+const SIN_TOPE_DE_REGISTROS = 99999;
 
 @Component({
   selector: 'app-main-georeferencia',
@@ -80,6 +106,7 @@ type TipoPopup = "lectura" | "agua" | "alcantarillado";
     CommonModule,
     FormsModule,
     DropdownModule,
+    AutoCompleteModule,
     ButtonModule,
     InputTextModule,
     ToastModule,
@@ -98,7 +125,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private readonly estilos = new MapEstilosFactory();
   private readonly micromedicionService = inject(MicromedicionService);
   private readonly sucursalesService = inject(SucursalesService);
-  private readonly factArchService = inject(FactArchService);
   private readonly messageService = inject(MessageService);
   private readonly controlImgService = inject(ControlImgService);
   private readonly clientesService = inject(ClientesService);
@@ -107,20 +133,24 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly busquedaAvanzadaService = inject(BusquedaAvanzadaClientesService);
+  private readonly excelService = inject(ExcelService);
+  private readonly callesService = inject(CallesService);
+  private readonly tipodocidentService = inject(TipodocidentService);
 
   readonly baseLayers = CAPAS_BASE_UI;
   baseActive: string | null = 'osm';
 
-  commercialLayers = [
-    { id: "usuarios", label: "Usuarios", active: true },
-    { id: "lotes", label: "Lotes", active: true },
-    { id: "caja_agua", label: "Ficha Agua", active: false },
-    { id: "acometida", label: "Acometida de Agua", active: false },
-    { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
-    { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
-    { id: "sectores", label: "Sectores Comerciales", active: false },
-    { id: "calles", label: "Calles", active: false },
-    { id: "rutaLectura", label: "Ruta de Lectura", active: false },
+  commercialLayers: CapaSwitchUi[] = [
+    { id: "usuarios", label: "Usuarios", active: false, simbolo: { forma: "punto", color: COLORES_LECTURA.normal } },
+    { id: "lotes", label: "Lotes", active: false, simbolo: { forma: "area", color: "#cbd5e1" } },
+    { id: "caja_agua", label: "Ficha Agua", active: false, simbolo: { forma: "rombo", color: COLOR_FICHA_AGUA } },
+    { id: "acometida", label: "Acometida de Agua", active: false, simbolo: { forma: "linea", color: COLOR_FICHA_AGUA } },
+    { id: "ficha_alc", label: "Ficha Alcantarillado", active: false, simbolo: { forma: "rombo", color: COLOR_FICHA_ALCANTARILLADO } },
+    { id: "acc_alc", label: "Acometida de Alcantarillado", active: false, simbolo: { forma: "linea", color: COLOR_FICHA_ALCANTARILLADO } },
+    { id: "sectores", label: "Sectores Comerciales", active: false, simbolo: { forma: "area", color: "#a78bfa" } },
+    { id: "manzanas", label: "Manzanas", active: false, simbolo: { forma: "area", color: "#aaaaaa" } },
+    { id: "calles", label: "Calles", active: false, simbolo: { forma: "linea", color: "#cbd5e1" } },
+    { id: "rutaLectura", label: "Ruta de Lectura", active: false, simbolo: { forma: "linea", color: "#cba029" } },
   ];
 
   map?: OlMap;
@@ -132,6 +162,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
@@ -143,7 +174,16 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   tipoPopup: TipoPopup = "lectura";
   featureSeleccionado: Feature | null = null;
   resultadoBusquedaJson: RegistroLectura[] | null = null;
-  resultadoBusquedaOriginalJson: RegistroLectura[] | null | undefined = undefined;
+  /** Todos los usuarios de la sucursal: es lo que vuelve a verse al limpiar una búsqueda. */
+  // Una sola petición del mapa a la vez: si llega tarde una anterior, no pisa el resultado de la última.
+  private peticionMapa?: Subscription;
+  private peticionPopup?: Subscription;
+  /** Código que llegó por la URL y se busca cuando el mapa y las sucursales están listos. */
+  private codigoPendiente: string | null = null;
+  private sucursalesListas = false;
+  mensajeCarga = '';
+  /** El cliente de la ficha no tiene coordenadas: la ficha lo avisa y el mapa no señala ningún lugar. */
+  sinUbicacion = false;
   totalLecturas = 0;
   totalSinCoordenadas = 0;
 
@@ -160,9 +200,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   // Pestañas del Buscador Adaptativo
   tabActivaBuscador: string = 'usuario';
   
-  // Tab Calles
-  searchNombreCalle: string = '';
-  
   // Tab Manzana
   searchSector: string = '';
   searchManzana: string = '';
@@ -174,65 +211,19 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   // Resultados encontrados en tabs
   resultadosTab: any[] = [];
   
-  // Paginación y filtro rápido para Tab Calles
-  filtroTextoCalle: string = '';
-  paginaCalleActual: number = 1;
-  pageSizeCalle: number = 8;
-  resultadosCalleFiltrados: any[] = [];
-  
-  cargandoFiltros = false;
-  sinResultadosFiltros = false;
-  
-  // Tab Categoria Usuario (Tarifas)
-  tarifasFiltro = [
-    { label: 'COMERCIAL', dot: '#ef4444', checked: false },
-    { label: 'DOMESTICO SUBSIDIO', dot: '#0ea5e9', checked: false },
-    { label: 'INDUSTRIAL', dot: '#eab308', checked: false },
-    { label: 'DOMESTICO', dot: '#22c55e', checked: false },
-    { label: 'ESTATAL', dot: '#a855f7', checked: false },
-    { label: 'SOCIAL', dot: '#00e5ff', checked: false },
-  ];
+  /** Filtra la tabla de resultados por código, titular, dirección, manzana o lote. */
+  filtroResultados = '';
 
-  // Tab Tipo Usuario
-  tiposUsuarioFiltro = [
-    { label: 'REAL', dot: '#22c55e', checked: false },
-    { label: 'POTENCIAL', dot: '#0ea5e9', checked: false },
-    { label: 'FACTIBLE', dot: '#eab308', checked: false },
-    { label: 'ANULADO', dot: '#f97316', checked: false },
-  ];
-
-  // Tab Diam. Conex.
-  diametrosFiltro = [
-    { label: '1/2"', dot: '#00e5ff', checked: false },
-    { label: '3/4"', dot: '#0ea5e9', checked: false },
-    { label: '1"', dot: '#22c55e', checked: false },
-    { label: '1 1/2"', dot: '#eab308', checked: false },
-    { label: '2"', dot: '#f97316', checked: false },
-    { label: 'OTROS', dot: '#a855f7', checked: false },
-  ];
-
-  // Tab Est. Conexión (Agua y Desagüe)
-  estadosAguaFiltro = [
-    { label: 'OPE. CON SERV. ACT', dot: '#22c55e', checked: false },
-    { label: 'OPE. SIN SERV. SOLI.', dot: '#eab308', checked: false },
-    { label: 'CORTADO', dot: '#ef4444', checked: false },
-    { label: 'CLAUSURADO', dot: '#f97316', checked: false },
-    { label: 'LEVANTADO', dot: '#94a3b8', checked: false },
-  ];
-
-  estadosDesagueFiltro = [
-    { label: 'ACTIVA', dot: '#22c55e', checked: false },
-    { label: 'HABILITADA CON CAJA DE ALCANTARILLADO', dot: '#a855f7', checked: false },
-    { label: 'SIN CONEXION', dot: '#eab308', checked: false },
-    { label: 'ANULADA', dot: '#ef4444', checked: false },
-  ];
-  
+  tiposDocumento: TipoDocIdent[] = [];
+  tipoDocumentoElegido: string | null = null;
+  /** Calles de la sucursal: primero se elige la calle y luego se buscan sus clientes. */
+  private callesSucursal: Calles[] = [];
+  private codsucCalles: string | null = null;
+  callesSugeridas: Calles[] = [];
+  calleElegida: Calles | null = null;
   listaSucursales: any[] = [];
   selectedSucursal: any = null;
-  listaYear: {anio: string}[] = [];
-  selectedAnio: string = '';
-  listaMeses = LISTA_MESES;
-  selectedMes: string = '';
+  filtrosVisible = false;
   
   lecturaSeleccionada: any = null;
   datosClientePopup: any = null;
@@ -245,50 +236,46 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   ngOnInit(): void {
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
     this.cargarSucursales();
-    this.cargarCombosEstaticos();
+    this.cargarTiposDocumento();
 
-    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
-      if (params['codcliente']) {
-        this.searchSuministro = params['codcliente'];
-        
-        const interval = setInterval(() => {
-          if (this.selectedSucursal && this.selectedAnio && this.selectedMes) {
-            clearInterval(interval);
-            this.buscarPorOpcion(1);
-          }
-        }, 100);
-      }
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((parametros) => {
+      const codigo = String(parametros['codcliente'] ?? '').trim();
+      if (!codigo) return;
+      this.codigoPendiente = codigo;
+      this.buscarCodigoPendiente();
     });
   }
 
   private cargarSucursales(): void {
-    this.sucursalesService.obtener_x_estareg().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
-      this.listaSucursales = res;
-      if (res && res.length > 0) {
-        this.selectedSucursal = res[0];
-        if (this.isCapaUsuariosActiva() && this.map) {
-          this.cargarUsuariosCapa(false);
-        }
-      }
+    this.sucursalesService.obtener_x_estareg().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (sucursales) => {
+        this.listaSucursales = sucursales || [];
+        this.selectedSucursal = this.listaSucursales[0] ?? null;
+        this.sucursalesListas = true;
+        this.cargarDatosIniciales();
+      },
+      error: () => {
+        this.sucursalesListas = true;
+        this.avisar("error", "Sucursales", "No se pudieron cargar las sucursales; se busca en todas.");
+        this.cargarDatosIniciales();
+      },
     });
   }
 
-  private cargarCombosEstaticos(): void {
-    const currentYear = new Date().getFullYear();
-    for (let i = currentYear + 1; i >= 2020; i--) {
-      this.listaYear.push({ anio: i.toString() });
-    }
-    
-    this.factArchService.recuperar_ultimo_periodo_comercial('001').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(response => {
-      const aniomes = response?.aniomes || '202609';
-      const anio = aniomes.substring(0, 4);
-      const mes = aniomes.substring(4, 6);
-      if (!this.listaYear.find(a => a.anio === anio)) {
-        this.listaYear.unshift({ anio: anio });
-      }
-      this.selectedAnio = anio;
-      this.selectedMes = mes;
-    });
+  /**
+   * El mapa abre limpio, con las capas apagadas: no se cargan los usuarios de la sucursal.
+   * Solo si se llega desde Consulta de Usuario con un código, se busca y se muestra ese cliente.
+   */
+  private cargarDatosIniciales(): void {
+    if (!this.map || !this.sucursalesListas) return;
+    this.buscarCodigoPendiente();
+  }
+
+  private buscarCodigoPendiente(): void {
+    if (!this.codigoPendiente || !this.map || !this.sucursalesListas) return;
+    this.searchSuministro = this.codigoPendiente;
+    this.codigoPendiente = null;
+    this.buscarPorOpcion(1);
   }
 
   ngAfterViewInit(): void {
@@ -301,6 +288,16 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       capasComerciales: () => this.capasComercialesConsultables(),
       capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
       avisar: (detalle) => this.avisar('info', 'Aviso', detalle),
+      listado: {
+        columnas: COLUMNAS_LISTADO_AREA,
+        tituloReporte: "GEORREFERENCIA",
+        nombreArchivo: "georreferencia_area_",
+        origen: ORIGENES_COORDENADA.usuario,
+        registros: () => (this.resultadoBusquedaJson ?? []) as unknown as Record<string, unknown>[],
+        aFila: (registro) => ({ ...registro, direccion: direccionDe(registro) }),
+        subcabecera: () => [`Sucursal: ${this.selectedSucursal?.nombre ?? "-"}`],
+        excelService: this.excelService,
+      },
     });
 
     this.initClick();
@@ -310,9 +307,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.mapaEl.nativeElement,
     );
 
-    if (this.isCapaUsuariosActiva() && this.selectedSucursal) {
-      this.cargarUsuariosCapa(false);
-    }
+    // En el siguiente ciclo: cambiar `cargando` dentro de ngAfterViewInit da NG0100.
+    setTimeout(() => this.cargarDatosIniciales());
   }
 
   ngOnDestroy(): void {
@@ -328,7 +324,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.lotesLayer = crearCapaWms(
       this.gis.urlWms(),
       this.gis.capa("lotes"),
-      true,
+      false,
     );
     this.sectoresComercialesLayer = crearCapaWms(
       this.gis.urlWms(),
@@ -340,6 +336,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.gis.capa("calles"),
       false,
     );
+    this.manzanasLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("manzanas"),
+      false,
+    );
     this.rutaLecturaLayer = crearCapaWms(
       this.gis.urlWms(),
       this.gis.capa("rutaLectura"),
@@ -347,16 +348,16 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     );
 
     this.lecturasLayer = this.crearCapaPuntos(
-      { forma: "circulo", radios: RADIOS_LECTURA, visible: true },
-      (f) => this.obtenerColorPunto(f),
+      { forma: "circulo", radios: RADIOS_LECTURA, visible: false },
+      (punto) => colorPorEstadoLectura(punto.get("estadolectura")),
     );
     this.cajaAguaLayer = this.crearCapaPuntos(
       { forma: "rombo", radios: RADIOS_FICHA, visible: false },
-      (f) => this.obtenerColorAgua(f),
+      () => COLOR_FICHA_AGUA,
     );
     this.fichaAlcLayer = this.crearCapaPuntos(
       { forma: "rombo", radios: RADIOS_FICHA, visible: false },
-      (f) => this.obtenerColorDesague(f),
+      () => COLOR_FICHA_ALCANTARILLADO,
     );
     this.acomAguaLayer = this.crearCapaAcometida(COLOR_FICHA_AGUA);
     this.acomDesagueLayer = this.crearCapaAcometida(COLOR_FICHA_ALCANTARILLADO);
@@ -378,6 +379,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       acc_alc: this.acomDesagueLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
       rutaLectura: this.rutaLecturaLayer,
     };
 
@@ -386,6 +388,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.rutaLecturaLayer,
@@ -478,6 +481,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   private seleccionarFeature(feature: Feature, tipo: TipoPopup): void {
     this.controladorGis?.cerrarPopupGis();
+    this.sinUbicacion = false;
     this.tipoPopup = tipo;
     this.featureSeleccionado = feature;
     this.refrescarCapasVector();
@@ -491,21 +495,15 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   setBaseLayer(id: string): void {
-    this.baseActive = this.baseActive === id ? null : id;
-    this.osmLayer?.setVisible(this.baseActive === "osm");
-    this.satelitalLayer?.setVisible(this.baseActive === "satelital");
+    this.baseActive = id;
+    this.osmLayer?.setVisible(id === "osm");
+    this.satelitalLayer?.setVisible(id === "satelital");
   }
 
   toggleLayer(layer: { id: string; active: boolean }): void {
     layer.active = !layer.active;
+    // Solo muestra u oculta lo que ya está en el mapa: los usuarios llegan por una búsqueda, nunca al prender la capa.
     this.registroCapas[layer.id]?.setVisible(layer.active);
-
-    if (layer.id === "usuarios" && layer.active) {
-      const src = this.lecturasLayer?.getSource();
-      if (!src || src.getFeatures().length === 0 || this.isBusquedaActiva) {
-        this.cargarUsuariosCapa(true);
-      }
-    }
   }
 
   isCapaUsuariosActiva(): boolean {
@@ -514,41 +512,49 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   onSucursalChange(): void {
-    if (this.isCapaUsuariosActiva()) {
-      this.cargarUsuariosCapa(true);
-    }
+    this.codsucCalles = null;
+    if (this.tabActivaBuscador === 'calles') this.cargarCallesSucursal();
+    this.reiniciarBusqueda();
   }
 
-  cargarUsuariosCapa(fitBounds = true): void {
-    const codsuc = this.selectedSucursal?.codsuc || '001';
-    this.cargando = true;
-    this.isBusquedaActiva = false;
-    this.resultadoBusquedaOriginalJson = undefined;
+  private pedirClientes(filtro: BusquedaAvanzadaClientesRequest): Observable<RegistroLectura[]> {
+    return this.busquedaAvanzadaService.buscarClientesAvanzada(filtro).pipe(
+      timeout(MS_ESPERA_SERVIDOR),
+      map((respuesta) => (respuesta?.data || []) as unknown as RegistroLectura[]),
+    );
+  }
 
-    this.busquedaAvanzadaService.buscarClientesAvanzada({
-      codsuc: codsuc,
-      inicio: 1,
-      nropagina: 2500
-    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (resp) => {
-        this.cargando = false;
-        const clientes = resp?.data || [];
-        if (clientes.length > 0) {
-          this.mostrarSoloRegistros(clientes as any);
-          if (fitBounds) {
-            this.acercarARegistros(clientes as any);
-          }
-          this.avisar("success", "Capa Usuarios", `Se cargaron ${clientes.length} usuarios en el mapa.`);
-        } else {
-          this.avisar("warn", "Aviso", "No se encontraron usuarios para la sucursal seleccionada.");
-        }
-      },
-      error: (err) => {
-        this.cargando = false;
-        console.error("Error al cargar usuarios de la capa:", err);
-        this.avisar("error", "Error", "Ocurrió un error al cargar los usuarios.");
-      }
-    });
+  /** Cancela la petición anterior del mapa, muestra la carga y la quita siempre al terminar, con o sin error. */
+  private ejecutarPeticionMapa(
+    peticion: Observable<RegistroLectura[]>,
+    mensaje: string,
+    alResponder: (registros: RegistroLectura[]) => void,
+    mensajeError: string,
+  ): void {
+    this.peticionMapa?.unsubscribe();
+    this.mensajeCarga = mensaje;
+    this.cargando = true;
+    this.peticionMapa = peticion
+      .pipe(
+        finalize(() => (this.cargando = false)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: alResponder,
+        error: (error) => this.avisarErrorPeticion(error, mensajeError),
+      });
+  }
+
+  private avisarErrorPeticion(error: any, mensajeError: string): void {
+    if (error instanceof TimeoutError) {
+      this.avisar("error", "Sin respuesta", "El servidor tardó demasiado en responder. Intente de nuevo.");
+    } else if (error?.status === 401 || error?.status === 403) {
+      this.avisar("error", "Acceso denegado", "No tiene permisos para consultar los clientes.");
+    } else if (error?.status === 404) {
+      this.avisar("error", "No encontrado", "El servicio de clientes no está disponible.");
+    } else {
+      this.avisar("error", "Error", mensajeError);
+    }
   }
 
   private capasComercialesConsultables(): CapaConsultable[] {
@@ -556,25 +562,13 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       { rol: "rutaLectura", capa: this.rutaLecturaLayer },
       { rol: "lotes", capa: this.lotesLayer },
       { rol: "calles", capa: this.callesLayer },
+      { rol: "manzanas", capa: this.manzanasLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
     ];
   }
 
-  activarCapasPorDefectoBusqueda(): void {
-    const capasActivar = ["usuarios", "lotes", "caja_agua", "ficha_alc", "acometida", "acc_alc"];
-    this.commercialLayers.forEach((c) => {
-      if (capasActivar.includes(c.id)) {
-        c.active = true;
-        this.registroCapas[c.id]?.setVisible(true);
-      }
-    });
-  }
-
-  /**
-   * Desactiva las capas de detalle secundario y mantiene activas únicamente las capas permitidas
-   * (por defecto: 'usuarios' y 'lotes').
-   */
-  desactivarCapasSecundarias(capasPermitidas: string[] = ['usuarios', 'lotes']): void {
+  /** Deja encendidas solo las capas permitidas (por defecto usuarios y lotes) y apaga las técnicas. */
+  desactivarCapasSecundarias(capasPermitidas: string[] = CAPAS_DE_BUSQUEDA): void {
     this.commercialLayers.forEach((c) => {
       const debeEstarActiva = capasPermitidas.includes(c.id);
       if (c.active !== debeEstarActiva) {
@@ -582,6 +576,42 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         this.registroCapas[c.id]?.setVisible(debeEstarActiva);
       }
     });
+    this.capasSidebar?.apagarTecnicas();
+  }
+
+  /** Antes de cada búsqueda: sin ficha abierta, sin lote marcado y solo las capas de búsqueda. */
+  private prepararNuevaBusqueda(capasVisibles: string[] = CAPAS_DE_BUSQUEDA): void {
+    this.buscadorEstabaAbierto = false;
+    this.cerrarPopup();
+    this.controladorGis?.cerrarPopupGis();
+    this.controladorGis?.quitarPredio();
+    this.controladorGis?.quitarCalle();
+    this.desactivarCapasSecundarias(capasVisibles);
+  }
+
+  private ubicarCliente(registro: RegistroLectura): void {
+    const codigo = this.codigoDe(registro);
+    this.searchSuministro = codigo;
+    const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
+    if (punto) {
+      this.seleccionarFeature(punto, "lectura");
+      this.acercarAPunto(punto);
+    } else {
+      this.mostrarPopupSinPunto(registro);
+    }
+    const geometriaPunto = punto?.getGeometry();
+    const coordenada = geometriaPunto instanceof Point
+      ? geometriaPunto.getCoordinates()
+      : extraerCoordenada(registro, ORIGENES_COORDENADA.usuario)
+        ?? extraerCoordenada(registro, ORIGENES_COORDENADA.agua)
+        ?? extraerCoordenada(registro, ORIGENES_COORDENADA.predio);
+    this.sinUbicacion = !coordenada;
+    if (!coordenada) {
+      // Si el mapa se quedara donde estaba, parecería que la ficha es de ese lugar.
+      this.map?.getView().animate({ center: this.gis.vista.centro, zoom: this.gis.vista.zoom - 3, duration: 600 });
+      this.avisar("warn", "Sin ubicación", `El cliente ${codigo} no tiene coordenadas registradas: solo se muestra su ficha.`);
+    }
+    this.controladorGis?.marcarPredio(codigo, coordenada ?? undefined);
   }
 
   private actualizarCapasComerciales(fitBounds = true): void {
@@ -669,8 +699,10 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private limpiarCapas(): void {
     this.capasVector.forEach((capa) => capa?.getSource()?.clear());
     this.controladorGis?.quitarPredio();
+    this.peticionPopup?.unsubscribe();
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
+    this.datosClientePopup = null;
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
   }
@@ -679,28 +711,17 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.capasVector.forEach((capa) => capa?.changed());
   }
 
-  private mostrarSoloRegistros(registros: RegistroLectura[]): void {
-    this.guardarResultadoOriginal();
+  private mostrarRegistros(registros: RegistroLectura[], encuadrar: boolean): void {
     this.resultadoBusquedaJson = registros;
-    this.actualizarCapasComerciales(true);
-    this.acercarARegistros(registros);
+    this.actualizarCapasComerciales(false);
+    if (encuadrar) this.acercarARegistros(registros);
   }
 
-  private guardarResultadoOriginal(): void {
-    if (this.isBusquedaActiva) return;
-    this.resultadoBusquedaOriginalJson = this.resultadoBusquedaJson;
-    this.isBusquedaActiva = true;
-  }
-
-  private mostrarPopupSinPunto(registro: RegistroLectura, activarDetalles: boolean = false): void {
+  private mostrarPopupSinPunto(registro: RegistroLectura): void {
     this.controladorGis?.cerrarPopupGis();
     this.lecturaSeleccionada = registro;
     this.cargarDatosPopup(registro);
-    if (activarDetalles) {
-      this.activarCapasPorDefectoBusqueda();
-    }
     this.centrarEnUsuario(registro);
-    this.controladorGis?.marcarPredio(this.codigoDe(registro));
 
     if (this.mostrarSearchPanel) {
       this.buscadorEstabaAbierto = true;
@@ -791,12 +812,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         zoom: 18,
         duration: 800
       });
+    } else if (this.controladorGis) {
+      // Deja libres el panel de capas, la ficha y la tabla, y acerca hasta reconocer las manzanas.
+      this.controladorGis.encuadrarEnZonaLibre(extent);
     } else {
-      this.map?.getView().fit(extent, {
-        duration: 800,
-        maxZoom: 18,
-        padding: [80, 80, 80, 80]
-      });
+      this.map?.getView().fit(extent, { duration: 800, maxZoom: 19, padding: [80, 80, 80, 80] });
     }
   }
 
@@ -840,21 +860,139 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   setTabBuscador(tab: string): void {
     this.tabActivaBuscador = tab;
     this.resultadosTab = [];
+    this.filtroResultados = '';
+    if (tab === 'calles') this.cargarCallesSucursal();
+  }
 
-    // Al cambiar de pestaña/filtro se desactivan las capas secundarias y solo se mantienen usuarios y lotes
-    if (tab === 'calles') {
-      this.desactivarCapasSecundarias(['usuarios', 'lotes', 'calles']);
-    } else {
-      this.desactivarCapasSecundarias(['usuarios', 'lotes']);
-    }
+  /** Tabla de resultados filtrada con el texto que escribe el usuario; muestra todos, sin páginas. */
+  get resultadosFiltrados(): RegistroLectura[] {
+    const texto = this.filtroResultados.trim().toUpperCase();
+    if (!texto) return this.resultadosTab;
+    return this.resultadosTab.filter((registro: any) =>
+      [registro.codcliente, registro.propietario, registro.descripcioncalle, registro.nrocalle, registro.codmza, registro.nrolote]
+        .some((valor) => String(valor ?? '').toUpperCase().includes(texto)),
+    );
+  }
 
-    if (!this.resultadoBusquedaJson || this.resultadoBusquedaJson.length === 0) {
-      if (['categoria_usuario', 'tipo_usuario', 'diam_conex', 'est_conexion'].includes(tab)) {
-        this.cargarMuestraClientesParaFiltro();
-      }
-    } else {
-      this.refrescarCapasVector();
+  private cargarTiposDocumento(): void {
+    this.tipodocidentService.drop().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (tipos) => (this.tiposDocumento = tipos || []),
+      error: () => (this.tiposDocumento = []),
+    });
+  }
+
+  private cargarCallesSucursal(): void {
+    const codsuc = this.selectedSucursal?.codsuc;
+    if (!codsuc || codsuc === this.codsucCalles) return;
+    this.callesService.drop_x_sucursales(codsuc).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (calles) => {
+        this.callesSucursal = calles || [];
+        this.codsucCalles = codsuc;
+      },
+      error: () => this.avisar("error", "Calles", "No se pudieron cargar las calles de la sucursal."),
+    });
+  }
+
+  /** Igual que en Consulta de Usuario: sugiere las calles que empiezan con lo escrito. */
+  sugerirCalles(evento: { query: string }): void {
+    const texto = (evento.query || '').trim().toLowerCase();
+    this.callesSugeridas = this.callesSucursal.filter((calle) =>
+      String(calle.descripcioncalle ?? '').toLowerCase().startsWith(texto),
+    );
+  }
+
+  buscarPorCalle(): void {
+    const calle = this.calleElegida?.descripcioncalle?.trim();
+    if (!calle) {
+      this.avisar("warn", "Calle", "Elija primero una calle de la lista.");
+      return;
     }
+    this.buscarClientes(
+      { codcalle: calle },
+      'Buscando clientes de la calle...',
+      `No se encontraron clientes en la calle "${calle}".`,
+      [...CAPAS_DE_BUSQUEDA, 'calles'],
+    );
+  }
+
+  buscarPorOpcion(op: number): void {
+    if (op === 1) {
+      const codigo = String(this.searchSuministro || '').trim();
+      if (!codigo) return this.avisar("warn", "Campo vacío", "Ingrese el Nro. de Suministro.");
+      this.buscarClientes({ codcliente: codigo }, 'Buscando el cliente...', "No se encontró ningún cliente con ese suministro.");
+      return;
+    }
+    if (op === 2) {
+      const numero = String(this.searchDniRuc || '').trim();
+      if (!this.tipoDocumentoElegido) return this.avisar("warn", "Tipo de documento", "Elija primero el tipo de documento.");
+      if (!numero) return this.avisar("warn", "Campo vacío", "Ingrese el número de documento.");
+      this.buscarClientes(
+        { tipodocident: this.tipoDocumentoElegido, nrodocumento: numero },
+        'Buscando el documento...',
+        "No se encontró ningún cliente con ese documento.",
+      );
+      return;
+    }
+    const nombre = String(this.searchNombre || '').trim().toUpperCase();
+    if (!nombre) return this.avisar("warn", "Campo vacío", "Ingrese los apellidos y nombres.");
+    this.buscarClientes({ propietario: nombre, letrainicio: 0 }, 'Buscando por nombre...', "No se encontró ningún cliente con ese nombre.");
+  }
+
+  /**
+   * Todas las búsquedas llenan la tabla con todo lo que devuelve el servidor (sin páginas ni tope);
+   * el mapa no se llena: solo muestra al cliente que el usuario elige. Con un único resultado se elige solo.
+   */
+  private buscarClientes(
+    filtro: BusquedaAvanzadaClientesRequest,
+    mensaje: string,
+    mensajeSinResultados: string,
+    capasVisibles: string[] = CAPAS_DE_BUSQUEDA,
+  ): void {
+    this.prepararNuevaBusqueda(capasVisibles);
+    this.resultadosTab = [];
+    this.filtroResultados = '';
+    this.ejecutarPeticionMapa(
+      this.pedirClientes({ codsuc: this.selectedSucursal?.codsuc || 'ALL', inicio: 0, nropagina: SIN_TOPE_DE_REGISTROS, ...filtro }),
+      mensaje,
+      (clientes) => {
+        this.resultadosTab = clientes;
+        if (clientes.length === 0) {
+          this.avisar("warn", "Sin resultados", mensajeSinResultados);
+        } else if (clientes.length === 1) {
+          this.elegirResultado(clientes[0]);
+        }
+      },
+      "Ocurrió un error al buscar los clientes.",
+    );
+  }
+
+  /** Como antes: pone en el mapa todos los clientes de la tabla (los filtrados, si hay filtro) y la tabla sigue abierta. */
+  agregarTodoAlMapa(): void {
+    const registros = this.resultadosFiltrados;
+    if (registros.length === 0) return;
+    this.cerrarPopup();
+    this.controladorGis?.quitarPredio();
+    this.isBusquedaActiva = true;
+    const nombreCalle = this.tabActivaBuscador === 'calles' ? this.calleElegida?.descripcioncalle : undefined;
+    if (nombreCalle) {
+      // Como en GIS Loreto: se pinta la calle y el mapa se acerca a ella; si GeoServer no la tiene, a los clientes.
+      this.mostrarRegistros(registros, false);
+      this.controladorGis?.marcarCalle(nombreCalle, () => this.acercarARegistros(registros));
+    } else {
+      this.mostrarRegistros(registros, true);
+    }
+    this.avisar("success", "Mapa", `Se agregaron ${registros.length} clientes al mapa.`
+      + (this.totalSinCoordenadas > 0 ? ` ${this.totalSinCoordenadas} no tienen coordenadas.` : ''));
+  }
+
+  /** El usuario eligió un cliente de la tabla: el mapa muestra solo ese, con su ficha y su lote marcado. */
+  elegirResultado(registro: RegistroLectura): void {
+    this.controladorGis?.quitarCalle();
+    this.isBusquedaActiva = true;
+    this.mostrarRegistros([registro], false);
+    this.buscadorEstabaAbierto = this.resultadosTab.length > 1;
+    this.mostrarSearchPanel = false;
+    this.ubicarCliente(registro);
   }
 
   activarCapaPorId(id: string): void {
@@ -865,105 +1003,20 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     }
   }
 
-  buscarPorCalle(): void {
-    const calle = this.searchNombreCalle.trim();
-    if (!calle) {
-      this.avisar("warn", "Campo vacío", "Por favor ingrese el nombre de la calle.");
-      return;
-    }
-    this.cargando = true;
-    this.busquedaAvanzadaService.buscarClientesAvanzada({
-      codsuc: this.selectedSucursal?.codsuc || 'ALL',
-      codcalle: calle,
-      inicio: 1,
-      nropagina: 300
-    }).subscribe({
-      next: (resp) => {
-        this.cargando = false;
-        const clientes = resp?.data || [];
-        this.resultadosTab = clientes;
-        this.filtroTextoCalle = '';
-        this.paginaCalleActual = 1;
-        this.resultadosCalleFiltrados = [...clientes];
-        if (clientes.length > 0) {
-          this.desactivarCapasSecundarias(['usuarios', 'lotes', 'calles']);
-          this.mostrarSoloRegistros(clientes as any);
-          this.avisar("success", "Calle", `Se encontraron ${clientes.length} usuarios en "${calle}".`);
-        } else {
-          this.avisar("warn", "Sin resultados", `No se encontraron usuarios en la calle "${calle}".`);
-        }
-      },
-      error: () => {
-        this.cargando = false;
-        this.avisar("error", "Error", "Ocurrió un error al buscar por calle.");
-      }
-    });
-  }
-
-  filtrarResultadosCalle(): void {
-    const txt = this.filtroTextoCalle.trim().toUpperCase();
-    if (!txt) {
-      this.resultadosCalleFiltrados = [...this.resultadosTab];
-    } else {
-      this.resultadosCalleFiltrados = this.resultadosTab.filter((c: any) => {
-        const sum = String(c.codcliente || '').toUpperCase();
-        const prop = String(c.propietario || '').toUpperCase();
-        const nro = String(c.nrocalle || '').toUpperCase();
-        const mza = String(c.codmza || '').toUpperCase();
-        const lote = String(c.nrolote || '').toUpperCase();
-        return sum.includes(txt) || prop.includes(txt) || nro.includes(txt) || mza.includes(txt) || lote.includes(txt);
-      });
-    }
-    this.paginaCalleActual = 1;
-  }
-
-  getClientesCallePaginados(): any[] {
-    const inicio = (this.paginaCalleActual - 1) * this.pageSizeCalle;
-    return this.resultadosCalleFiltrados.slice(inicio, inicio + this.pageSizeCalle);
-  }
-
-  get totalPaginasCalle(): number {
-    return Math.ceil(this.resultadosCalleFiltrados.length / this.pageSizeCalle) || 1;
-  }
-
-  cambiarPaginaCalle(delta: number): void {
-    const nueva = this.paginaCalleActual + delta;
-    if (nueva >= 1 && nueva <= this.totalPaginasCalle) {
-      this.paginaCalleActual = nueva;
-    }
-  }
-
   buscarPorManzana(): void {
     if (!this.searchSector && !this.searchManzana && !this.searchLote) {
       this.avisar("warn", "Campos vacíos", "Por favor ingrese al menos el Sector, Manzana o Lote.");
       return;
     }
-    this.cargando = true;
-    this.busquedaAvanzadaService.buscarClientesAvanzada({
-      codsuc: this.selectedSucursal?.codsuc || 'ALL',
-      codsector: this.searchSector.trim() || 'ALL',
-      codmza: this.searchManzana.trim() || 'ALL',
-      nrolote: this.searchLote.trim() || 'ALL',
-      inicio: 1,
-      nropagina: 100
-    }).subscribe({
-      next: (resp) => {
-        this.cargando = false;
-        const clientes = resp?.data || [];
-        this.resultadosTab = clientes;
-        if (clientes.length > 0) {
-          this.desactivarCapasSecundarias(['usuarios', 'lotes']);
-          this.mostrarSoloRegistros(clientes as any);
-          this.avisar("success", "Manzana", `Se encontraron ${clientes.length} usuarios.`);
-        } else {
-          this.avisar("warn", "Sin resultados", "No se encontraron usuarios en la manzana/sector indicado.");
-        }
+    this.buscarClientes(
+      {
+        codsector: this.searchSector.trim() || 'ALL',
+        codmza: this.searchManzana.trim() || 'ALL',
+        nrolote: this.searchLote.trim() || 'ALL',
       },
-      error: () => {
-        this.cargando = false;
-        this.avisar("error", "Error", "Ocurrió un error al buscar por manzana.");
-      }
-    });
+      'Buscando la manzana...',
+      "No se encontraron clientes en la manzana o lote indicado.",
+    );
   }
 
   buscarPorCajaAgua(): void {
@@ -972,364 +1025,19 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.avisar("warn", "Campo vacío", "Por favor ingrese el número de medidor o ficha.");
       return;
     }
-    this.cargando = true;
-    this.busquedaAvanzadaService.buscarClientesAvanzada({
-      codsuc: this.selectedSucursal?.codsuc || 'ALL',
-      nromedidor: med,
-      inicio: 1,
-      nropagina: 100
-    }).subscribe({
-      next: (resp) => {
-        this.cargando = false;
-        const clientes = resp?.data || [];
-        this.resultadosTab = clientes;
-        if (clientes.length > 0) {
-          this.desactivarCapasSecundarias(['usuarios', 'lotes', 'caja_agua', 'ficha_alc']);
-          this.mostrarSoloRegistros(clientes as any);
-          if (clientes.length === 1) {
-            this.mostrarSearchPanel = false;
-            const primer = clientes[0];
-            const codigo = this.codigoDe(primer);
-            const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
-            if (punto) {
-              this.seleccionarFeature(punto, "lectura");
-              this.acercarAPunto(punto);
-              this.controladorGis?.marcarPredio(codigo);
-            } else {
-              this.mostrarPopupSinPunto(primer as any, false);
-            }
-          }
-          this.avisar("success", "Caja Agua/Alc.", `Se encontraron ${clientes.length} registros asociados.`);
-        } else {
-          this.avisar("warn", "Sin resultados", `No se encontraron registros con medidor "${med}".`);
-        }
-      },
-      error: () => {
-        this.cargando = false;
-        this.avisar("error", "Error", "Ocurrió un error al buscar por medidor.");
-      }
-    });
+    this.buscarClientes(
+      { nromedidor: med },
+      'Buscando el medidor...',
+      `No se encontraron clientes con medidor "${med}".`,
+      [...CAPAS_DE_BUSQUEDA, 'caja_agua', 'ficha_alc'],
+    );
   }
 
-  seleccionarResultadoTab(r: any): void {
-    this.buscadorEstabaAbierto = true;
-    this.mostrarSearchPanel = false;
-    const codigo = this.codigoDe(r);
-    this.searchSuministro = codigo;
-    const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
-    if (punto) {
-      this.seleccionarFeature(punto, "lectura");
-      this.acercarAPunto(punto);
-      this.controladorGis?.marcarPredio(codigo);
-    } else {
-      this.mostrarPopupSinPunto(r, false);
-    }
+  /** Clic en una fila de la tabla del área dibujada. */
+  ubicarFilaEnMapa(fila: FilaListado): void {
+    this.ubicarCliente(fila as unknown as RegistroLectura);
   }
 
-  limpiarFiltrosTarifa(): void {
-    this.tarifasFiltro.forEach(t => t.checked = false);
-    this.aplicarFiltrosCapas();
-  }
-
-  limpiarFiltrosTipo(): void {
-    this.tiposUsuarioFiltro.forEach(t => t.checked = false);
-    this.aplicarFiltrosCapas();
-  }
-
-  limpiarFiltrosDiametro(): void {
-    this.diametrosFiltro.forEach(d => d.checked = false);
-    this.aplicarFiltrosCapas();
-  }
-
-  limpiarFiltrosAgua(): void {
-    this.estadosAguaFiltro.forEach(e => e.checked = false);
-    this.aplicarFiltrosCapas();
-  }
-
-  limpiarFiltrosDesague(): void {
-    this.estadosDesagueFiltro.forEach(e => e.checked = false);
-    this.aplicarFiltrosCapas();
-  }
-
-  private cargarMuestraClientesParaFiltro(): void {
-    this.cargandoFiltros = true;
-    this.sinResultadosFiltros = false;
-    this.busquedaAvanzadaService.buscarClientesAvanzada({
-      codsuc: this.selectedSucursal?.codsuc || 'ALL',
-      inicio: 1,
-      nropagina: 1000
-    }).subscribe({
-      next: (resp) => {
-        this.cargandoFiltros = false;
-        const clientes = resp?.data || [];
-        if (clientes.length > 0) {
-          this.mostrarSoloRegistros(clientes as any);
-          this.aplicarFiltrosCapas();
-        } else {
-          this.sinResultadosFiltros = true;
-          this.avisar("warn", "Sin datos", "No se encontraron registros de clientes para filtrar.");
-        }
-      },
-      error: () => {
-        this.cargandoFiltros = false;
-        this.sinResultadosFiltros = true;
-        this.avisar("error", "Error", "Ocurrió un error al cargar los puntos de clientes.");
-      }
-    });
-  }
-
-  private obtenerColorPunto(punto: FeatureLike): string | null {
-    const tarifasSeleccionadas = this.tarifasFiltro.filter(t => t.checked).map(t => t.label.toUpperCase());
-    const tiposSeleccionados = this.tiposUsuarioFiltro.filter(t => t.checked).map(t => t.label.toUpperCase());
-    const diamsSeleccionados = this.diametrosFiltro.filter(d => d.checked).map(d => d.label.toUpperCase());
-    const estadosAguaSeleccionados = this.estadosAguaFiltro.filter(e => e.checked).map(e => e.label.toUpperCase());
-    const estadosDesagueSeleccionados = this.estadosDesagueFiltro.filter(e => e.checked).map(e => e.label.toUpperCase());
-
-    const cat = String(punto.get("nomtar") || punto.get("catetar") || punto.get("tarifas") || punto.get("descatetar") || "").toUpperCase();
-    const tipo = String(punto.get("tipousuario") || punto.get("destipousuario") || punto.get("tiposervicio") || "").toUpperCase();
-    const estServ = String(punto.get("estadoservicio") || punto.get("descripcionestservicio") || punto.get("desestadoservicio") || "").toUpperCase();
-    const diam = String(punto.get("desdiametro_a") || punto.get("desdiametro_d") || punto.get("diametro") || "").toUpperCase();
-    const estA = String(punto.get("desestadoservicio") || punto.get("descripcionestservicio") || punto.get("estadoservicio") || punto.get("estado_agua") || "").toUpperCase();
-    const estD = String(punto.get("desestado_desague") || punto.get("estado_desague") || punto.get("estadoservicio_d") || punto.get("destiposervicio") || punto.get("tiposervicio") || "").toUpperCase();
-
-    // 1. Filtrado si hay tarifas seleccionadas
-    if (tarifasSeleccionadas.length > 0) {
-      const coincide = tarifasSeleccionadas.some(t => {
-        if (t === 'COMERCIAL') return cat.includes('COM') || cat === '002' || cat === '02' || cat === '2';
-        if (t === 'DOMESTICO SUBSIDIO') return cat.includes('SUBSID') || cat === '006' || cat === '06' || cat === '6';
-        if (t === 'INDUSTRIAL') return cat.includes('IND') || cat === '003' || cat === '03' || cat === '3';
-        if (t === 'DOMESTICO') return (cat.includes('DOM') || cat === '001' || cat === '01' || cat === '1') && !cat.includes('SUBSID');
-        if (t === 'ESTATAL') return cat.includes('EST') || cat === '004' || cat === '04' || cat === '4';
-        if (t === 'SOCIAL') return cat.includes('SOC') || cat === '005' || cat === '05' || cat === '5';
-        return cat.includes(t);
-      });
-      if (!coincide) return null;
-    }
-
-    // 2. Filtrado por Tipo de usuario
-    if (tiposSeleccionados.length > 0) {
-      const coincideTipo = tiposSeleccionados.some(t => {
-        if (t === 'REAL') return tipo.includes('REAL') || tipo.includes('ACT') || tipo === '001' || tipo === '01' || tipo === '1' || estServ.includes('ACT') || estServ === '001' || (!tipo && !estServ.includes('CORT') && !estServ.includes('CLAUS'));
-        if (t === 'POTENCIAL') return tipo.includes('POTEN') || tipo === '002' || tipo === '02' || tipo === '2';
-        if (t === 'FACTIBLE') return tipo.includes('FACT') || tipo === '003' || tipo === '03' || tipo === '3';
-        if (t === 'ANULADO') return tipo.includes('ANUL') || tipo === '004' || tipo === '04' || tipo === '4' || estServ.includes('ANUL');
-        return tipo.includes(t);
-      });
-      if (!coincideTipo) return null;
-    }
-
-    // 3. Filtrado por Diámetro
-    if (diamsSeleccionados.length > 0) {
-      const coincideDiam = diamsSeleccionados.some(d => diam.includes(d));
-      if (!coincideDiam) return null;
-    }
-
-    // 4. Filtrado por Estado Agua
-    if (estadosAguaSeleccionados.length > 0) {
-      const coincideAgua = estadosAguaSeleccionados.some(e => {
-        if (e.includes('SERV. ACT')) return estA.includes('ACT') || estA === '001' || estA === '000' || estA === '01';
-        if (e.includes('SIN SERV. SOLI')) return estA.includes('SOLI') || estA === '002' || estA === '02';
-        if (e === 'CORTADO') return estA.includes('CORT') || estA === '003' || estA === '03';
-        if (e === 'CLAUSURADO') return estA.includes('CLAUS') || estA === '004' || estA === '04';
-        if (e === 'LEVANTADO') return estA.includes('LEVANT') || estA === '005' || estA === '05';
-        return estA.includes(e);
-      });
-      if (!coincideAgua) return null;
-    }
-
-    // 5. Filtrado por Estado Desagüe
-    if (estadosDesagueSeleccionados.length > 0) {
-      const coincideDesague = estadosDesagueSeleccionados.some(e => {
-        if (e === 'ACTIVA') return estD.includes('ACT') || estD === '001' || estD === '000' || estD === '01';
-        if (e.includes('HABILITADA')) return estD.includes('HABILIT') || estD.includes('CAJA') || estD.includes('ALC');
-        if (e.includes('SIN CONEXION')) return estD.includes('SIN') || estD === '002' || estD === '02';
-        if (e === 'ANULADA') return estD.includes('ANUL') || estD === '004' || estD === '04';
-        return estD.includes(e);
-      });
-      if (!coincideDesague) return null;
-    }
-
-    // 6. Coloreado según pestaña activa
-    if (this.tabActivaBuscador === 'categoria_usuario') {
-      if (cat.includes('COM') || cat === '002' || cat === '02') return '#ef4444'; // Rojo Comercial
-      if (cat.includes('SUBSID') || cat === '006' || cat === '06') return '#0ea5e9'; // Celeste Doméstico Subsidio
-      if (cat.includes('IND') || cat === '003' || cat === '03') return '#eab308'; // Amarillo Industrial
-      if (cat.includes('DOM') || cat === '001' || cat === '01') return '#22c55e'; // Verde Doméstico
-      if (cat.includes('EST') || cat === '004' || cat === '04') return '#a855f7'; // Morado Estatal
-      if (cat.includes('SOC') || cat === '005' || cat === '05') return '#00e5ff'; // Cyan Social
-      return '#22c55e';
-    }
-
-    if (this.tabActivaBuscador === 'tipo_usuario') {
-      if (tipo.includes('REAL') || tipo === '001' || estServ.includes('ACT') || estServ === '001') return '#22c55e'; // Verde Real
-      if (tipo.includes('POTEN') || tipo === '002') return '#0ea5e9'; // Azul Potencial
-      if (tipo.includes('FACT') || tipo === '003') return '#eab308'; // Amarillo Factible
-      if (tipo.includes('ANUL') || tipo === '004' || estServ.includes('ANUL')) return '#f97316'; // Naranja Anulado
-      return '#22c55e';
-    }
-
-    if (this.tabActivaBuscador === 'est_conexion') {
-      if (estA.includes('ACT') || estA === '001' || estA === '000') return '#22c55e';
-      if (estA.includes('SOLI') || estA === '002') return '#eab308';
-      if (estA.includes('CORT') || estA === '003') return '#ef4444';
-      if (estA.includes('CLAUS') || estA === '004') return '#f97316';
-      if (estA.includes('LEVANT') || estA === '005') return '#94a3b8';
-      return '#22c55e';
-    }
-
-    return colorPorEstadoLectura(punto.get("estadolectura"));
-  }
-
-  private obtenerColorAgua(punto: FeatureLike): string | null {
-    const estadosAguaSeleccionados = this.estadosAguaFiltro.filter(e => e.checked).map(e => e.label.toUpperCase());
-    const est = String(punto.get("desestadoservicio") || punto.get("descripcionestservicio") || punto.get("estadoservicio") || punto.get("estado_agua") || "").toUpperCase();
-
-    if (estadosAguaSeleccionados.length > 0) {
-      const coincide = estadosAguaSeleccionados.some(e => {
-        if (e.includes('SERV. ACT')) return est.includes('ACT') || est === '001' || est === '000' || est === '01';
-        if (e.includes('SIN SERV. SOLI')) return est.includes('SOLI') || est === '002' || est === '02';
-        if (e === 'CORTADO') return est.includes('CORT') || est === '003' || est === '03';
-        if (e === 'CLAUSURADO') return est.includes('CLAUS') || est === '004' || est === '04';
-        if (e === 'LEVANTADO') return est.includes('LEVANT') || est === '005' || est === '05';
-        return est.includes(e);
-      });
-      if (!coincide) return null;
-    }
-
-    if (est.includes('ACT') || est === '001' || est === '000') return '#22c55e';
-    if (est.includes('SOLI') || est === '002') return '#eab308';
-    if (est.includes('CORT') || est === '003') return '#ef4444';
-    if (est.includes('CLAUS') || est === '004') return '#f97316';
-    if (est.includes('LEVANT') || est === '005') return '#94a3b8';
-    return COLOR_FICHA_AGUA;
-  }
-
-  private obtenerColorDesague(punto: FeatureLike): string | null {
-    const estadosDesagueSeleccionados = this.estadosDesagueFiltro.filter(e => e.checked).map(e => e.label.toUpperCase());
-    const est = String(punto.get("desestado_desague") || punto.get("estado_desague") || punto.get("estadoservicio_d") || punto.get("destiposervicio") || punto.get("tiposervicio") || "").toUpperCase();
-
-    if (estadosDesagueSeleccionados.length > 0) {
-      const coincide = estadosDesagueSeleccionados.some(e => {
-        if (e === 'ACTIVA') return est.includes('ACT') || est === '001' || est === '000' || est === '01';
-        if (e.includes('HABILITADA')) return est.includes('HABILIT') || est.includes('CAJA') || est.includes('ALC');
-        if (e.includes('SIN CONEXION')) return est.includes('SIN') || est === '002' || est === '02';
-        if (e === 'ANULADA') return est.includes('ANUL') || est === '004' || est === '04';
-        return est.includes(e);
-      });
-      if (!coincide) return null;
-    }
-
-    if (est.includes('HABILIT') || est.includes('CAJA')) return '#a855f7';
-    if (est.includes('SIN')) return '#eab308';
-    if (est.includes('ANUL')) return '#ef4444';
-    return '#22c55e';
-  }
-
-  aplicarFiltrosCapas(): void {
-    const hayFiltrosTarifas = this.tarifasFiltro.some(t => t.checked);
-    const hayFiltrosTipos = this.tiposUsuarioFiltro.some(t => t.checked);
-    const hayFiltrosDiams = this.diametrosFiltro.some(d => d.checked);
-    const hayFiltrosAgua = this.estadosAguaFiltro.some(e => e.checked);
-    const hayFiltrosDesague = this.estadosDesagueFiltro.some(e => e.checked);
-
-    const hayFiltros = hayFiltrosTarifas || hayFiltrosTipos || hayFiltrosDiams || hayFiltrosAgua || hayFiltrosDesague;
-
-    if (!hayFiltros) {
-      this.cargandoFiltros = false;
-      this.sinResultadosFiltros = false;
-      if (this.resultadoBusquedaOriginalJson !== undefined) {
-        this.resultadoBusquedaJson = this.resultadoBusquedaOriginalJson;
-      }
-      this.resultadosTab = this.resultadoBusquedaJson || [];
-      this.desactivarCapasSecundarias(['usuarios', 'lotes']);
-      this.refrescarCapasVector();
-      return;
-    }
-
-    this.cargandoFiltros = true;
-    this.sinResultadosFiltros = false;
-    this.desactivarCapasSecundarias(['usuarios', 'lotes']);
-    this.guardarResultadoOriginal();
-    const base = this.resultadoBusquedaOriginalJson || this.resultadoBusquedaJson || [];
-
-    if (base.length === 0) {
-      this.cargarMuestraClientesParaFiltro();
-      return;
-    }
-
-    setTimeout(() => {
-      this.resultadosTab = base.filter((r: any) => {
-        let f1 = true, f2 = true, f3 = true, f4 = true, f5 = true;
-        const cat = String(r.nomtar || r.catetar || r.tarifas || r.descatetar || '').toUpperCase();
-        const tipo = String(r.tipousuario || r.destipousuario || r.tiposervicio || '').toUpperCase();
-        const estServ = String(r.estadoservicio || r.descripcionestservicio || r.desestadoservicio || '').toUpperCase();
-        const diam = String(r.desdiametro_a || r.desdiametro_d || r.diametro || '').toUpperCase();
-        const estA = String(r.desestadoservicio || r.descripcionestservicio || r.estadoservicio || r.estado_agua || '').toUpperCase();
-        const estD = String(r.desestado_desague || r.estado_desague || r.estadoservicio_d || r.destiposervicio || r.tiposervicio || '').toUpperCase();
-
-        if (hayFiltrosTarifas) {
-          f1 = this.tarifasFiltro.filter(t => t.checked).some(t => {
-            if (t.label === 'COMERCIAL') return cat.includes('COM') || cat === '002' || cat === '02' || cat === '2';
-            if (t.label === 'DOMESTICO SUBSIDIO') return cat.includes('SUBSID') || cat === '006' || cat === '06' || cat === '6';
-            if (t.label === 'INDUSTRIAL') return cat.includes('IND') || cat === '003' || cat === '03' || cat === '3';
-            if (t.label === 'DOMESTICO') return (cat.includes('DOM') || cat === '001' || cat === '01' || cat === '1') && !cat.includes('SUBSID');
-            if (t.label === 'ESTATAL') return cat.includes('EST') || cat === '004' || cat === '04' || cat === '4';
-            if (t.label === 'SOCIAL') return cat.includes('SOC') || cat === '005' || cat === '05' || cat === '5';
-            return cat.includes(t.label);
-          });
-        }
-
-        if (hayFiltrosTipos) {
-          f2 = this.tiposUsuarioFiltro.filter(t => t.checked).some(t => {
-            if (t.label === 'REAL') return tipo.includes('REAL') || tipo.includes('ACT') || tipo === '001' || tipo === '01' || tipo === '1' || estServ.includes('ACT') || estServ === '001' || (!tipo && !estServ.includes('CORT') && !estServ.includes('CLAUS'));
-            if (t.label === 'POTENCIAL') return tipo.includes('POTEN') || tipo === '002' || tipo === '02' || tipo === '2';
-            if (t.label === 'FACTIBLE') return tipo.includes('FACT') || tipo === '003' || tipo === '03' || tipo === '3';
-            if (t.label === 'ANULADO') return tipo.includes('ANUL') || tipo === '004' || tipo === '04' || tipo === '4' || estServ.includes('ANUL');
-            return tipo.includes(t.label);
-          });
-        }
-
-        if (hayFiltrosDiams) {
-          f3 = this.diametrosFiltro.filter(d => d.checked).some(d => diam.includes(d.label.toUpperCase()));
-        }
-
-        if (hayFiltrosAgua) {
-          f4 = this.estadosAguaFiltro.filter(e => e.checked).some(e => {
-            if (e.label.includes('SERV. ACT')) return estA.includes('ACT') || estA === '001' || estA === '000' || estA === '01';
-            if (e.label.includes('SIN SERV. SOLI')) return estA.includes('SOLI') || estA === '002' || estA === '02';
-            if (e.label === 'CORTADO') return estA.includes('CORT') || estA === '003' || estA === '03';
-            if (e.label === 'CLAUSURADO') return estA.includes('CLAUS') || estA === '004' || estA === '04';
-            if (e.label === 'LEVANTADO') return estA.includes('LEVANT') || estA === '005' || estA === '05';
-            return estA.includes(e.label);
-          });
-        }
-
-        if (hayFiltrosDesague) {
-          f5 = this.estadosDesagueFiltro.filter(e => e.checked).some(e => {
-            if (e.label === 'ACTIVA') return estD.includes('ACT') || estD === '001' || estD === '000' || estD === '01';
-            if (e.label.includes('HABILITADA')) return estD.includes('HABILIT') || estD.includes('CAJA') || estD.includes('ALC');
-            if (e.label.includes('SIN CONEXION')) return estD.includes('SIN') || estD === '002' || estD === '02';
-            if (e.label === 'ANULADA') return estD.includes('ANUL') || estD === '004' || estD === '04';
-            return estD.includes(e.label);
-          });
-        }
-
-        return f1 && f2 && f3 && f4 && f5;
-      });
-
-      this.refrescarCapasVector();
-      this.cargandoFiltros = false;
-
-      if (this.resultadosTab.length === 0) {
-        this.sinResultadosFiltros = true;
-        this.avisar("warn", "Sin resultados", "No se encontraron usuarios con los filtros seleccionados.");
-      } else {
-        this.sinResultadosFiltros = false;
-        this.acercarARegistros(this.resultadosTab);
-        this.avisar("info", "Filtro activo", `Se muestran ${this.resultadosTab.length} cliente(s) en el mapa.`);
-      }
-    }, 60);
-  }
 
   cerrarBusqueda(): void {
     this.buscadorEstabaAbierto = false;
@@ -1337,151 +1045,37 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.reiniciarBusqueda();
   }
 
+  /** Vuelve al estado inicial: sin búsqueda ni ficha, con todas las capas apagadas. */
   reiniciarBusqueda(): void {
     this.buscadorEstabaAbierto = false;
+    this.peticionMapa?.unsubscribe();
     this.searchSuministro = "";
     this.searchDniRuc = "";
     this.searchNombre = "";
     this.searchCatastral = "";
-    this.searchNombreCalle = "";
-    this.filtroTextoCalle = "";
-    this.paginaCalleActual = 1;
-    this.resultadosCalleFiltrados = [];
+    this.calleElegida = null;
+    this.tipoDocumentoElegido = null;
+    this.filtroResultados = "";
     this.searchSector = "";
     this.searchManzana = "";
     this.searchLote = "";
     this.searchMedidor = "";
     this.resultadosTab = [];
     this.cerrarPopup();
+    this.controladorGis?.cerrarPopupGis();
     this.controladorGis?.quitarPredio();
-    if (this.isBusquedaActiva) {
-      this.isBusquedaActiva = false;
-      if (this.resultadoBusquedaOriginalJson !== undefined) {
-        this.resultadoBusquedaJson = this.resultadoBusquedaOriginalJson;
-        this.resultadoBusquedaOriginalJson = undefined;
-      }
-      this.actualizarCapasComerciales(true);
-    } else if (
-      this.resultadoBusquedaJson &&
-      this.resultadoBusquedaJson.length > 0
-    ) {
-      this.ajustarVista(true);
-    }
+    this.controladorGis?.quitarCalle();
+    // Vuelve a como abre la pantalla: capas apagadas y sin pedir los usuarios de la sucursal.
+    this.desactivarCapasSecundarias([]);
+    this.isBusquedaActiva = false;
+    this.mostrarRegistros([], false);
     this.limpiarURL();
   }
 
-  buscarPorOpcion(op: number): void {
-    let valor = "";
-    if (op === 1) valor = String(this.searchSuministro || "").trim();
-    else if (op === 2) valor = String(this.searchDniRuc || "").trim();
-    else if (op === 3) valor = String(this.searchNombre || "").trim().toUpperCase();
-    else if (op === 4) valor = String(this.searchCatastral || "").trim();
-
-    if (!valor) {
-      const nomCampo = op === 1 
-        ? "el Nro. de Suministro" 
-        : (op === 2 ? "el DNI o RUC" : (op === 3 ? "los Apellidos y nombres" : "el Nro. Catastral"));
-      this.avisar("warn", "Campo vacío", `Por favor ingrese ${nomCampo} para buscar.`);
-      return;
-    }
-    
-    this.cargando = true;
-    this.limpiarCapas();
-
-    this.consultarCliente(valor, op).subscribe({
-      next: (registros) => {
-        this.cargando = false;
-        this.resultadosTab = registros || [];
-        if (!registros || registros.length === 0) {
-          const criterio = op === 1 
-            ? "código de suministro" 
-            : (op === 2 ? "DNI o RUC" : (op === 3 ? "nombre o razón social" : "código catastral"));
-          this.avisar("warn", "Aviso", `No se encontró ningún registro con ese ${criterio}.`);
-          return;
-        }
-
-        if (op === 1) {
-          // Nro. Suministro: Búsqueda específica de un predio donde sí se activan las capas de detalle
-          const exacto = registros.find((r) => String(r.codcliente || '').trim() === valor) || registros[0];
-          registros = [exacto];
-          this.resultadosTab = registros;
-          this.mostrarSearchPanel = false;
-          this.activarCapasPorDefectoBusqueda();
-          this.mostrarSoloRegistros(registros as any);
-
-          const codigo = this.codigoDe(exacto);
-          const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
-          if (punto) {
-            this.seleccionarFeature(punto, "lectura");
-            this.acercarAPunto(punto);
-            this.controladorGis?.marcarPredio(codigo);
-          } else {
-            this.mostrarPopupSinPunto(exacto as any, true);
-          }
-          return;
-        }
-
-        if (op === 4) {
-          // Nro. Catastral: Predio único pero para otros filtros se desactivan las capas secundarias, manteniendo solo usuarios y lotes
-          const exacto = registros.find((r) => {
-            const cat = String(r.codcatastral || '').trim().replace(/[-\s]/g, '');
-            const busq = valor.replace(/[-\s]/g, '');
-            return cat.toLowerCase() === busq.toLowerCase();
-          }) || registros[0];
-
-          registros = [exacto];
-          this.resultadosTab = registros;
-          this.mostrarSearchPanel = false;
-          this.desactivarCapasSecundarias(['usuarios', 'lotes']);
-          this.mostrarSoloRegistros(registros as any);
-
-          const codigo = this.codigoDe(exacto);
-          const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
-          if (punto) {
-            this.seleccionarFeature(punto, "lectura");
-            this.acercarAPunto(punto);
-            this.controladorGis?.marcarPredio(codigo);
-          } else {
-            this.mostrarPopupSinPunto(exacto as any, false);
-          }
-          return;
-        }
-
-        // Para cualquier otro filtro (op === 2 DNI/RUC, op === 3 Nombre, etc.):
-        // Desactivar capas secundarias y mantener únicamente usuarios y lotes
-        this.desactivarCapasSecundarias(['usuarios', 'lotes']);
-        this.mostrarSoloRegistros(registros as any);
-
-        if (registros.length === 1) {
-          this.mostrarSearchPanel = false;
-          const codigo = this.codigoDe(registros[0]);
-          const punto = this.buscarPuntoPorCodigo(this.lecturasLayer, codigo);
-          if (punto) {
-            this.seleccionarFeature(punto, "lectura");
-            this.acercarAPunto(punto);
-            this.controladorGis?.marcarPredio(codigo);
-          } else {
-            this.mostrarPopupSinPunto(registros[0] as any, false);
-          }
-        } else {
-          this.mostrarSearchPanel = true;
-          this.avisar("success", "Resultados", `Se encontraron ${registros.length} registros asociados.`);
-        }
-      },
-      error: (err) => {
-        this.cargando = false;
-        if (err?.status === 401 || err?.status === 403) {
-          this.avisar("error", "Acceso Denegado", "No tienes permisos para consultar las rutas de Vektors.");
-        } else if (err?.status === 404) {
-          this.avisar("error", "No Encontrado", "El servicio de Vektors no se encuentra disponible.");
-        } else {
-          this.avisar("error", "Error", "Ocurrió un error al cargar los datos del cliente.");
-        }
-      }
-    });
-  }
-
   cerrarPopup(): void {
+    this.peticionPopup?.unsubscribe();
+    this.sinUbicacion = false;
+    this.cargandoImagenes = false;
     this.lecturaSeleccionada = null;
     this.featureSeleccionado = null;
     this.refrescarCapasVector();
@@ -1531,6 +1125,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   private cargarDatosPopup(lectura: RegistroLectura): void {
+    // Si se elige otro cliente antes de que responda el anterior, sus datos no deben llegar a la ficha nueva.
+    this.peticionPopup?.unsubscribe();
     this.imagenesPopup = [];
     this.datosClientePopup = null;
     this.cargandoImagenes = true;
@@ -1541,7 +1137,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.catastroService.urlAdministracion = 'https://167.88.36.54:8889/vektors/backend/api-georeferencia/v1/vektors-catastro/';
     }
 
-    forkJoin({
+    this.peticionPopup = forkJoin({
       imagenes: this.controlImgService
         .read_x_tipolistar({
           codsuc,
@@ -1565,6 +1161,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       .subscribe({
         next: ({ imagenes, cliente, catastro }) => {
           this.cargandoImagenes = false;
+          if (!this.lecturaSeleccionada) return;
 
           let catastroData: any = null;
           if (catastro?.data) {
@@ -1739,32 +1336,6 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     }
 
     abrirGoogleStreetView(lonLat);
-  }
-
-  private consultarCliente(valor: string, op: number = 1): Observable<any[]> {
-    const codsuc = this.selectedSucursal?.codsuc || 'ALL';
-    const filtro: BusquedaAvanzadaClientesRequest = {
-      codsuc: codsuc,
-      inicio: 1,
-      nropagina: (op === 1 || op === 4) ? 5 : 100,
-    };
-
-    if (op === 1) {
-      filtro.codcliente = valor.trim();
-    } else if (op === 2) {
-      filtro.nrodocumento = valor.trim();
-    } else if (op === 3) {
-      filtro.propietario = valor.trim().toUpperCase();
-      filtro.letrainicio = 0;
-    } else if (op === 4) {
-      filtro.codcatastral = valor.trim().replace(/[-\s]/g, '') || valor.trim();
-    }
-
-    return this.busquedaAvanzadaService.buscarClientesAvanzada(filtro).pipe(
-      map((resp) => resp?.data || []),
-      catchError(() => of([])),
-      takeUntilDestroyed(this.destroyRef),
-    );
   }
 
   private avisar(severity: "success" | "info" | "warn" | "error", summary: string, detail: string): void {

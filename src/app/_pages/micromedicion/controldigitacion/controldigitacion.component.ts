@@ -29,7 +29,10 @@ import VectorSource from "ol/source/Vector";
 import TileWMS from "ol/source/TileWMS";
 import Feature, { FeatureLike } from "ol/Feature";
 import Point from "ol/geom/Point";
-import { extend, getCenter } from "ol/extent";
+import { containsCoordinate, extend, Extent, getCenter } from "ol/extent";
+import { transform } from "ol/proj";
+import type { Coordinate } from "ol/coordinate";
+import LineString from "ol/geom/LineString";
 
 import { MessageService } from "primeng/api";
 import { AperturaMicromedicionService } from "@host/_servicios/micromedicion/apertura-micromedicion.service";
@@ -93,8 +96,11 @@ import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
 import {
   CapaConsultable,
   ConsultaCapasGisService,
+  DescargaShapeGisService,
   GisConfigService,
+  WGS84,
 } from "../../../core/gis";
+import { CapaShape, ColumnaShape } from "../../../shared/utils/shapefile";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
 import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
@@ -144,6 +150,22 @@ const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
   { campo: "inspector", titulo: "Inspector", anchoExcel: 30 },
 ];
 
+// Los nombres de columna de un .dbf no pasan de 10 caracteres.
+const COLUMNAS_SHAPE_LECTURAS: ColumnaShape[] = [
+  { nombre: "codcliente", campo: "codcliente" },
+  { nombre: "titular", campo: "propietario" },
+  { nombre: "direccion", campo: "direccion" },
+  { nombre: "sector", campo: "codsector" },
+  { nombre: "manzana", campo: "codmza" },
+  { nombre: "lote", campo: "nrolote" },
+  { nombre: "medidor", campo: "nromed" },
+  { nombre: "lect_ant", campo: "lecturaanterior" },
+  { nombre: "lect_act", campo: "lecturaultima" },
+  { nombre: "consumo", campo: "consumo" },
+  { nombre: "estado", campo: "descripcionEstadoLectura" },
+  { nombre: "inspector", campo: "inspector" },
+];
+
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
@@ -181,6 +203,7 @@ export class ControldigitacionComponent
   private readonly sucursalCambiada = new Subject<void>();
   private readonly gis = inject(GisConfigService);
   private readonly consultaCapasGis = inject(ConsultaCapasGisService);
+  private readonly descargaShapeGis = inject(DescargaShapeGisService);
   controladorGis?: ControladorMapaGis;
   private readonly estilos = new MapEstilosFactory();
   private detenerObservadorMapa?: () => void;
@@ -215,6 +238,7 @@ export class ControldigitacionComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
   centroideFichaLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
@@ -239,8 +263,8 @@ export class ControldigitacionComponent
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
-  consumoInicial: number | null = 0;
-  consumoFinal: number | null = 0;
+  consumoInicial: number | null = null;
+  consumoFinal: number | null = null;
   selectedTipoPromedio: (typeof TIPOS_PROMEDIO)[number] | null =
     TIPOS_PROMEDIO[0]; // default: MEDIDO
 
@@ -258,6 +282,7 @@ export class ControldigitacionComponent
   filtrosVisible = false;
   baseActive: string | null = "osm";
   cargando = false;
+  descargandoShape = false;
   totalLecturas = 0;
   totalSinCoordenadas = 0;
   lecturaSeleccionada: RegistroLectura | null = null;
@@ -280,6 +305,7 @@ export class ControldigitacionComponent
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
     { id: "rutaLectura", label: "Ruta de Lectura", active: false },
   ];
@@ -524,8 +550,8 @@ export class ControldigitacionComponent
         this.listaSectores = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
         this.selectedSector = def;
-        this.consumoInicial = 0;
-        this.consumoFinal = 0;
+        this.consumoInicial = null;
+        this.consumoFinal = null;
       });
   }
 
@@ -627,8 +653,8 @@ export class ControldigitacionComponent
     const def = this.sectorPorDefecto();
     this.selectedSector = def;
     this.selectedEstados = [];
-    this.consumoInicial = 0;
-    this.consumoFinal = 0;
+    this.consumoInicial = null;
+    this.consumoFinal = null;
     this.selectedTipoPromedio = TIPOS_PROMEDIO[0];
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
@@ -785,6 +811,11 @@ export class ControldigitacionComponent
       this.gis.capa("calles"),
       false,
     );
+    this.manzanasLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("manzanas"),
+      false,
+    );
     this.rutaLecturaLayer = crearCapaWms(
       this.gis.urlWms(),
       this.gis.capa("rutaLectura"),
@@ -828,6 +859,7 @@ export class ControldigitacionComponent
       acc_alc: this.acomDesagueLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
       rutaLectura: this.rutaLecturaLayer,
       centroideFicha: this.centroideFichaLayer,
     };
@@ -837,6 +869,7 @@ export class ControldigitacionComponent
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.rutaLecturaLayer,
@@ -947,7 +980,94 @@ export class ControldigitacionComponent
       { rol: "centroideFicha", capa: this.centroideFichaLayer },
       { rol: "lotes", capa: this.lotesLayer },
       { rol: "calles", capa: this.callesLayer },
+      { rol: "manzanas", capa: this.manzanasLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+    ];
+  }
+
+  /** Shape de las capas encendidas, recortado a lo que se ve en el mapa. */
+  async descargarShape(): Promise<void> {
+    if (this.descargandoShape) return;
+    const extension = this.map.getView().calculateExtent(this.map.getSize());
+    this.descargandoShape = true;
+    try {
+      const { capas } = await this.descargaShapeGis.descargar({
+        capasGis: [
+          ...this.capasComercialesConsultables(),
+          ...(this.capasSidebar?.capasTecnicasConsultables() ?? []),
+        ],
+        capasLocales: this.capasLocalesParaShape(extension),
+        extension,
+        nombreArchivo: `control_digitacion_${new Date().toISOString().slice(0, 10)}`,
+      });
+      if (capas.length === 0) {
+        this.avisar("warn", "Sin datos", "Encienda al menos una capa con elementos en la zona que se ve.");
+      } else {
+        this.avisar("success", "Shape descargado", `Capas: ${capas.join(", ")}.`);
+      }
+    } catch (error) {
+      this.avisar(
+        "error",
+        "No se pudo descargar",
+        error instanceof Error ? error.message : "GeoServer no respondió. Intente de nuevo.",
+      );
+    } finally {
+      this.descargandoShape = false;
+    }
+  }
+
+  // Desde los registros y no desde los puntos pintados: en el mapa los clientes de un mismo predio comparten un punto.
+  private capasLocalesParaShape(extension: Extent): CapaShape[] {
+    const registros = (this.resultadoBusquedaJson ?? []) as unknown as Record<string, unknown>[];
+    const aLonLat = (coordenada: Coordinate) => transform(coordenada, this.gis.proyeccionMapa, WGS84);
+
+    const puntos = (
+      nombre: string,
+      capa: VectorLayer<VectorSource>,
+      origen: keyof typeof ORIGENES_COORDENADA,
+    ): CapaShape => ({
+      nombre,
+      tipo: "punto",
+      columnas: COLUMNAS_SHAPE_LECTURAS,
+      elementos: !capa.getVisible()
+        ? []
+        : registros.flatMap((registro) => {
+            const coordenada = extraerCoordenada(registro, ORIGENES_COORDENADA[origen]);
+            if (!coordenada || !containsCoordinate(extension, coordenada)) return [];
+            return [{ coordenadas: [aLonLat(coordenada)], atributos: this.aFilaTabla(registro) }];
+          }),
+    });
+
+    const lineas = (
+      nombre: string,
+      capa: VectorLayer<VectorSource>,
+      origen: keyof typeof ORIGENES_COORDENADA,
+      destino: keyof typeof ORIGENES_COORDENADA,
+    ): CapaShape => ({
+      nombre,
+      tipo: "linea",
+      columnas: COLUMNAS_SHAPE_LECTURAS,
+      elementos: !capa.getVisible()
+        ? []
+        : registros.flatMap((registro) => {
+            const linea = crearFeatureLinea(
+              registro,
+              ORIGENES_COORDENADA[origen],
+              ORIGENES_COORDENADA[destino],
+              DISTANCIA_MAX_ACOMETIDA_M,
+            )?.getGeometry() as LineString | undefined;
+            const coordenadas = linea?.getCoordinates() ?? [];
+            if (!coordenadas.some((coordenada) => containsCoordinate(extension, coordenada))) return [];
+            return [{ coordenadas: coordenadas.map(aLonLat), atributos: this.aFilaTabla(registro) }];
+          }),
+    });
+
+    return [
+      puntos("usuarios", this.lecturasLayer, "usuario"),
+      puntos("ficha_agua", this.cajaAguaLayer, "agua"),
+      puntos("ficha_alcantarillado", this.fichaAlcLayer, "desague"),
+      lineas("acometida_agua", this.acomAguaLayer, "agua", "acometidaAgua"),
+      lineas("acometida_alcantarillado", this.acomDesagueLayer, "desague", "acometidaDesague"),
     ];
   }
 

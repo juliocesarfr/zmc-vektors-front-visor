@@ -10,3 +10,4 @@ export {
   ZOOM_POR_DEFECTO,
   configSinCapas,
 } from "./eps-config.data";
+export * from "./descarga-shape-gis.service";
