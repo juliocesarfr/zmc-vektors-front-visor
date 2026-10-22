@@ -1,0 +1,202 @@
+.busqueda-avanzada-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-family: inherit;
+  color: #1e293b;
+}
+
+.filtro-card {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.form-label-custom {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.25rem;
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chk-label {
+  font-size: 0.82rem;
+  color: #334155;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.coincidencia-toggle {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 2px;
+  gap: 2px;
+
+  .badge-toggle {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #64748b;
+    transition: all 0.2s ease;
+
+    &.active {
+      background: #0284c7;
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(2, 132, 199, 0.3);
+    }
+  }
+}
+
+.filtros-avanzados-collapse {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.btn-link-toggle {
+  color: #0284c7;
+  font-weight: 600;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  &:hover {
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+}
+
+.btn-buscar {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: none;
+  font-weight: 600;
+  padding: 0.45rem 1.25rem;
+  box-shadow: 0 2px 4px rgba(2, 132, 199, 0.25);
+  &:hover {
+    background: linear-gradient(135deg, #0369a1, #075985);
+  }
+}
+
+.resultados-card {
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.badge-total {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 0.3rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fs-11 { font-size: 0.7rem !important; }
+.fs-12 { font-size: 0.78rem !important; }
+.fs-16 { font-size: 1.1rem !important; }
+
+/* Tabla personalizada */
+::ng-deep .tabla-clientes-avanzada {
+  .p-datatable-thead > tr > th {
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.6rem 0.5rem;
+    border-color: #e2e8f0;
+  }
+
+  .p-datatable-tbody > tr > td {
+    padding: 0.5rem;
+    border-color: #f1f5f9;
+  }
+
+  .p-paginator {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+}
+
+.badge-medidor {
+  display: inline-block;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.badge-estado {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+
+  &.activo {
+    background: #dcfce7;
+    color: #15803d;
+  }
+
+  &.cortado {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+}
+
+.badge-geo {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+
+  &.si {
+    background: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+  }
+
+  &.no {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border: 1px solid #e2e8f0;
+  }
+}
+
+.btn-ubicar {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 12px;
+  background: #0284c7;
+  border-color: #0284c7;
+  &:hover {
+    background: #0369a1;
+    border-color: #0369a1;
+  }
+}

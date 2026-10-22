@@ -47,12 +47,17 @@ const MAXIMO_ELEMENTOS = 10;
 const TOLERANCIA_PX = 8;
 
 // Solo se ocultan cuando la capa no declara sus atributos en CONFIG_EPS.
-const COLUMNAS_OCULTAS = new Set([
+export const COLUMNAS_OCULTAS = new Set([
   "geom", "the_geom", "geometry", "shape", "bbox", "id_prov", "id_dist", "minorloss",
   "roughness", "hor_reg", "plano_pdf", "plano_dwg", "plano_dxf", "doc_adicional",
 ]);
 
 const PRIORIDAD_POLIGONO = 2;
+
+// Medio lado del cuadrito que se busca alrededor del punto del cliente: unos 2 m.
+const MARGEN_PUNTO_PREDIO_GRADOS = 0.00002;
+const MARGEN_PUNTO_PREDIO_METROS = 2;
+const MAXIMO_LOTES_EN_PUNTO = 5;
 
 // Un punto encima de una línea o de un lote es casi siempre lo que el usuario quiso tocar.
 const PRIORIDAD_GEOMETRIA: Record<string, number> = {
@@ -158,6 +163,61 @@ export class ConsultaCapasGisService {
       catchError((error) => {
         console.warn("[GIS] No se pudo ubicar el predio del cliente.", error);
         return of(undefined);
+      }),
+    );
+  }
+
+  /**
+   * Lote que contiene el punto del cliente, para las EPS cuyos lotes no guardan el código de cliente (021).
+   * Se filtra con `bbox` y no con CQL porque el nombre del campo de geometría cambia en cada EPS.
+   */
+  buscarPredioEnPunto(coordenada: Coordinate, proyeccionMapa: string): Observable<Geometry | undefined> {
+    const margen = obtenerProyeccion(proyeccionMapa)?.getUnits() === "degrees"
+      ? MARGEN_PUNTO_PREDIO_GRADOS
+      : MARGEN_PUNTO_PREDIO_METROS;
+    const [x, y] = coordenada;
+    const url = this.gis.urlGetFeature("lotes", undefined, {
+      srsName: proyeccionMapa,
+      maxFeatures: String(MAXIMO_LOTES_EN_PUNTO),
+      bbox: [x - margen, y - margen, x + margen, y + margen, proyeccionMapa].join(","),
+    });
+    if (!url) return of(undefined);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) => {
+        const lotes = (respuesta.features ?? [])
+          .map((lote) => this.leerGeometria(lote?.geometry, respuesta.crs?.properties?.name, proyeccionMapa))
+          .filter((geometria): geometria is Geometry => !!geometria);
+        // Un punto sobre el lindero toca dos lotes: se prefiere el que lo contiene.
+        return lotes.find((geometria) => geometria.intersectsCoordinate(coordenada)) ?? lotes[0];
+      }),
+      catchError((error) => {
+        console.warn("[GIS] No se pudo ubicar el lote del punto del cliente.", error);
+        return of(undefined);
+      }),
+    );
+  }
+
+  /** Tramos de la calle con ese nombre en la capa de calles. Vacío si la EPS no declara el campo del nombre. */
+  buscarCalle(nombre: string, proyeccionMapa: string): Observable<Geometry[]> {
+    const { campoTitulo } = this.gis.consultaCapa("calles");
+    const texto = nombre.trim();
+    if (!campoTitulo || !texto) return of([]);
+
+    // Las comillas simples se duplican: el nombre va dentro de un filtro CQL.
+    const filtro = `${campoTitulo} ILIKE '%${texto.replace(/'/g, "''")}%'`;
+    const url = this.gis.urlGetFeature("calles", filtro, { srsName: proyeccionMapa });
+    if (!url) return of([]);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) =>
+        (respuesta.features ?? [])
+          .map((tramo) => this.leerGeometria(tramo?.geometry, respuesta.crs?.properties?.name, proyeccionMapa))
+          .filter((geometria): geometria is Geometry => !!geometria),
+      ),
+      catchError((error) => {
+        console.warn("[GIS] No se pudo ubicar la calle.", error);
+        return of([]);
       }),
     );
   }

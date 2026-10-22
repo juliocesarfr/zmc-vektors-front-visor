@@ -164,6 +164,7 @@ export class SeguimientoProgramaComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private registroCapas: Record<string, BaseLayer> = {};
@@ -216,6 +217,7 @@ export class SeguimientoProgramaComponent
     },
     { id: "lotes", label: "Lotes (GeoServer)", active: true },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
 
@@ -558,6 +560,7 @@ export class SeguimientoProgramaComponent
       false,
     );
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
 
     this.lotesUsuarioLayer = new VectorLayer({
       source: new VectorSource(),
@@ -593,12 +596,14 @@ export class SeguimientoProgramaComponent
       lotes: this.lotesLayer,
       sectores: this.sectoresLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
     };
 
     this.map = new OlMap({
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.lotesUsuarioLayer,
@@ -619,6 +624,7 @@ export class SeguimientoProgramaComponent
       capasComerciales: () => [
         { rol: "lotes", capa: this.lotesLayer },
         { rol: "calles", capa: this.callesLayer },
+        { rol: "manzanas", capa: this.manzanasLayer },
         { rol: "sectoresComerciales", capa: this.sectoresLayer },
       ],
       capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],

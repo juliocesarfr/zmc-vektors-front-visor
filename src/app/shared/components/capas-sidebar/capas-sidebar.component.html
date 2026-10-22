@@ -1,45 +1,62 @@
-<div class="gis-sidebar-container">
-  <div class="gis-sidebar-panel" *ngIf="abierto">
-    <div class="sidebar-title">
-      <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> CAPAS BASE
-    </div>
-    <div class="base-layers">
-      <button *ngFor="let l of baseLayers" [class.active]="l.id === baseActive" (click)="baseLayerChange.emit(l.id)">
-        <img class="icon" [src]="l.iconUrl" [alt]="l.label" />
-        <span>{{ l.label }}</span>
+<div class="gis-sidebar-container" [class.cerrado]="!abierto">
+  <button type="button" class="boton-capas" (click)="togglePanel()" [attr.aria-expanded]="abierto"
+    aria-controls="panelCapas" [title]="abierto ? 'Ocultar capas (C)' : 'Mostrar capas (C)'">
+    <svg class="icono-capas" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+      <path d="M12 3 2.5 8 12 13l9.5-5L12 3Z" fill="currentColor"></path>
+      <path d="m4.6 11.9-2.1 1.1L12 18l9.5-5-2.1-1.1L12 15.8l-7.4-3.9Z" fill="currentColor" opacity=".6"></path>
+      <path d="m4.6 15.9-2.1 1.1L12 22l9.5-5-2.1-1.1L12 19.8l-7.4-3.9Z" fill="currentColor" opacity=".35"></path>
+    </svg>
+    <span>Capas</span>
+    <span class="insignia">{{ cantidadActivas }}</span>
+    <svg class="chevron" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
+      <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+        stroke-linejoin="round"></path>
+    </svg>
+  </button>
+
+  <div class="panel-capas" id="panelCapas" [attr.aria-hidden]="!abierto">
+    <div class="titulo-clase fijo"><span class="marca"></span>Capas base</div>
+    <div class="bases" role="radiogroup" aria-label="Capas base">
+      <button type="button" class="base" role="radio" *ngFor="let capaBase of baseLayers"
+        [attr.aria-checked]="capaBase.id === baseActive" [tabindex]="abierto ? 0 : -1"
+        (click)="baseLayerChange.emit(capaBase.id)">
+        <i class="muestra" [ngClass]="'muestra-' + capaBase.id"></i>{{ capaBase.label }}
       </button>
     </div>
 
-    <ng-container *ngIf="commercialLayers.length > 0">
-      <div class="divider"></div>
-      <div class="sidebar-title">
-        <img src="assets/images/img-georeferencia/radar-icon.gif" class="gif-icon" alt="Capas"> {{ tituloComerciales }}
-      </div>
-      <ng-container *ngTemplateOutlet="listaSwitches; context: { $implicit: commercialLayers }"></ng-container>
-    </ng-container>
-
-    <ng-container *ngIf="technicalLayers.length > 0">
-      <div class="divider"></div>
-      <div class="sidebar-title">
-        <img src="assets/images/img-georeferencia/capa-icon.gif" class="gif-icon" alt="Capas"> {{ tituloTecnicas }}
-      </div>
-      <ng-container *ngTemplateOutlet="listaSwitches; context: { $implicit: technicalLayers, tecnica: true }"></ng-container>
-    </ng-container>
-  </div>
-  <button class="sidebar-toggle-btn" [class.closed]="!abierto" (click)="togglePanel()"
-    [title]="abierto ? 'Ocultar capas' : 'Mostrar capas'">
-    <span *ngIf="!abierto" class="stb-text">VER CAPAS</span>
-    <i class="pi" [class.pi-chevron-left]="abierto" [class.pi-chevron-right]="!abierto"></i>
-  </button>
-</div>
-
-<ng-template #listaSwitches let-capas let-tecnica="tecnica">
-  <div class="commercial-layers">
-    <div class="c-layer" *ngFor="let l of capas" (click)="tecnica ? toggleTecnica(l) : layerToggle.emit(l)">
-      <span [class.active-text]="l.active">{{ l.label }}</span>
-      <div class="custom-toggle" [class.on]="l.active">
-        <div class="toggle-circle"></div>
-      </div>
+    <div class="lista-capas">
+      <ng-container *ngIf="commercialLayers.length > 0">
+        <ng-container
+          *ngTemplateOutlet="claseCapas; context: { titulo: tituloComerciales, clase: 'comerciales', capas: commercialLayers }">
+        </ng-container>
+      </ng-container>
+      <ng-container
+        *ngTemplateOutlet="claseCapas; context: { titulo: tituloTecnicas, clase: 'tecnicas', capas: technicalLayers }">
+      </ng-container>
     </div>
   </div>
+</div>
+
+<ng-template #claseCapas let-titulo="titulo" let-clase="clase" let-capas="capas">
+  <button type="button" class="titulo-clase" [class.tecnicas]="clase === 'tecnicas'"
+    [attr.aria-expanded]="!clasesPlegadas.has(clase)" [tabindex]="abierto ? 0 : -1" (click)="plegarClase(clase)">
+    <span class="marca"></span>{{ titulo }}
+    <em>{{ capas.length ? contarActivas(capas) + '/' + capas.length : '—' }}</em>
+    <span class="flecha" [class.plegada]="clasesPlegadas.has(clase)">▾</span>
+  </button>
+
+  <ng-container *ngIf="!clasesPlegadas.has(clase)">
+    <div class="vacio" *ngIf="capas.length === 0">Esta EPS no tiene capas técnicas publicadas.</div>
+    <div class="filas" *ngIf="capas.length > 0">
+      <button type="button" class="fila" role="switch" *ngFor="let capa of capas" [attr.aria-checked]="capa.active"
+        [tabindex]="abierto ? 0 : -1" (click)="alternarCapa(capa, clase)">
+        <span class="simbolo">
+          <i *ngIf="capa.simbolo as simbolo" [ngClass]="'forma-' + simbolo.forma"
+            [style.--color-simbolo]="simbolo.color"></i>
+        </span>
+        <span class="nombre">{{ capa.label }}</span>
+        <span class="interruptor"></span>
+      </button>
+    </div>
+  </ng-container>
 </ng-template>

@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, Input, Output, inject } from "@angular/core";
+import { Component, EventEmitter, HostListener, Input, Output, inject } from "@angular/core";
 import OlMap from "ol/Map";
 import BaseLayer from "ol/layer/Base";
 import LayerGroup from "ol/layer/Group";
@@ -17,11 +17,31 @@ export interface CapaBaseUi {
   iconUrl: string;
 }
 
+/** Cómo se dibuja la capa en el mapa, para mostrar su símbolo junto al nombre. */
+export interface SimboloCapaUi {
+  forma: "punto" | "rombo" | "linea" | "area";
+  color: string;
+}
+
 export interface CapaSwitchUi {
   id: string;
   label: string;
   active: boolean;
+  simbolo?: SimboloCapaUi;
 }
+
+// La leyenda de GeoServer no sirve aquí: varias capas traen estilos genéricos o bordes negros que no se ven sobre el panel.
+const SIMBOLOS_TECNICOS: Record<string, SimboloCapaUi> = {
+  fuentes: { forma: "punto", color: "#06b6d4" },
+  tuberiasAgua: { forma: "linea", color: "#3b82f6" },
+  tuberiasAlcantarillado: { forma: "linea", color: "#b7791f" },
+  valvulas: { forma: "rombo", color: "#f43f5e" },
+  curvasNivel: { forma: "linea", color: "#a3a3a3" },
+};
+
+type ClaseCapas = "comerciales" | "tecnicas";
+
+const TECLA_PANEL = "c";
 
 @Component({
   selector: "app-capas-sidebar",
@@ -37,9 +57,9 @@ export class CapasSidebarComponent {
   @Input() baseActive: string | null = null;
 
   @Input() commercialLayers: CapaSwitchUi[] = [];
-  @Input() tituloComerciales = "CAPAS COMERCIALES";
+  @Input() tituloComerciales = "Capas comerciales";
 
-  @Input() tituloTecnicas = "CAPAS TÉCNICAS";
+  @Input() tituloTecnicas = "Capas técnicas";
 
   @Input() abierto = true;
 
@@ -48,11 +68,24 @@ export class CapasSidebarComponent {
   @Output() abiertoChange = new EventEmitter<boolean>();
 
   // Las técnicas las maneja el propio panel a partir de `capasTecnicas` de la EPS.
-  readonly technicalLayers: CapaSwitchUi[] = this.gis
-    .capasTecnicasParaUi()
-    .map((c) => ({ id: c.id, label: c.label, active: false }));
+  readonly technicalLayers: CapaSwitchUi[] = this.gis.capasTecnicasParaUi().map((capa) => ({
+    id: capa.id,
+    label: capa.label,
+    active: false,
+    simbolo: SIMBOLOS_TECNICOS[capa.id],
+  }));
+
+  readonly clasesPlegadas = new Set<ClaseCapas>();
 
   private readonly capasTecnicas = new Map<string, TileLayer<TileWMS>>();
+
+  get cantidadActivas(): number {
+    return this.contarActivas(this.commercialLayers) + this.contarActivas(this.technicalLayers);
+  }
+
+  contarActivas(capas: CapaSwitchUi[]): number {
+    return capas.filter((capa) => capa.active).length;
+  }
 
   /** Agrega las capas técnicas al mapa de la pantalla, justo encima del fondo. */
   conectarMapa(map: OlMap): void {
@@ -78,9 +111,36 @@ export class CapasSidebarComponent {
     this.capasTecnicas.get(capa.id)?.setVisible(capa.active);
   }
 
+  apagarTecnicas(): void {
+    for (const capa of this.technicalLayers) {
+      if (capa.active) this.toggleTecnica(capa);
+    }
+  }
+
+  alternarCapa(capa: CapaSwitchUi, clase: ClaseCapas): void {
+    if (clase === "tecnicas") this.toggleTecnica(capa);
+    else this.layerToggle.emit(capa);
+  }
+
+  plegarClase(clase: ClaseCapas): void {
+    if (this.clasesPlegadas.has(clase)) this.clasesPlegadas.delete(clase);
+    else this.clasesPlegadas.add(clase);
+  }
+
   togglePanel(): void {
     this.abierto = !this.abierto;
     this.abiertoChange.emit(this.abierto);
+  }
+
+  @HostListener("document:keydown", ["$event"])
+  alPresionarTecla(evento: KeyboardEvent): void {
+    if (evento.key.toLowerCase() !== TECLA_PANEL || evento.ctrlKey || evento.metaKey || evento.altKey) return;
+    const enfocado = document.activeElement as HTMLElement | null;
+    const escribiendo =
+      !!enfocado &&
+      (["INPUT", "TEXTAREA", "SELECT"].includes(enfocado.tagName) || enfocado.isContentEditable);
+    if (escribiendo) return;
+    this.togglePanel();
   }
 
   private esFondo(capa: BaseLayer): boolean {

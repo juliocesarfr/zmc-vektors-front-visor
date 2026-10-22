@@ -1,0 +1,923 @@
+// Paneles que flotan sobre el mapa en el estilo de GIS Loreto: ficha del usuario, buscador de cliente,
+// leyenda, tarjetas de resumen, botones flotantes y aviso de carga.
+// Se importa después de mapa-estilos.scss (usa sus variables) y cada pantalla incluye los que tiene.
+
+$panel-oscuro: rgba(5, 11, 26, 0.85);
+$borde-panel: rgba(255, 255, 255, 0.15);
+$sombra-panel: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+@mixin ficha-usuario-oscura {
+  // Ficha del usuario copiada de la de GIS Loreto: panel casi negro, barra con título cian,
+  // tarjetas con línea cian arriba y cada dato en su cajita con ícono "i".
+  .user-popup {
+    --acento: #00e5ff;
+    --suave: rgba(255, 255, 255, 0.5);
+    --deuda: #ff8a7f;
+
+    position: absolute;
+    top: 58px;
+    right: 68px;
+    z-index: 1005;
+    width: min(380px, calc(100vw - 32px));
+    min-width: 260px;
+    max-height: calc(100vh - var(--app-header-height, 90px) - 124px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 16px;
+    background: rgba(5, 11, 26, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+    font-family: "Segoe UI", Arial, sans-serif;
+    animation: fichaEntra 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    .up-barra {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+      .up-barra-icono {
+        color: var(--acento);
+        font-size: 14px;
+      }
+
+      .up-barra-titulo {
+        flex: 1;
+        color: var(--acento);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+      }
+    }
+
+    .up-close {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      cursor: pointer;
+
+      &:hover {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.08);
+      }
+    }
+
+    .up-body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      padding: 12px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+
+    .up-sin-ubicacion {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      flex-shrink: 0;
+      padding: 9px 11px;
+      border: 1px solid rgba(245, 196, 81, 0.45);
+      border-radius: 10px;
+      background: rgba(245, 196, 81, 0.12);
+      color: #fde9b5;
+      font-size: 11.5px;
+      line-height: 1.35;
+
+      i {
+        margin-top: 1px;
+        color: #f5c451;
+        font-size: 14px;
+      }
+
+      strong {
+        color: #f5c451;
+      }
+    }
+
+    .up-section {
+      position: relative;
+      flex-shrink: 0;
+      padding: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+
+      // Línea cian que se desvanece hacia los lados, arriba de cada tarjeta.
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--acento), transparent);
+      }
+
+      .up-section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 9px;
+        color: #ffffff;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.9px;
+        text-transform: uppercase;
+
+        .marca {
+          width: 3px;
+          height: 12px;
+          flex-shrink: 0;
+          border-radius: 2px;
+          background: var(--acento);
+        }
+
+        &.medidor .marca {
+          background: #e8b44c;
+        }
+
+        &.contacto .marca {
+          background: #4ade80;
+        }
+
+        &.facturacion .marca {
+          background: var(--deuda);
+        }
+
+        .up-titulo-valor {
+          margin-left: auto;
+          color: var(--acento);
+          letter-spacing: 0;
+        }
+
+        .up-accion {
+          margin-left: auto;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          height: 24px;
+          padding: 0 8px;
+          border: 1px solid rgba(0, 229, 255, 0.3);
+          border-radius: 6px;
+          background: rgba(0, 229, 255, 0.08);
+          color: var(--acento);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0;
+          text-transform: none;
+          cursor: pointer;
+
+          &:hover {
+            background: rgba(0, 229, 255, 0.16);
+          }
+        }
+      }
+    }
+
+    .up-header {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 10px;
+
+      .up-avatar {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        background: rgba(0, 229, 255, 0.15);
+        border: 1px solid rgba(0, 229, 255, 0.3);
+        box-shadow: 0 0 12px rgba(0, 229, 255, 0.18);
+        color: var(--acento);
+        font-size: 15px;
+      }
+
+      .up-header-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+
+        .up-label {
+          color: var(--suave);
+          font-size: 8.5px;
+          letter-spacing: 0.9px;
+          text-transform: uppercase;
+        }
+
+        .up-name {
+          overflow: hidden;
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 600;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+
+    .up-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+
+      &.grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+
+        .up-cell.full {
+          grid-column: span 3;
+        }
+
+        .up-cell.span-2 {
+          grid-column: span 2;
+        }
+      }
+
+      .up-cell {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        align-items: center;
+        column-gap: 7px;
+        min-width: 0;
+        padding: 5px 7px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.2);
+        transition: border-color 0.15s, background 0.15s;
+
+        // Ícono "i" de cada dato, como en Loreto.
+        &::before {
+          content: "i";
+          grid-row: 1 / span 2;
+          width: 15px;
+          height: 15px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.4);
+          color: #0b1220;
+          font: italic 700 10px/15px Georgia, serif;
+          text-align: center;
+        }
+
+        &.full {
+          grid-column: span 2;
+        }
+
+        &.resaltada,
+        &:hover {
+          border-color: rgba(0, 229, 255, 0.15);
+          background: rgba(0, 229, 255, 0.05);
+
+          &::before {
+            background: var(--acento);
+          }
+        }
+
+        .uc-label {
+          grid-column: 2;
+          color: var(--suave);
+          font-size: 8px;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+        }
+
+        .uc-val {
+          grid-column: 2;
+          min-width: 0;
+          color: rgba(255, 255, 255, 0.92);
+          font-size: 11px;
+          font-weight: 600;
+          line-height: 1.25;
+          overflow-wrap: break-word;
+
+          &.badge-est {
+            justify-self: start;
+            padding: 0 6px;
+            border-radius: 4px;
+            background: rgba(0, 229, 255, 0.12);
+            color: var(--acento);
+          }
+
+          &.obs {
+            color: #c4b5fd;
+            font-style: italic;
+            font-weight: 500;
+          }
+
+          &.minusculas {
+            text-transform: lowercase;
+          }
+
+          &.deuda {
+            color: var(--deuda);
+            font-weight: 700;
+          }
+
+          &.grande {
+            font-size: 13px;
+          }
+        }
+      }
+    }
+
+    .up-lecturas-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+
+      .up-lec-badge {
+        flex: 1;
+        display: flex;
+        align-items: baseline;
+        justify-content: center;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.2);
+
+        .ulb-label {
+          color: var(--suave);
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .ulb-val {
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 700;
+        }
+
+        &.curr {
+          border: 1px solid rgba(0, 229, 255, 0.3);
+          background: rgba(0, 229, 255, 0.08);
+
+          .ulb-val {
+            color: var(--acento);
+          }
+        }
+      }
+
+      .up-lec-arrow {
+        flex-shrink: 0;
+        color: var(--suave);
+        font-size: 12px;
+      }
+    }
+
+    .btn-ver-mas {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: 34px;
+      flex-shrink: 0;
+      border: 0;
+      border-radius: 8px;
+      background: var(--acento);
+      color: #04121c;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 0 14px rgba(0, 229, 255, 0.25);
+
+      &:hover {
+        filter: brightness(1.08);
+      }
+    }
+
+    .up-close:focus-visible,
+    .up-accion:focus-visible,
+    .btn-ver-mas:focus-visible {
+      outline: 2px solid var(--acento);
+      outline-offset: 2px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .user-popup {
+      animation: none;
+    }
+  }
+
+  // Fichas que conservan la estructura anterior: cabecera con avatar, franja de suministro,
+  // títulos con ícono animado y botones de PrimeNG.
+  .user-popup {
+    > .up-header {
+      flex-shrink: 0;
+      margin: 0;
+      padding: 10px 12px 10px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+      .up-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .up-avatar img {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+
+      .up-header-info .up-label {
+        color: var(--acento);
+        font-weight: 700;
+        letter-spacing: 1.2px;
+      }
+    }
+
+    .up-suministro {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      flex-shrink: 0;
+      padding: 10px 12px 0;
+
+      .up-sum-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        padding: 6px 8px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        background: rgba(0, 0, 0, 0.2);
+
+        i {
+          color: var(--acento);
+          font-size: 11px;
+        }
+
+        .up-sum-label {
+          color: var(--suave);
+          font-size: 8px;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+        }
+
+        .up-sum-value {
+          margin-left: auto;
+          overflow: hidden;
+          color: #ffffff;
+          font-size: 12.5px;
+          font-weight: 700;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        &.primary {
+          border-color: rgba(0, 229, 255, 0.15);
+          background: rgba(0, 229, 255, 0.05);
+
+          .up-sum-value {
+            color: var(--acento);
+          }
+        }
+      }
+
+      .up-sum-sep {
+        display: none;
+      }
+    }
+
+    .up-section-title {
+      .gif-icon {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+      }
+
+      // Street View: el botón trae estilos en línea, por eso los !important.
+      .p-button {
+        height: 26px;
+        padding: 0 8px !important;
+        border: 1px solid rgba(0, 229, 255, 0.3) !important;
+        border-radius: 6px;
+        background: rgba(0, 229, 255, 0.08) !important;
+        color: var(--acento) !important;
+        font-size: 11px;
+        letter-spacing: 0;
+        text-transform: none;
+        box-shadow: none;
+
+        img {
+          height: 18px !important;
+        }
+
+        span {
+          font-weight: 600 !important;
+        }
+
+        &:hover {
+          background: rgba(0, 229, 255, 0.16) !important;
+        }
+      }
+
+      .up-img-badge {
+        margin-left: auto;
+        padding: 0 7px;
+        border-radius: 10px;
+        background: rgba(0, 229, 255, 0.15);
+        color: var(--acento);
+        font-size: 10px;
+        letter-spacing: 0;
+      }
+    }
+
+    .up-section:has(> .btn-ver-mas) {
+      padding: 0 !important;
+      border: 0;
+      background: none;
+
+      &::before {
+        display: none;
+      }
+    }
+
+    .p-button.btn-ver-mas {
+      border: 0 !important;
+      background: var(--acento) !important;
+      color: #04121c !important;
+
+      .p-button-label,
+      .p-button-icon {
+        color: #04121c;
+        font-weight: 700;
+      }
+    }
+
+    .up-grid.grid-4 {
+      grid-template-columns: repeat(4, 1fr);
+
+      .up-cell.full {
+        grid-column: span 4;
+      }
+
+      .up-cell.span-2 {
+        grid-column: span 2;
+      }
+    }
+
+    .uc-val.inspector-name {
+      justify-self: start;
+      padding: 0 6px;
+      border-radius: 4px;
+      background: rgba(0, 229, 255, 0.12);
+      color: var(--acento);
+    }
+
+    .up-img-loading,
+    .up-empty,
+    .up-noimg {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--suave);
+      font-size: 11px;
+
+      i {
+        color: var(--acento);
+        font-size: 15px;
+      }
+    }
+
+    .up-img-scroll {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    }
+
+    .up-thumb {
+      position: relative;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid $borde-panel;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.15s;
+
+      &:hover {
+        border-color: var(--acento);
+        transform: scale(1.04);
+      }
+
+      img {
+        display: block;
+        width: 72px;
+        height: 58px;
+        object-fit: cover;
+      }
+
+      .up-tipo,
+      .up-thumb-info {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+        padding: 1px 3px;
+        background: rgba(5, 11, 26, 0.75);
+        color: #ffffff;
+        font-size: 7px;
+        text-align: center;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+}
+
+@keyframes fichaEntra {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@mixin boton-flotante-oscuro {
+  background: $vidrio-oscuro;
+  border: 1px solid $borde-vidrio;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 18px rgba(4, 14, 28, 0.22);
+  color: $acento-mapa;
+
+  &:hover {
+    background: $vidrio-oscuro;
+    box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.45);
+  }
+}
+
+// Botones redondos que abren el buscador (abajo a la derecha) y la leyenda (abajo a la izquierda).
+@mixin botones-paneles-oscuros($busqueda: ".cd-search-toggle", $leyenda: ".cd-leyenda-toggle") {
+  #{$busqueda},
+  #{$leyenda} {
+    position: absolute;
+    bottom: $alto-pie-host + 16px;
+    z-index: 5;
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-size: 15px;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+    @include boton-flotante-oscuro;
+  }
+
+  #{$busqueda} {
+    right: $columna-controles;
+  }
+
+  #{$leyenda} {
+    left: 12px;
+  }
+}
+
+// Buscador corto (un campo y su botón) en el panel casi negro de la ficha.
+@mixin buscador-cliente-oscuro($selector: ".cd-search-panel") {
+  #{$selector} {
+    position: absolute;
+    bottom: $alto-pie-host + 16px;
+    right: $columna-controles;
+    z-index: 6;
+    width: 300px;
+    max-width: calc(100vw - 40px);
+    padding: 10px 12px 12px;
+    border: 1px solid $borde-panel;
+    border-radius: 12px;
+    background: linear-gradient(180deg, $panel-oscuro 0%, rgba(5, 11, 26, 0.95) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: $sombra-panel;
+    color: #e8edf2;
+    font-family: "Segoe UI", Arial, sans-serif;
+
+    .search-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      color: $acento-mapa;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+
+      .cerrar {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 11px;
+        cursor: pointer;
+
+        &:hover {
+          color: #ffffff;
+        }
+      }
+    }
+
+    .search-actions {
+      margin: -2px 0 4px;
+      text-align: right;
+
+      .limpiar-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+
+        &:hover {
+          color: #ffffff;
+        }
+
+        i {
+          font-size: 10px;
+        }
+      }
+    }
+
+    .search-body {
+      display: flex;
+      gap: 6px;
+
+      input {
+        flex: 1;
+        min-width: 0;
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
+        border-radius: 8px !important;
+        background: rgba(4, 14, 28, 0.35);
+        color: #ffffff;
+        font-size: 12.5px;
+        font-weight: 600;
+        box-shadow: none !important;
+
+        &:focus {
+          border-color: $acento-mapa !important;
+        }
+
+        &::placeholder {
+          color: rgba(154, 166, 181, 0.75);
+          font-weight: 400;
+        }
+      }
+
+      .p-button {
+        width: 38px;
+        height: 34px;
+        flex-shrink: 0;
+        border: 0 !important;
+        border-radius: 8px !important;
+        background: $acento-mapa !important;
+        color: #0f1823 !important;
+      }
+    }
+  }
+}
+
+// Solo el contenedor y el título: los símbolos de cada leyenda los define su pantalla.
+// Mientras la leyenda está abierta el panel de capas se acorta para no taparla.
+@mixin leyenda-oscura($selector: ".cd-leyenda", $contenedor: ".cd-wrapper", $alto-leyenda: 150px) {
+  #{$contenedor}:has(#{$selector}) {
+    --alto-maximo-capas: calc(100vh - var(--app-header-height, 90px) - #{$alto-barra-pantalla + 12px + 36px + 8px + 16px} - #{$alto-pie-host} - #{$alto-leyenda + 12px});
+  }
+
+  #{$selector} {
+    left: 12px;
+    bottom: $alto-pie-host + 16px;
+    padding: 10px 14px;
+    border: 1px solid $borde-panel;
+    border-radius: 12px;
+    background: $panel-oscuro;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: $sombra-panel;
+    color: rgba(255, 255, 255, 0.85);
+
+    .leyenda-header {
+      color: $acento-mapa;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+
+      .cerrar {
+        color: rgba(255, 255, 255, 0.5);
+
+        &:hover {
+          color: #ffffff;
+        }
+      }
+    }
+  }
+}
+
+// Centradas arriba: a la derecha quedan los controles y la ficha.
+@mixin resumen-oscuro($selector: ".cd-resumen") {
+  #{$selector} {
+    top: $alto-barra-pantalla + 12px;
+    left: 0;
+    right: 0;
+    justify-content: center;
+    pointer-events: none;
+
+    .card-resumen {
+      pointer-events: auto;
+      padding: 6px 14px;
+      border: 1px solid $borde-panel;
+      border-top: 2px solid rgba(255, 255, 255, 0.35);
+      border-radius: 10px;
+      background: $panel-oscuro;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+
+      &.ok {
+        border-top-color: #4ade80;
+      }
+
+      &.warn {
+        border-top-color: #fb923c;
+      }
+
+      &.vivo {
+        border-top-color: #60a5fa;
+      }
+
+      .numero {
+        color: #ffffff;
+      }
+
+      .titulo {
+        color: rgba(255, 255, 255, 0.55);
+      }
+    }
+  }
+}
+
+// Aviso de carga en una píldora abajo: el mapa sigue a la vista y se puede mover mientras carga.
+@mixin carga-mapa-oscura($selector: ".cd-map-container .map-loading-overlay") {
+  #{$selector} {
+    top: auto;
+    bottom: $alto-pie-host + 20px;
+    left: 0;
+    right: 0;
+    width: max-content;
+    margin: 0 auto;
+    flex-direction: row;
+    gap: 10px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.88);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+    color: #ffffff;
+    pointer-events: none;
+
+    i {
+      margin: 0;
+      color: $acento-mapa;
+      font-size: 15px;
+    }
+
+    span {
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+  }
+}
