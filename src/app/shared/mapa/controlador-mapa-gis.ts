@@ -21,6 +21,7 @@ import { AccionDibujo, MenuDibujos } from "./menu-dibujos";
 import { PredioBuscado } from "./predio-buscado";
 import { CalleBuscada } from "./calle-buscada";
 import { registrosDentroDeArea } from "./geo.utils";
+import { descargarExcelSinCoordenadas } from "../utils/sin-coordenadas-excel";
 import {
   ColumnaListado,
   FilaListado,
@@ -269,6 +270,21 @@ export class ControladorMapaGis {
     this.subcabeceraListado = this.opciones.listado!.subcabecera();
     this.filasListado = this.clientesEnArea(area);
     this.encuadrarEnZonaLibre(area.getExtent());
+  }
+
+  /** Excel de los registros cargados que no se pintan por no tener coordenadas; devuelve cuántos salieron. */
+  descargarSinCoordenadas(): Promise<number> {
+    const listado = this.opciones.listado;
+    if (!listado) return Promise.resolve(0);
+    return descargarExcelSinCoordenadas(listado.excelService, {
+      titulo: `${listado.tituloReporte} - SIN COORDENADAS`,
+      subcabecera: listado.subcabecera(),
+      nombreArchivo: `${listado.nombreArchivo.replace(/area_$/, "")}sin_coordenadas_`,
+      columnas: listado.columnas,
+      registros: listado.registros(),
+      origen: listado.origen,
+      aFila: listado.aFila,
+    });
   }
 
   private async descargarExcelDe(area: AreaDibujada): Promise<void> {

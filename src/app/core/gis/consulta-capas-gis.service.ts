@@ -1,6 +1,6 @@
 import { Injectable, inject } from "@angular/core";
 import { HttpBackend, HttpClient } from "@angular/common/http";
-import { Observable, of } from "rxjs";
+import { forkJoin, Observable, of } from "rxjs";
 import { catchError, map } from "rxjs/operators";
 import GeoJSON from "ol/format/GeoJSON";
 import { get as obtenerProyeccion } from "ol/proj";
@@ -35,6 +35,9 @@ export interface ElementoGis {
   /** En la proyección del mapa, para resaltarlo. */
   geometria?: Geometry;
 }
+
+// Cuántos códigos de cliente van en cada CQL `IN (...)`: más largo y algunos GeoServer cortan la URL.
+const CODIGOS_POR_PEDIDO_LOTES = 100;
 
 interface RespuestaGeoServer {
   features?: any[];
@@ -163,6 +166,50 @@ export class ConsultaCapasGisService {
       catchError((error) => {
         console.warn("[GIS] No se pudo ubicar el predio del cliente.", error);
         return of(undefined);
+      }),
+    );
+  }
+
+  /**
+   * Polígonos de los lotes de varios clientes, por código, en la proyección del mapa.
+   * Vacío si la EPS no publica el código de cliente en sus lotes.
+   */
+  buscarPrediosDeClientes(codigos: string[], proyeccionMapa: string): Observable<Map<string, Geometry>> {
+    const { campoCliente } = this.gis.consultaCapa("lotes");
+    // Solo dígitos: los códigos van dentro de un filtro CQL.
+    const validos = [...new Set(codigos.filter((codigo) => /^\d+$/.test(codigo)))];
+    if (!campoCliente || validos.length === 0) return of(new Map());
+
+    const tandas: string[][] = [];
+    for (let inicio = 0; inicio < validos.length; inicio += CODIGOS_POR_PEDIDO_LOTES) {
+      tandas.push(validos.slice(inicio, inicio + CODIGOS_POR_PEDIDO_LOTES));
+    }
+
+    const pedidos = tandas.map((tanda) => {
+      const url = this.gis.urlGetFeature("lotes", `${campoCliente} IN (${tanda.join(",")})`, {
+        srsName: proyeccionMapa,
+        maxFeatures: String(tanda.length * 2),
+      });
+      if (!url) return of<RespuestaGeoServer>({});
+      return this.http.get<RespuestaGeoServer>(url).pipe(
+        catchError((error) => {
+          console.warn("[GIS] No se pudieron traer los lotes de los clientes.", error);
+          return of<RespuestaGeoServer>({});
+        }),
+      );
+    });
+
+    return forkJoin(pedidos).pipe(
+      map((respuestas) => {
+        const lotes = new Map<string, Geometry>();
+        for (const respuesta of respuestas) {
+          for (const lote of respuesta.features ?? []) {
+            const codigo = String(lote?.properties?.[campoCliente] ?? "").trim();
+            const geometria = this.leerGeometria(lote?.geometry, respuesta.crs?.properties?.name, proyeccionMapa);
+            if (codigo && geometria && !lotes.has(codigo)) lotes.set(codigo, geometria);
+          }
+        }
+        return lotes;
       }),
     );
   }

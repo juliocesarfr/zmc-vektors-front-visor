@@ -1117,11 +1117,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
       this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc || "002"
-    );
+    ).then((referencia) => (this.ref = referencia));
   }
 
   private cargarDatosPopup(lectura: RegistroLectura): void {

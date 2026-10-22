@@ -46,6 +46,17 @@
         <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
       </button>
 
+      <button
+        type="button"
+        class="btn-volver-main btn-descargar-shape"
+        (click)="descargarShape()"
+        [disabled]="descargandoShape"
+        title="Muestra lo que tendrá el shape de las capas encendidas, en la zona que se ve del mapa, y lo descarga en un .zip"
+      >
+        <i class="pi" [class.pi-download]="!descargandoShape" [class.pi-spin]="descargandoShape" [class.pi-spinner]="descargandoShape"></i>
+        <span>{{ descargandoShape ? "Descargando…" : "Descargar shape" }}</span>
+      </button>
+
       <button type="button" class="btn-volver-main" (click)="volverAlMain()" title="Volver al Visor Principal de Georreferencia">
         <i class="pi pi-arrow-left"></i>
         <span>Volver al Principal</span>
@@ -85,7 +96,17 @@
 
         <span class="p-float-label" *ngIf="selectedSucursal">
           <p-dropdown [options]="listaEstadoServicio" [(ngModel)]="selectedEstadoServicio" optionLabel="descripcion"
-            optionValue="codigo" [style]="{ width: '180px' }" placeholder="Estado Serv." [appendTo]="'body'">
+            optionValue="codigo" [style]="{ width: '290px' }" placeholder="Estado Serv." [appendTo]="'body'">
+            <ng-template let-estado pTemplate="item">
+              <div class="estado-opcion">
+                <span class="estado-muestra" *ngIf="estado.codigo !== 'ALL'" [style.background]="fondoEstado(estado.codigo)"></span>{{ estado.descripcion }}
+              </div>
+            </ng-template>
+            <ng-template let-estado pTemplate="selectedItem">
+              <div class="estado-opcion">
+                <span class="estado-muestra" *ngIf="estado.codigo !== 'ALL'" [style.background]="fondoEstado(estado.codigo)"></span>{{ estado.descripcion }}
+              </div>
+            </ng-template>
           </p-dropdown>
           <label>Estado Servicio</label>
         </span>
@@ -151,13 +172,24 @@
         <span class="numero">{{ totalClientes - totalSinCoordenadas }}</span>
         <span class="titulo">En Mapa</span>
       </div>
-      <div class="card-resumen warn">
+      <div class="card-resumen warn" [class.descargable]="totalSinCoordenadas > 0"
+        (click)="descargarSinCoordenadas()" title="Descargar en Excel los clientes sin coordenadas">
         <span class="numero">{{ totalSinCoordenadas }}</span>
         <span class="titulo">Sin Coord.</span>
       </div>
     </div>
 
     <div id="map" #mapContainer class="map"></div>
+
+    <app-leyenda-grupos class="cd-leyenda" *ngIf="mostrarLeyenda && entradasLeyenda.length > 0"
+      titulo="Estado del servicio" icono="pi pi-palette"
+      [subtitulo]="(selectedSucursal?.nombre || '') + ' · ' + totalClientes + ' clientes'"
+      [entradas]="entradasLeyenda" [grupoFiltrado]="grupoFiltrado"
+      (elegir)="filtrarPorGrupo($event)" (cerrar)="mostrarLeyenda = false"></app-leyenda-grupos>
+    <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda && entradasLeyenda.length > 0" (click)="mostrarLeyenda = true"
+      title="Mostrar leyenda">
+      <i class="pi pi-palette"></i>
+    </button>
 
     <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
       <div class="search-header">
@@ -274,7 +306,8 @@
           </div>
 
           <div class="up-grid grid-2">
-            <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est">{{
+            <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est"><span
+                  class="estado-muestra" [style.background]="fondoEstado(clienteSeleccionado.estadoservicio)"></span>{{
                 clienteSeleccionado.estadoservicio || '-' }}</span></div>
             <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est">{{ clienteSeleccionado.tiposervicio || '-' }}</span></div>
 

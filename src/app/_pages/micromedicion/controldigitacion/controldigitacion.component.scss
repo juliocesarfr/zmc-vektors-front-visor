@@ -725,8 +725,3 @@
 @include leyenda-oscura;
 @include resumen-oscuro;
 @include carga-mapa-oscura;
-
-.btn-descargar-shape:disabled {
-  cursor: progress;
-  opacity: 0.75;
-}

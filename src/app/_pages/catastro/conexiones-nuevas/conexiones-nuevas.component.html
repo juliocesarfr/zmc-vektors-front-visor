@@ -1,0 +1,338 @@
+<p-toast [appendTo]="'body'"></p-toast>
+
+<div class="cd-wrapper">
+
+  <div class="cd-toolbar">
+    <div class="cd-title">
+      <img src="assets/images/img-medicion/writing.png" alt="conexiones nuevas" />
+      <h3>CONEXIONES NUEVAS INSTALADAS <span>| Mapa</span></h3>
+    </div>
+
+    <div class="cd-toolbar-actions">
+      <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
+        <span class="filtro-chip ciclo" *ngIf="selectedCiclo">
+          <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
+        </span>
+        <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
+          <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
+        </span>
+        <span class="filtro-chip sector" *ngIf="selectedSector">
+          <i class="pi pi-map"></i> {{ selectedSector.descripcion }}
+        </span>
+        <span class="filtro-chip estado" *ngIf="fechaInicial && fechaFinal">
+          <i class="pi pi-calendar"></i> {{ fechaInicial | date:'dd/MM/yyyy' }} - {{ fechaFinal | date:'dd/MM/yyyy' }}
+        </span>
+        <span class="filtro-chip estado" *ngIf="selectedEstadoServicio">
+          <i class="pi pi-tag"></i> Est: {{ getDescEstadoServicio() }}
+        </span>
+        <span class="filtro-chip tipo" *ngIf="selectedTipoServicio">
+          <i class="pi pi-cog"></i> Tipo Serv: {{ getDescTipoServicio() }}
+        </span>
+        <span class="filtro-chip tarifa" *ngIf="selectedTarifa">
+          <i class="pi pi-wallet"></i> Cat: {{ getDescTarifa() }}
+        </span>
+        <span class="filtro-chip urbanizacion" *ngIf="selectedTramiteIngreso">
+          <i class="pi pi-file-edit"></i> Trámite: {{ getDescTramiteIngreso() }}
+        </span>
+        <span class="filtro-chip actividad" *ngIf="selectedActividad">
+          <i class="pi pi-briefcase"></i> Act: {{ getDescActividad() }}
+        </span>
+      </div>
+      <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
+        <span class="toggle-icon-wrap">
+          <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+        </span>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main btn-descargar-shape"
+        (click)="descargarShape()"
+        [disabled]="descargandoShape"
+        title="Muestra lo que tendrá el shape de las capas encendidas, en la zona que se ve del mapa, y lo descarga en un .zip"
+      >
+        <i class="pi" [class.pi-download]="!descargandoShape" [class.pi-spin]="descargandoShape" [class.pi-spinner]="descargandoShape"></i>
+        <span>{{ descargandoShape ? "Descargando…" : "Descargar shape" }}</span>
+      </button>
+
+      <button type="button" class="btn-volver-main" (click)="volverAlMain()" title="Volver al Visor Principal de Georreferencia">
+        <i class="pi pi-arrow-left"></i>
+        <span>Volver al Principal</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
+    <div class="cd-filtros-inner">
+      <div class="cd-filtros">
+        <span class="p-float-label">
+          <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
+            (ngModelChange)="onCicloChange()" [style]="{ width: '160px' }" placeholder="Ciclo"
+            [appendTo]="'body'"></p-dropdown>
+          <label>Ciclo</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedCiclo">
+          <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+            (ngModelChange)="onSucursalChange()" [style]="{ width: '180px' }" placeholder="Sucursales"
+            [appendTo]="'body'"></p-dropdown>
+          <label>Sucursal</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector" optionLabel="descripcion" [filter]="true"
+            filterBy="descripcion" [style]="{ width: '220px' }" placeholder="Sectores" [appendTo]="'body'">
+            <ng-template let-sector pTemplate="item">
+              <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
+            </ng-template>
+            <ng-template pTemplate="selectedItem" let-sector>
+              <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
+            </ng-template>
+          </p-dropdown>
+          <label>Sector</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-calendar [(ngModel)]="fechaInicial" dateFormat="dd/mm/yy" [showIcon]="true" [readonlyInput]="true"
+            [maxDate]="fechaFinal" appendTo="body" [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido" [class.ng-dirty]="!hayRangoDeFechasValido"></p-calendar>
+          <label>Fecha desde</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-calendar [(ngModel)]="fechaFinal" dateFormat="dd/mm/yy" [showIcon]="true" [readonlyInput]="true"
+            [minDate]="fechaInicial" appendTo="body" [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido" [class.ng-dirty]="!hayRangoDeFechasValido"></p-calendar>
+          <label>Fecha hasta</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaEstadoServicio" [(ngModel)]="selectedEstadoServicio" optionLabel="descripcion"
+            optionValue="codigo" [style]="{ width: '290px' }" placeholder="Estado Serv." [appendTo]="'body'">
+            <ng-template let-estado pTemplate="item">
+              <div class="estado-opcion">
+                <span class="estado-muestra" *ngIf="estado.codigo !== 'ALL'" [style.background]="fondoEstado(estado.codigo)"></span>{{ estado.descripcion }}
+              </div>
+            </ng-template>
+            <ng-template let-estado pTemplate="selectedItem">
+              <div class="estado-opcion">
+                <span class="estado-muestra" *ngIf="estado.codigo !== 'ALL'" [style.background]="fondoEstado(estado.codigo)"></span>{{ estado.descripcion }}
+              </div>
+            </ng-template>
+          </p-dropdown>
+          <label>Estado Servicio</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaTipoServicio" [(ngModel)]="selectedTipoServicio" optionLabel="descripcion"
+            optionValue="codigo" [style]="{ width: '180px' }" placeholder="Tipo Serv." [appendTo]="'body'">
+          </p-dropdown>
+          <label>Tipo Servicio</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaTramiteIngreso" [(ngModel)]="selectedTramiteIngreso" optionLabel="descripcion"
+            optionValue="codigo" [style]="{ width: '200px' }" placeholder="Trámite ingreso" [appendTo]="'body'">
+          </p-dropdown>
+          <label>Trámite de Ingreso</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaTarifas" [(ngModel)]="selectedTarifa" optionLabel="nomtar" optionValue="catetar"
+            filterBy="nomtar" [filter]="true" [style]="{ width: '220px' }" placeholder="Categoría" [appendTo]="'body'">
+          </p-dropdown>
+          <label>Categoría</label>
+        </span>
+
+        <span class="p-float-label" *ngIf="selectedSucursal">
+          <p-dropdown [options]="listaActividades" [(ngModel)]="selectedActividad" optionLabel="descripcion"
+            optionValue="codigo" filterBy="descripcion" [filter]="true" [style]="{ width: '220px' }"
+            placeholder="Tipo Actividad" [appendTo]="'body'">
+          </p-dropdown>
+          <label>Tipo Actividad</label>
+        </span>
+
+        <div class="filtros-btns" *ngIf="selectedSucursal">
+          <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
+            [loading]="cargando" [disabled]="!hayRangoDeFechasValido"></p-button>
+          <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar" [outlined]="true"></p-button>
+        </div>
+      </div>
+      <small class="p-error" *ngIf="selectedSucursal && !hayRangoDeFechasValido">
+        La fecha desde no puede ser mayor que la fecha hasta.
+      </small>
+    </div>
+  </div>
+
+  <div class="cd-map-container">
+    <div *ngIf="cargando" class="map-loading-overlay">
+      <i class="pi pi-spin pi-spinner"></i>
+      <span>Cargando mapa...</span>
+    </div>
+
+    <div class="cd-resumen" *ngIf="totalConexiones > 0">
+      <div class="card-resumen">
+        <span class="numero">{{ totalConexiones }}</span>
+        <span class="titulo">Conexiones</span>
+      </div>
+      <div class="card-resumen ok">
+        <span class="numero">{{ totalConexiones - totalSinCoordenadas }}</span>
+        <span class="titulo">En Mapa</span>
+      </div>
+      <div class="card-resumen warn" [class.descargable]="totalSinCoordenadas > 0"
+        (click)="descargarSinCoordenadas()" title="Descargar en Excel los clientes sin coordenadas">
+        <span class="numero">{{ totalSinCoordenadas }}</span>
+        <span class="titulo">Sin Coord.</span>
+      </div>
+    </div>
+
+    <div id="map" #mapContainer class="map"></div>
+
+    <app-leyenda-grupos class="cd-leyenda" *ngIf="mostrarLeyenda && entradasLeyenda.length > 0"
+      titulo="Estado del servicio" icono="pi pi-palette"
+      [subtitulo]="(fechaInicial | date:'dd/MM') + ' al ' + (fechaFinal | date:'dd/MM/yyyy') + ' · ' + totalConexiones + ' conexiones'"
+      [entradas]="entradasLeyenda" [grupoFiltrado]="grupoFiltrado"
+      [cargando]="cargandoLotes" textoCargando="pintando lotes…"
+      (elegir)="filtrarPorGrupo($event)" (cerrar)="mostrarLeyenda = false"></app-leyenda-grupos>
+    <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda && entradasLeyenda.length > 0" (click)="mostrarLeyenda = true"
+      title="Mostrar leyenda">
+      <i class="pi pi-palette"></i>
+    </button>
+
+    <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
+      <div class="search-header">
+        <span><i class="pi pi-search"></i> Buscar Cliente</span>
+        <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+      </div>
+      <div class="search-actions" *ngIf="isBusquedaClienteActiva">
+        <span class="limpiar-link" (click)="reiniciarBusqueda()">
+          <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+        </span>
+      </div>
+      <div class="search-body p-inputgroup mt-2">
+        <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
+          (keyup.enter)="buscarPorCodCliente()">
+        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"
+          title="Buscar"></button>
+      </div>
+    </div>
+    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
+      <i class="pi pi-search"></i>
+    </button>
+
+    <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
+      [commercialLayers]="commercialLayers"
+      (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleCommercialLayer($event)"
+      (abiertoChange)="onSidebarToggle()">
+    </app-capas-sidebar>
+
+    <!-- POPUP DE LA CONEXIÓN -->
+    <div class="user-popup" *ngIf="conexionSeleccionada" (click)="$event.stopPropagation()">
+      <div class="up-header">
+        <div class="up-header-left">
+          <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
+          <div class="up-header-info">
+            <span class="up-label">TITULAR · INGRESÓ EL {{ (conexionSeleccionada.fechaingreso | date:'dd/MM/yyyy') || '-' }}</span>
+            <strong class="up-name">{{ conexionSeleccionada.cliente || 'SIN REGISTRO' }}</strong>
+          </div>
+        </div>
+        <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+      </div>
+
+      <div class="up-suministro">
+        <div class="up-sum-item primary">
+          <i class="pi pi-bolt"></i>
+          <span class="up-sum-label">CÓDIGO CLIENTE</span>
+          <span class="up-sum-value">{{ conexionSeleccionada.codcliente || '-' }}</span>
+        </div>
+        <div class="up-sum-sep"></div>
+        <div class="up-sum-item">
+          <i class="pi pi-bolt"></i>
+          <span class="up-sum-label">NRO. MEDIDOR</span>
+          <span class="up-sum-value">{{ conexionSeleccionada.nromedidor || '-' }}</span>
+        </div>
+      </div>
+
+      <div class="up-body">
+        <div class="up-section">
+          <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> UBICACIÓN
+              Y PREDIO
+            </div>
+            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
+              title="Ver en Google Street View"
+              (click)="abrirStreetView(conexionSeleccionada?.lon ?? conexionSeleccionada?.lonpredio, conexionSeleccionada?.lat ?? conexionSeleccionada?.latpredio)"
+              style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;"
+                alt="Street View">
+              <span style="font-weight: 900;">Ver en Maps</span>
+            </button>
+          </div>
+          <div class="up-grid grid-3">
+            <div class="up-cell"><span class="uc-label">Sect</span><span class="uc-val">{{ conexionSeleccionada.codsector || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Mza</span><span class="uc-val">{{ conexionSeleccionada.codmza || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Lote/Sub.</span><span class="uc-val">{{ conexionSeleccionada.nrolote || '-' }}{{ conexionSeleccionada.nrosublote ? ' / ' + conexionSeleccionada.nrosublote : '' }}</span></div>
+
+            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ conexionSeleccionada.direccion || '-' }}{{ conexionSeleccionada.nrocalle ? ' N° ' + conexionSeleccionada.nrocalle : '' }}</span></div>
+
+            <div class="up-cell span-2"><span class="uc-label">Categoría</span><span class="uc-val">{{ conexionSeleccionada.categoria || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Unidades</span><span class="uc-val">{{ conexionSeleccionada.unidtarifa || '-' }}</span></div>
+
+            <div class="up-cell span-2"><span class="uc-label">Actividad</span><span class="uc-val">{{ conexionSeleccionada.actividad || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Pisos</span><span class="uc-val">{{ conexionSeleccionada.nropisos ?? '-' }}</span></div>
+
+            <div class="up-cell"><span class="uc-label">Construcción</span><span class="uc-val">{{ conexionSeleccionada.tipoconstruccion || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Abastecimiento</span><span class="uc-val">{{ conexionSeleccionada.tipodeabastecimiento || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Almacenaje</span><span class="uc-val">{{ conexionSeleccionada.almacenaje || '-' }}</span></div>
+          </div>
+        </div>
+
+        <div class="up-section">
+          <div class="up-section-title medidor">
+            <img src="assets/images/img-georeferencia/medidor-icon.gif" class="gif-icon" alt="Agua"> CONEXIÓN DE AGUA Y MEDIDOR
+          </div>
+          <div class="up-grid grid-2">
+            <div class="up-cell"><span class="uc-label">Est. Servicio</span><span class="uc-val badge-est"><span class="estado-muestra"
+                  [style.background]="fondoEstado(conexionSeleccionada.estadodeserv)"></span>{{ conexionSeleccionada.estadodeserv || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Tipo Servicio</span><span class="uc-val badge-est">{{ conexionSeleccionada.tiposervicio || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Diámetro</span><span class="uc-val">{{ conexionSeleccionada.diametroagua || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Material</span><span class="uc-val">{{ conexionSeleccionada.tipmateragua || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Ubicación caja</span><span class="uc-val">{{ conexionSeleccionada.ubicaccaja || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Caja (mat. / est.)</span><span class="uc-val">{{ conexionSeleccionada.matcajaagua || '-' }} / {{ conexionSeleccionada.estcajaagua || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Tapa (mat. / est.)</span><span class="uc-val">{{ conexionSeleccionada.mattapaagua || '-' }} / {{ conexionSeleccionada.esttapaagua || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Medidor (marca)</span><span class="uc-val">{{ conexionSeleccionada.marcam || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Diámetro medidor</span><span class="uc-val">{{ conexionSeleccionada.diametrom || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Estado medidor</span><span class="uc-val">{{ conexionSeleccionada.estadomedidor || '-' }}</span></div>
+          </div>
+        </div>
+
+        <div class="up-section">
+          <div class="up-section-title loc">
+            <i class="pi pi-filter"></i> CONEXIÓN DE ALCANTARILLADO
+          </div>
+          <div class="up-grid grid-2">
+            <div class="up-cell"><span class="uc-label">Situación</span><span class="uc-val">{{ conexionSeleccionada.situacconexalc || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Diámetro</span><span class="uc-val">{{ conexionSeleccionada.diametrode || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Material</span><span class="uc-val">{{ conexionSeleccionada.tipomatde || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Ubicación caja</span><span class="uc-val">{{ conexionSeleccionada.loccajade || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Caja (mat. / est.)</span><span class="uc-val">{{ conexionSeleccionada.materdecaja || '-' }} / {{ conexionSeleccionada.estadcaja || '-' }}</span></div>
+            <div class="up-cell"><span class="uc-label">Tapa (mat. / est.)</span><span class="uc-val">{{ conexionSeleccionada.materdetapa || '-' }} / {{ conexionSeleccionada.estadtapa || '-' }}</span></div>
+          </div>
+        </div>
+
+        <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
+          <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
+            class="p-button-sm w-full btn-ver-mas"
+            (click)="verMasInformacion(conexionSeleccionada?.codcliente)"></button>
+        </div>
+      </div>
+    </div>
+
+    <app-paneles-mapa-gis [controlador]="controladorGis"
+      [hayPanelDerecho]="!!conexionSeleccionada || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
+  </div>
+</div>

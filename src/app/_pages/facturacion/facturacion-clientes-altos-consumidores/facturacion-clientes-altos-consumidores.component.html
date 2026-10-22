@@ -145,7 +145,8 @@
         <span class="numero">{{ totalClientes - totalSinCoordenadas }}</span>
         <span class="titulo">En Mapa</span>
       </div>
-      <div class="card-resumen warn">
+      <div class="card-resumen warn" [class.descargable]="totalSinCoordenadas > 0"
+        (click)="descargarSinCoordenadas()" title="Descargar en Excel los clientes sin coordenadas">
         <span class="numero">{{ totalSinCoordenadas }}</span>
         <span class="titulo">Sin Coord.</span>
       </div>

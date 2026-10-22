@@ -592,3 +592,44 @@
 @include botones-paneles-oscuros;
 @include resumen-oscuro;
 @include carga-mapa-oscura;
+
+.btn-descargar-shape:disabled {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.cd-leyenda {
+  position: absolute;
+  z-index: 5;
+  width: 300px;
+  max-width: calc(100vw - 40px);
+}
+
+@include leyenda-oscura($alto-leyenda: 345px);
+
+// Capas usa el alto que deja libre la leyenda; la leyenda informa su alto real en --alto-leyenda.
+.cd-wrapper:has(app-leyenda-grupos.cd-leyenda) {
+  --alto-maximo-capas: calc(100vh - var(--app-header-height, 90px) - #{$alto-barra-pantalla + 12px + 36px + 8px + 16px} - #{$alto-pie-host} - var(--alto-leyenda, 340px) - 12px);
+}
+
+.estado-muestra {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+}
+
+// El panel del desplegable va al body: no hereda el tema oscuro, la muestra lleva su propio borde.
+:host ::ng-deep .estado-opcion {
+  display: flex;
+  align-items: center;
+
+  .estado-muestra {
+    flex: none;
+    border-color: rgba(0, 0, 0, 0.35);
+  }
+}

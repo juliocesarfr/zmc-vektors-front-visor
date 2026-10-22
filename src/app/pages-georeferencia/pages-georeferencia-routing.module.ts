@@ -45,6 +45,20 @@ const routes: Routes = conConfigGis([
     data: { modo: MODO_REAPERTURA },
   },
   {
+    path: "catastro/conexiones_nuevas",
+    loadComponent: () =>
+      import("../_pages/catastro/conexiones-nuevas/conexiones-nuevas.component").then(
+        (m) => m.ConexionesNuevasComponent,
+      ),
+  },
+  {
+    path: "catastro/modificaciones_catastrales",
+    loadComponent: () =>
+      import("../_pages/catastro/modificaciones-catastrales/modificaciones-catastrales.component").then(
+        (m) => m.ModificacionesCatastralesComponent,
+      ),
+  },
+  {
     path: "catastro/padron_de_clientes",
     loadComponent: () =>
       import("../_pages/catastro/padron-de-clientes/padron-de-clientes.component").then(

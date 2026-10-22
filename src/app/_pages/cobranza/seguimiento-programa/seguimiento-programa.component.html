@@ -103,7 +103,8 @@
         <span class="numero">{{ rendimiento }}%</span>
         <span class="titulo">Rendim.</span>
       </div>
-      <div class="card-resumen warn" *ngIf="totalSinCoordenadas > 0">
+      <div class="card-resumen warn" *ngIf="totalSinCoordenadas > 0" [class.descargable]="totalSinCoordenadas > 0"
+        (click)="descargarSinCoordenadas()" title="Descargar en Excel los clientes sin coordenadas">
         <span class="numero">{{ totalSinCoordenadas }}</span>
         <span class="titulo">Sin Coord.</span>
       </div>
