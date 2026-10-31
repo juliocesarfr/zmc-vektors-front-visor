@@ -873,7 +873,8 @@ export class SeguimientoProgramaComponent
     abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codigo || this.corteSeleccionado?.codsuc,
+      // Con "Todas" las sucursales el código de la sucursal sale del propio cliente.
+      this.corteSeleccionado?.codsuc || this.selectedSucursal?.codigo,
     ).then((referencia) => (this.ref = referencia));
   }
 

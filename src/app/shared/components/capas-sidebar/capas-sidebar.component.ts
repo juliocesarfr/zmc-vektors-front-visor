@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, EventEmitter, HostListener, Input, Output, inject } from "@angular/core";
+import { Component, EventEmitter, HostListener, Input, OnChanges, Output, SimpleChanges, inject } from "@angular/core";
 import OlMap from "ol/Map";
 import BaseLayer from "ol/layer/Base";
 import LayerGroup from "ol/layer/Group";
@@ -7,9 +7,11 @@ import TileLayer from "ol/layer/Tile";
 import OSM from "ol/source/OSM";
 import TileWMS from "ol/source/TileWMS";
 import XYZ from "ol/source/XYZ";
+import { containsCoordinate } from "ol/extent";
+import { transformExtent } from "ol/proj";
 
-import { CapaConsultable, GisConfigService } from "../../../core/gis";
-import { crearCapaWms } from "../../mapa/capas";
+import { CapaConsultable, GisConfigService, WGS84 } from "../../../core/gis";
+import { crearCapaOrtofoto, crearCapaSatelital, crearCapaWms } from "../../mapa/capas";
 
 export interface CapaBaseUi {
   id: string;
@@ -37,6 +39,9 @@ const SIMBOLOS_TECNICOS: Record<string, SimboloCapaUi> = {
   tuberiasAlcantarillado: { forma: "linea", color: "#b7791f" },
   valvulas: { forma: "rombo", color: "#f43f5e" },
   curvasNivel: { forma: "linea", color: "#a3a3a3" },
+  nodosAlcantarillado: { forma: "punto", color: "#d97706" },
+  sectoresOperacionales: { forma: "area", color: "#0d9488" },
+  presiones: { forma: "punto", color: "#9333ea" },
 };
 
 type ClaseCapas = "comerciales" | "tecnicas";
@@ -50,7 +55,7 @@ const TECLA_PANEL = "c";
   templateUrl: "./capas-sidebar.component.html",
   styleUrls: ["./capas-sidebar.component.scss"],
 })
-export class CapasSidebarComponent {
+export class CapasSidebarComponent implements OnChanges {
   private readonly gis = inject(GisConfigService);
 
   @Input() baseLayers: CapaBaseUi[] = [];
@@ -75,7 +80,17 @@ export class CapasSidebarComponent {
     simbolo: SIMBOLOS_TECNICOS[capa.id],
   }));
 
+  // Las fotos de dron de la EPS se suman a los fondos que manda la pantalla; el panel las dibuja y las prende.
+  readonly basesOrtofoto: CapaBaseUi[] = this.gis.ortofotos.map((ortofoto) => ({
+    id: ortofoto.id,
+    label: ortofoto.etiqueta,
+    iconUrl: "",
+  }));
+
   readonly clasesPlegadas = new Set<ClaseCapas>();
+
+  private mapa?: OlMap;
+  private readonly capasOrtofoto = new Map<string, LayerGroup>();
 
   private readonly capasTecnicas = new Map<string, TileLayer<TileWMS>>();
 
@@ -95,11 +110,39 @@ export class CapasSidebarComponent {
       indice++;
     }
 
+    for (const ortofoto of this.gis.ortofotos) {
+      const extension = transformExtent(ortofoto.extension, WGS84, map.getView().getProjection());
+      const foto = crearCapaOrtofoto(this.gis.urlWms(), ortofoto.capa, extension);
+      // El vuelo cubre solo una parte: alrededor se ve el satelital en vez de un fondo en blanco.
+      const grupo = new LayerGroup({ layers: [crearCapaSatelital(true), foto], visible: false });
+      this.capasOrtofoto.set(ortofoto.id, grupo);
+      capas.insertAt(indice++, grupo);
+    }
+
     for (const c of this.gis.capasTecnicasParaUi()) {
-      const capa = crearCapaWms(this.gis.urlWms(), c.capa, false);
+      const capa = crearCapaWms(this.gis.urlWms(), c.capa, false, 1, this.gis.sldCapa(c.id));
       this.capasTecnicas.set(c.id, capa);
       capas.insertAt(indice++, capa);
     }
+
+    this.mapa = map;
+    this.mostrarOrtofoto();
+  }
+
+  ngOnChanges(cambios: SimpleChanges): void {
+    if (cambios["baseActive"]) this.mostrarOrtofoto();
+  }
+
+  // Cada pantalla prende solo OSM o satelital: al elegir una ortofoto apaga ambos y aquí se prende la foto.
+  private mostrarOrtofoto(): void {
+    for (const [id, grupo] of this.capasOrtofoto) grupo.setVisible(id === this.baseActive);
+
+    const ortofoto = this.gis.ortofotos.find((foto) => foto.id === this.baseActive);
+    const vista = this.mapa?.getView();
+    if (!ortofoto || !vista) return;
+    const extension = transformExtent(ortofoto.extension, WGS84, vista.getProjection());
+    const centro = vista.getCenter();
+    if (!centro || !containsCoordinate(extension, centro)) vista.fit(extension, { duration: 400 });
   }
 
   capasTecnicasConsultables(): CapaConsultable[] {

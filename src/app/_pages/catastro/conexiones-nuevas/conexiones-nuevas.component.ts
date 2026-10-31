@@ -507,6 +507,8 @@ export class ConexionesNuevasComponent
         .getView()
         .fit(origenConexiones.getExtent(), { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
+    // Sin encuadre es la búsqueda de un cliente: avisar "conexiones cargadas" ahí solo confunde.
+    if (!fitBounds) return;
     this.avisar("success", "Proceso completado", "Conexiones nuevas cargadas en el mapa");
   }
 

@@ -116,6 +116,8 @@ export class ConsultaCapasGisService {
       {
         LAYERS: capasTexto,
         QUERY_LAYERS: capasTexto,
+        // El estilo propio de la primera capa solo nombra a esa capa: con él GeoServer no consulta las demás.
+        SLD_BODY: undefined,
         INFO_FORMAT: "application/json",
         FEATURE_COUNT: MAXIMO_ELEMENTOS,
         BUFFER: TOLERANCIA_PX,

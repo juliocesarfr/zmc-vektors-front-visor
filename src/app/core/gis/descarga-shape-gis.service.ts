@@ -49,14 +49,19 @@ export class DescargaShapeGisService {
 
   async descargar(descarga: DescargaShape): Promise<ResultadoDescargaShape> {
     // Se cargan recién aquí: las pantallas del mapa abren sin bajar el compresor.
-    const [{ default: JSZip }, { saveAs }] = await Promise.all([import("jszip"), import("file-saver")]);
+    // file-saver exporta la función misma (CommonJS): en import() solo llega como default, no como { saveAs }.
+    const [{ default: JSZip }, { default: saveAs }] = await Promise.all([import("jszip"), import("file-saver")]);
     const zip = new JSZip();
     const capas: string[] = [];
 
     const capasGis = this.capasGisVisibles(descarga.capasGis);
     if (capasGis.size > 0) {
-      const contenidoGeoServer = await this.pedirShapeGeoServer(capasGis, descarga.extension);
-      await zip.loadAsync(contenidoGeoServer);
+      const columnas = await this.columnasPorCapa(Array.from(capasGis.keys()), capasGis);
+      // Una petición por capa y todas a la vez: en una sola, GeoServer las arma una tras otra y el tiempo se suma.
+      const contenidos = await Promise.all(
+        Array.from(capasGis.keys(), (nombre) => this.pedirShapeGeoServer(nombre, columnas.get(nombre)!, descarga.extension)),
+      );
+      for (const contenido of contenidos) await zip.loadAsync(contenido);
       capas.push(...Array.from(capasGis.values(), (rol) => this.gis.etiquetaCapa(rol)));
     }
 
@@ -91,19 +96,17 @@ export class DescargaShapeGisService {
     return visibles;
   }
 
-  private async pedirShapeGeoServer(capas: Map<string, CapaGisId>, extension: Extent): Promise<Blob> {
-    const nombres = Array.from(capas.keys());
-    const columnas = await this.columnasPorCapa(nombres, capas);
+  private async pedirShapeGeoServer(nombre: string, columnas: string[], extension: Extent): Promise<Blob> {
     const [minimoX, minimoY, maximoX, maximoY] = transformExtent(extension, this.gis.proyeccionMapa, WGS84);
 
     const parametros = new URLSearchParams({
       service: "WFS",
       version: "1.0.0",
       request: "GetFeature",
-      typeName: nombres.join(","),
+      typeName: nombre,
       outputFormat: "SHAPE-ZIP",
       bbox: `${minimoX},${minimoY},${maximoX},${maximoY},${WGS84}`,
-      propertyName: nombres.map((nombre) => `(${columnas.get(nombre)!.join(",")})`).join(""),
+      propertyName: columnas.join(","),
     });
     const archivo = await firstValueFrom(
       this.http.get(`${this.gis.urlWfs()}?${parametros}`, { responseType: "blob" }),

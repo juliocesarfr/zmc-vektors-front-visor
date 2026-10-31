@@ -995,7 +995,8 @@ export class SeguimientoDeLecturaXinspectorComponent
     abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
+      // Con "Todas" las sucursales el código de la sucursal sale del propio registro.
+      this.registroSeleccionado?.codsuc || this.selectedSucursal?.codsuc,
     ).then((referencia) => (this.ref = referencia));
   }
 

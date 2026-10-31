@@ -321,31 +321,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.osmLayer = crearCapaOsm(this.baseActive === "osm");
     this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = crearCapaWms(
-      this.gis.urlWms(),
-      this.gis.capa("lotes"),
-      false,
-    );
-    this.sectoresComercialesLayer = crearCapaWms(
-      this.gis.urlWms(),
-      this.gis.capa("sectoresComerciales"),
-      false,
-    );
-    this.callesLayer = crearCapaWms(
-      this.gis.urlWms(),
-      this.gis.capa("calles"),
-      false,
-    );
-    this.manzanasLayer = crearCapaWms(
-      this.gis.urlWms(),
-      this.gis.capa("manzanas"),
-      false,
-    );
-    this.rutaLecturaLayer = crearCapaWms(
-      this.gis.urlWms(),
-      this.gis.capa("rutaLectura"),
-      false,
-    );
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), false);
+    this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("sectoresComerciales"), false);
+    this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
+    this.rutaLecturaLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("rutaLectura"), false);
 
     this.lecturasLayer = this.crearCapaPuntos(
       { forma: "circulo", radios: RADIOS_LECTURA, visible: false },
@@ -1120,7 +1100,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc || this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc || "002"
+      // Primero la del propio cliente; la del filtro queda solo de respaldo.
+      this.lecturaSeleccionada?.codsuc || this.datosClientePopup?.codsuc || this.selectedSucursal?.codsuc || "002"
     ).then((referencia) => (this.ref = referencia));
   }
 

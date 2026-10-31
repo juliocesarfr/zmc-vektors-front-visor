@@ -725,6 +725,8 @@ export class ControldigitacionComponent
         .getView()
         .fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
+    // Sin encuadre es la búsqueda de un usuario: avisar "lecturas cargadas" ahí solo confunde.
+    if (!fitBounds) return;
     this.avisar(
       "success",
       "Proceso completado",
@@ -1013,9 +1015,10 @@ export class ControldigitacionComponent
     abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc ||
-        this.lecturaSeleccionada?.codsuc ||
-        this.datosClientePopup?.codsuc,
+      // Con "Todas" las sucursales el código de la sucursal sale del propio usuario.
+      this.lecturaSeleccionada?.codsuc ||
+        this.datosClientePopup?.codsuc ||
+        this.selectedSucursal?.codsuc,
     ).then((referencia) => (this.ref = referencia));
   }
 

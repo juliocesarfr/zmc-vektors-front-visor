@@ -22,6 +22,11 @@
         (click)="baseLayerChange.emit(capaBase.id)">
         <i class="muestra" [ngClass]="'muestra-' + capaBase.id"></i>{{ capaBase.label }}
       </button>
+      <button type="button" class="base ortofoto" role="radio" *ngFor="let ortofoto of basesOrtofoto"
+        [attr.aria-checked]="ortofoto.id === baseActive" [tabindex]="abierto ? 0 : -1"
+        title="Fotos del vuelo de dron" (click)="baseLayerChange.emit(ortofoto.id)">
+        <i class="muestra muestra-ortofoto"></i>{{ ortofoto.label }}
+      </button>
     </div>
 
     <div class="lista-capas">

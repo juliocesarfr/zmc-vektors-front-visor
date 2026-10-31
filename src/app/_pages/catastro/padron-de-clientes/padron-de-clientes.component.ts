@@ -580,6 +580,8 @@ export class PadronDeClientesComponent
         .getView()
         .fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
+    // Sin encuadre es la búsqueda de un cliente: avisar "clientes cargados" ahí solo confunde.
+    if (!fitBounds) return;
     this.avisar(
       "success",
       "Proceso completado",
@@ -976,7 +978,8 @@ export class PadronDeClientesComponent
     abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc || this.clienteSeleccionado?.codsuc,
+      // Con "Todas" las sucursales el código de la sucursal sale del propio cliente.
+      this.clienteSeleccionado?.codsuc || this.selectedSucursal?.codsuc,
     ).then((referencia) => (this.ref = referencia));
   }
 

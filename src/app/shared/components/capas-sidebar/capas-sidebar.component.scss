@@ -214,6 +214,10 @@
     color: var(--texto);
     border-color: var(--acento);
   }
+
+  &.ortofoto {
+    grid-column: 1 / -1;
+  }
 }
 
 .muestra {
@@ -230,6 +234,10 @@
 
   &.muestra-ninguno {
     background: #ffffff;
+  }
+
+  &.muestra-ortofoto {
+    background: linear-gradient(135deg, #6b8f4e 0 45%, #b9a27d 45% 70%, #d8d2c4 70%);
   }
 }
 

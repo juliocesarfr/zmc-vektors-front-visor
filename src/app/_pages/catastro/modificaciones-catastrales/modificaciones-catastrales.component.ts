@@ -497,6 +497,8 @@ export class ModificacionesCatastralesComponent
         .getView()
         .fit(origenModificaciones.getExtent(), { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
+    // Sin encuadre es la búsqueda de un cliente: avisar "modificaciones cargadas" ahí solo confunde.
+    if (!fitBounds) return;
     this.avisar("success", "Proceso completado", "Modificaciones cargadas en el mapa");
   }
 

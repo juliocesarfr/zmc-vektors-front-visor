@@ -29,6 +29,13 @@ const routes: Routes = conConfigGis([
       ),
   },
   {
+    path: "micromedicion/variacion_x_consumo",
+    loadComponent: () =>
+      import("../_pages/micromedicion/variacion-x-consumo/variacion-x-consumo.component").then(
+        (m) => m.VariacionXConsumoComponent,
+      ),
+  },
+  {
     path: "cobranza/seguimiento_cortes_conprograma",
     loadComponent: () =>
       import("../_pages/cobranza/seguimiento-programa/seguimiento-programa.component").then(
@@ -63,6 +70,20 @@ const routes: Routes = conConfigGis([
     loadComponent: () =>
       import("../_pages/catastro/padron-de-clientes/padron-de-clientes.component").then(
         (m) => m.PadronDeClientesComponent,
+      ),
+  },
+  {
+    path: "comercializacion/consultas",
+    loadComponent: () =>
+      import("../_pages/comercializacion/consultas/consultas.component").then(
+        (m) => m.ConsultasComponent,
+      ),
+  },
+  {
+    path: "recaudacion/cobertura_x_car",
+    loadComponent: () =>
+      import("../_pages/recaudacion/cobertura-x-car/cobertura-x-car.component").then(
+        (m) => m.CoberturaXCarComponent,
       ),
   },
   {
