@@ -10,7 +10,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
@@ -58,7 +58,7 @@ const COLUMNAS_TABLA_ALTOS_CONSUMIDORES: ColumnaListado[] = [
     FormsModule,
     ButtonModule,
     ToastModule,
-    DropdownModule,
+    SelectModule,
     MapaVisorComponent,
     MapaPopupClienteComponent
   ],
@@ -402,7 +402,7 @@ export class FacturacionClientesAltosConsumidoresComponent implements OnInit {
     }
     if (fitBounds && this.map) {
       const extent = srcUsuarios.getExtent();
-      this.map.getView().fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+      this.map.getView().fit(extent!, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
     this.avisar("success", "Proceso completado", "Clientes cargados en el mapa");
   }

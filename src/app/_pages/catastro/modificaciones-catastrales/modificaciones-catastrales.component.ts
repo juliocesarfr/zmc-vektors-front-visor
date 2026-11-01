@@ -15,7 +15,7 @@ import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { InputTextModule } from "primeng/inputtext";
 import { SelectButtonModule } from "primeng/selectbutton";
 import { MessageService } from "primeng/api";
@@ -145,7 +145,7 @@ const COLUMNAS_SHAPE_MODIFICACIONES: ColumnaShape[] = [
     FormsModule,
     ButtonModule,
     ToastModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
     SelectButtonModule,
     LeyendaGruposComponent,
@@ -234,7 +234,7 @@ export class ModificacionesCatastralesComponent
   /** Todas las modificaciones del cliente elegido en el mapa (un cliente puede tener varias). */
   modificacionesSeleccionadas: any[] = [];
   featureSeleccionado: Feature | null = null;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   readonly baseLayers = CAPAS_BASE_UI;
 
@@ -495,7 +495,7 @@ export class ModificacionesCatastralesComponent
     if (fitBounds) {
       this.map
         .getView()
-        .fit(origenModificaciones.getExtent(), { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+        .fit(origenModificaciones.getExtent()!, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
     // Sin encuadre es la búsqueda de un cliente: avisar "modificaciones cargadas" ahí solo confunde.
     if (!fitBounds) return;
@@ -868,7 +868,7 @@ export class ModificacionesCatastralesComponent
       capasLocales,
       capasGis: this.descargaShapeGis.etiquetasCapasGis(capasGis),
     });
-    this.ref.onClose
+    this.ref?.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmado) => {
         if (confirmado) this.ejecutarDescargaShape(capasGis, capasLocales, extension, nombreArchivo);

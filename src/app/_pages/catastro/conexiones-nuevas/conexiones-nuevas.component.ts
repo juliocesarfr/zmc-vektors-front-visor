@@ -15,9 +15,9 @@ import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { InputTextModule } from "primeng/inputtext";
-import { CalendarModule } from "primeng/calendar";
+import { DatePickerModule } from "primeng/datepicker";
 import { MessageService } from "primeng/api";
 import { CatastroService } from "@host/_servicios/vektors/catastro.service";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
@@ -38,7 +38,7 @@ import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
-import { containsCoordinate, createEmpty, extend, Extent, getCenter, isEmpty } from "ol/extent";
+import { containsCoordinate, createEmpty, extend, Extent, isEmpty } from "ol/extent";
 import { transform } from "ol/proj";
 import Zoom from "ol/control/Zoom";
 import { Fill, Stroke, Style } from "ol/style";
@@ -131,9 +131,9 @@ const COLUMNAS_SHAPE_CONEXIONES: ColumnaShape[] = [
     FormsModule,
     ButtonModule,
     ToastModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
-    CalendarModule,
+    DatePickerModule,
     LeyendaGruposComponent,
   ],
   templateUrl: "./conexiones-nuevas.component.html",
@@ -222,7 +222,7 @@ export class ConexionesNuevasComponent
 
   conexionSeleccionada: any = null;
   featureSeleccionado: Feature | null = null;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   readonly baseLayers = CAPAS_BASE_UI;
 
@@ -505,7 +505,7 @@ export class ConexionesNuevasComponent
     if (fitBounds) {
       this.map
         .getView()
-        .fit(origenConexiones.getExtent(), { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+        .fit(origenConexiones.getExtent()!, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
     // Sin encuadre es la búsqueda de un cliente: avisar "conexiones cargadas" ahí solo confunde.
     if (!fitBounds) return;
@@ -922,7 +922,7 @@ export class ConexionesNuevasComponent
       capasLocales,
       capasGis: this.descargaShapeGis.etiquetasCapasGis(capasGis),
     });
-    this.ref.onClose
+    this.ref?.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmado) => {
         if (confirmado) this.ejecutarDescargaShape(capasGis, capasLocales, extension, nombreArchivo);

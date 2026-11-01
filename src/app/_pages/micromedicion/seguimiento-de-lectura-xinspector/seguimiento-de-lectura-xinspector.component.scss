@@ -635,7 +635,7 @@
 
   ::ng-deep {
     .p-datatable {
-      .p-datatable-wrapper {
+      .p-datatable-table-container {
         scrollbar-width: thin;
         scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
       }
@@ -665,7 +665,7 @@
           vertical-align: middle;
         }
 
-        .p-sortable-column-icon {
+        .p-datatable-sort-icon {
           color: rgba(255, 255, 255, 0.4);
           font-size: 9px;
         }

@@ -1,7 +1,6 @@
 <p-toast></p-toast>
 
 <div class="cd-wrapper">
-
   <div class="cd-toolbar">
     <div class="cd-title">
       <i class="pi pi-map-marker cd-title-icono"></i>
@@ -9,29 +8,52 @@
     </div>
 
     <div class="cd-toolbar-actions">
-      <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
-        <span class="filtro-chip ciclo"><i class="pi pi-building"></i> Sede: {{ nombreSede() }}</span>
-        <span class="filtro-chip sucursal"><i class="pi pi-home"></i> {{ nombreSucursal() }}</span>
-        <span class="filtro-chip estado">
-          <i class="pi pi-calendar"></i> Día de pago: {{ fechaInicial | date:'dd/MM/yyyy' }} - {{ fechaFinal | date:'dd/MM/yyyy' }}
-        </span>
-        <span class="filtro-chip tarifa"><i class="pi pi-wallet"></i> CAR: {{ nombreCar() }}</span>
-      </div>
+      @if (!filtrosVisible) {
+        <div class="cd-filtros-summary">
+          <span class="filtro-chip ciclo"
+            ><i class="pi pi-building"></i> Sede: {{ nombreSede() }}</span
+          >
+          <span class="filtro-chip sucursal"
+            ><i class="pi pi-home"></i> {{ nombreSucursal() }}</span
+          >
+          <span class="filtro-chip estado">
+            <i class="pi pi-calendar"></i> Día de pago: {{ fechaInicial | date: 'dd/MM/yyyy' }} -
+            {{ fechaFinal | date: 'dd/MM/yyyy' }}
+          </span>
+          <span class="filtro-chip tarifa"
+            ><i class="pi pi-wallet"></i> CAR: {{ nombreCar() }}</span
+          >
+        </div>
+      }
       <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
         <span class="toggle-icon-wrap">
-          <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
+          <i
+            class="pi"
+            [class.pi-sliders-h]="!filtrosVisible"
+            [class.pi-times]="filtrosVisible"
+          ></i>
         </span>
         <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
         <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
       </button>
 
-      <button type="button" class="btn-volver-main" (click)="descargarExcelResumen()" [disabled]="resumenes.length === 0"
-        title="Descarga en Excel el resumen de cada CAR">
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="descargarExcelResumen()"
+        [disabled]="resumenes.length === 0"
+        title="Descarga en Excel el resumen de cada CAR"
+      >
         <i class="pi pi-file-excel"></i>
         <span>Excel por CAR</span>
       </button>
 
-      <button type="button" class="btn-volver-main" (click)="volverAlMain()" title="Volver al Visor Principal de Georreferencia">
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="volverAlMain()"
+        title="Volver al Visor Principal de Georreferencia"
+      >
         <i class="pi pi-arrow-left"></i>
         <span>Volver al Principal</span>
       </button>
@@ -42,252 +64,473 @@
     <div class="cd-filtros-inner">
       <div class="cd-filtros">
         <span class="p-float-label">
-          <p-dropdown inputId="sedeCobertura" [options]="listaSedes" [(ngModel)]="selectedSede" optionLabel="nombre"
-            optionValue="codsede" (ngModelChange)="onSedeChange()" [style]="{ width: '210px' }" placeholder="Sede"
-            [appendTo]="'body'"></p-dropdown>
+          <p-select
+            inputId="sedeCobertura"
+            [options]="listaSedes"
+            [(ngModel)]="selectedSede"
+            optionLabel="nombre"
+            optionValue="codsede"
+            (ngModelChange)="onSedeChange()"
+            [style]="{ width: '210px' }"
+            placeholder="Sede"
+            [appendTo]="'body'"
+          ></p-select>
           <label for="sedeCobertura">Sede operacional</label>
         </span>
 
         <span class="p-float-label">
-          <p-dropdown inputId="sucursalCobertura" [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
-            optionValue="codsuc" [style]="{ width: '180px' }" placeholder="Sucursal" [appendTo]="'body'"></p-dropdown>
+          <p-select
+            inputId="sucursalCobertura"
+            [options]="listaSucursales"
+            [(ngModel)]="selectedSucursal"
+            optionLabel="nombre"
+            optionValue="codsuc"
+            [style]="{ width: '180px' }"
+            placeholder="Sucursal"
+            [appendTo]="'body'"
+          ></p-select>
           <label for="sucursalCobertura">Sucursal</label>
         </span>
 
         <span class="p-float-label">
-          <p-calendar inputId="fechaDesdeCobertura" [(ngModel)]="fechaInicial" dateFormat="dd/mm/yy" [showIcon]="true"
-            [readonlyInput]="true" [maxDate]="fechaFinal" appendTo="body" [style]="{ width: '170px' }"
-            [class.ng-invalid]="!hayRangoDeFechasValido" [class.ng-dirty]="!hayRangoDeFechasValido"></p-calendar>
+          <p-datepicker
+            inputId="fechaDesdeCobertura"
+            [(ngModel)]="fechaInicial"
+            dateFormat="dd/mm/yy"
+            [showIcon]="true"
+            [readonlyInput]="true"
+            [maxDate]="fechaFinal"
+            appendTo="body"
+            [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido"
+            [class.ng-dirty]="!hayRangoDeFechasValido"
+          ></p-datepicker>
           <label for="fechaDesdeCobertura">Día de pago desde</label>
         </span>
 
         <span class="p-float-label">
-          <p-calendar inputId="fechaHastaCobertura" [(ngModel)]="fechaFinal" dateFormat="dd/mm/yy" [showIcon]="true"
-            [readonlyInput]="true" [minDate]="fechaInicial" appendTo="body" [style]="{ width: '170px' }"
-            [class.ng-invalid]="!hayRangoDeFechasValido" [class.ng-dirty]="!hayRangoDeFechasValido"></p-calendar>
+          <p-datepicker
+            inputId="fechaHastaCobertura"
+            [(ngModel)]="fechaFinal"
+            dateFormat="dd/mm/yy"
+            [showIcon]="true"
+            [readonlyInput]="true"
+            [minDate]="fechaInicial"
+            appendTo="body"
+            [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido"
+            [class.ng-dirty]="!hayRangoDeFechasValido"
+          ></p-datepicker>
           <label for="fechaHastaCobertura">Día de pago hasta</label>
         </span>
 
         <span class="p-float-label">
-          <p-dropdown inputId="carCobertura" [options]="listaCars" [(ngModel)]="selectedCar" optionLabel="descripcion"
-            optionValue="car" [filter]="true" filterBy="descripcion" [style]="{ width: '260px' }" placeholder="CAR"
-            [appendTo]="'body'"></p-dropdown>
+          <p-select
+            inputId="carCobertura"
+            [options]="listaCars"
+            [(ngModel)]="selectedCar"
+            optionLabel="descripcion"
+            optionValue="car"
+            [filter]="true"
+            filterBy="descripcion"
+            [style]="{ width: '260px' }"
+            placeholder="CAR"
+            [appendTo]="'body'"
+          ></p-select>
           <label for="carCobertura">CAR</label>
         </span>
 
         <div class="filtros-btns">
-          <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
-            [loading]="cargando" [disabled]="!hayRangoDeFechasValido"></p-button>
-          <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar" [outlined]="true"></p-button>
+          <p-button
+            (click)="procesar()"
+            icon="pi pi-search"
+            label="BUSCAR"
+            severity="warn"
+            [loading]="cargando"
+            [disabled]="!hayRangoDeFechasValido"
+          ></p-button>
+          <p-button
+            (click)="limpiar()"
+            icon="pi pi-filter-slash"
+            label="Limpiar"
+            [outlined]="true"
+          ></p-button>
         </div>
       </div>
-      <small class="p-error" *ngIf="!hayRangoDeFechasValido">
-        La fecha desde no puede ser mayor que la fecha hasta.
-      </small>
+      @if (!hayRangoDeFechasValido) {
+        <small class="p-error"> La fecha desde no puede ser mayor que la fecha hasta. </small>
+      }
     </div>
   </div>
 
   <div class="cd-map-container">
-    <div *ngIf="cargando" class="map-loading-overlay">
-      <i class="pi pi-spin pi-spinner"></i>
-      <span>Cargando pagos por CAR...</span>
-    </div>
+    @if (cargando) {
+      <div class="map-loading-overlay">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Cargando pagos por CAR...</span>
+      </div>
+    }
 
-    <div class="cd-resumen" *ngIf="cobertura">
-      <div class="card-resumen">
-        <span class="numero">{{ cobertura.totales.pagos | number:'1.0-0' }}</span>
-        <span class="titulo">Pagos</span>
+    @if (cobertura) {
+      <div class="cd-resumen">
+        <div class="card-resumen">
+          <span class="numero">{{ cobertura.totales.pagos | number: '1.0-0' }}</span>
+          <span class="titulo">Pagos</span>
+        </div>
+        <div class="card-resumen">
+          <span class="numero">{{ cobertura.totales.clientes | number: '1.0-0' }}</span>
+          <span class="titulo">Clientes</span>
+        </div>
+        <div class="card-resumen ok">
+          <span class="numero">S/ {{ cobertura.totales.monto | number: '1.0-0' }}</span>
+          <span class="titulo">Recaudado</span>
+        </div>
+        <div
+          class="card-resumen warn"
+          [class.descargable]="cobertura.totales.sinCoordenadas > 0"
+          (click)="descargarSinCoordenadas()"
+          title="Descargar en Excel los clientes sin coordenadas"
+        >
+          <span class="numero">{{ cobertura.totales.sinCoordenadas | number: '1.0-0' }}</span>
+          <span class="titulo">Sin Coord.</span>
+        </div>
       </div>
-      <div class="card-resumen">
-        <span class="numero">{{ cobertura.totales.clientes | number:'1.0-0' }}</span>
-        <span class="titulo">Clientes</span>
-      </div>
-      <div class="card-resumen ok">
-        <span class="numero">S/ {{ cobertura.totales.monto | number:'1.0-0' }}</span>
-        <span class="titulo">Recaudado</span>
-      </div>
-      <div class="card-resumen warn" [class.descargable]="cobertura.totales.sinCoordenadas > 0"
-        (click)="descargarSinCoordenadas()" title="Descargar en Excel los clientes sin coordenadas">
-        <span class="numero">{{ cobertura.totales.sinCoordenadas | number:'1.0-0' }}</span>
-        <span class="titulo">Sin Coord.</span>
-      </div>
-    </div>
+    }
 
     <div id="map" #mapContainer class="map"></div>
 
-    <app-leyenda-grupos class="cd-leyenda" *ngIf="mostrarLeyenda && entradasLeyenda.length > 0"
-      titulo="Clientes por CAR" icono="pi pi-map-marker"
-      [subtitulo]="nombreSucursal() + ' · ' + (cobertura?.totales?.clientes | number:'1.0-0') + ' clientes'"
-      [entradas]="entradasLeyenda" [grupoFiltrado]="carFiltrado"
-      (elegir)="filtrarPorCar($event)" (cerrar)="mostrarLeyenda = false"></app-leyenda-grupos>
-    <button class="cd-leyenda-toggle" *ngIf="!mostrarLeyenda && entradasLeyenda.length > 0" (click)="mostrarLeyenda = true"
-      title="Mostrar leyenda">
-      <i class="pi pi-map-marker"></i>
-    </button>
+    @if (mostrarLeyenda && entradasLeyenda.length > 0) {
+      <app-leyenda-grupos
+        class="cd-leyenda"
+        titulo="Clientes por CAR"
+        icono="pi pi-map-marker"
+        [subtitulo]="
+          nombreSucursal() + ' · ' + (cobertura?.totales?.clientes | number: '1.0-0') + ' clientes'
+        "
+        [entradas]="entradasLeyenda"
+        [grupoFiltrado]="carFiltrado"
+        (elegir)="filtrarPorCar($event)"
+        (cerrar)="mostrarLeyenda = false"
+      ></app-leyenda-grupos>
+    }
+    @if (!mostrarLeyenda && entradasLeyenda.length > 0) {
+      <button class="cd-leyenda-toggle" (click)="mostrarLeyenda = true" title="Mostrar leyenda">
+        <i class="pi pi-map-marker"></i>
+      </button>
+    }
 
-    <aside class="panel-cobertura" *ngIf="mostrarPanelResumen && resumenes.length > 0" aria-label="Resumen por CAR">
-      <div class="pc-barra">
-        <i class="pi pi-chart-line"></i>
-        <span class="pc-titulo">{{ resumenElegido ? 'Alcance del CAR ' + resumenElegido.car.car : 'Resumen por CAR' }}</span>
-        <button type="button" class="pc-ver-todos" *ngIf="resumenElegido" (click)="verTodosLosCars()">Ver todos los CAR</button>
-        <button type="button" class="pc-cerrar" (click)="mostrarPanelResumen = false" title="Ocultar resumen" aria-label="Ocultar resumen">
-          <i class="pi pi-times"></i>
-        </button>
+    @if (mostrarPanelResumen && resumenes.length > 0) {
+      <aside class="panel-cobertura" aria-label="Resumen por CAR">
+        <div class="pc-barra">
+          <i class="pi pi-chart-line"></i>
+          <span class="pc-titulo">{{
+            resumenElegido ? 'Alcance del CAR ' + resumenElegido.car.car : 'Resumen por CAR'
+          }}</span>
+          @if (resumenElegido) {
+            <button type="button" class="pc-ver-todos" (click)="verTodosLosCars()">
+              Ver todos los CAR
+            </button>
+          }
+          <button
+            type="button"
+            class="pc-cerrar"
+            (click)="mostrarPanelResumen = false"
+            title="Ocultar resumen"
+            aria-label="Ocultar resumen"
+          >
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="pc-cuerpo">
+          @if (resumenElegido; as elegido) {
+            <section class="pc-ficha">
+              <div class="pc-ficha-cabecera">
+                <span class="pc-avatar" [style.background]="fondoCar(elegido)">{{
+                  elegido.car.car
+                }}</span>
+                <div class="pc-ficha-datos">
+                  <span class="pc-etiqueta">Centro autorizado de recaudación</span>
+                  <strong>{{ elegido.car.descripcion }}</strong>
+                  <span class="pc-direccion"
+                    >{{ elegido.car.direccion || 'Sin dirección registrada' }}
+                    @if (elegido.car.nombresede) {
+                      · {{ elegido.car.nombresede }}
+                    }
+                  </span>
+                </div>
+              </div>
+              <div class="pc-indicadores">
+                <div class="pc-indicador resaltado">
+                  <span>Clientes</span><strong>{{ elegido.clientes | number: '1.0-0' }}</strong>
+                </div>
+                <div class="pc-indicador">
+                  <span>Pagos</span><strong>{{ elegido.pagos | number: '1.0-0' }}</strong>
+                </div>
+                <div class="pc-indicador">
+                  <span>Recaudado</span><strong>S/ {{ elegido.monto | number: '1.0-0' }}</strong>
+                </div>
+                <div class="pc-indicador">
+                  <span>Alcance {{ porcentajeAlcance }} %</span
+                  ><strong>{{ textoDistancia(elegido.alcance) }}</strong>
+                </div>
+              </div>
+              @if (elegido.car.ubicacion) {
+                <div class="pc-subtitulo">Distancia del cliente al CAR</div>
+                @for (banda of elegido.bandas; track banda) {
+                  <div class="pc-banda">
+                    <span class="pc-banda-nombre">{{ banda.nombre }}</span>
+                    <span class="pc-banda-pista"
+                      ><span
+                        class="pc-banda-barra"
+                        [style.width.%]="banda.fraccion * 100"
+                        [style.background]="elegido.car.color"
+                      ></span
+                    ></span>
+                    <span class="pc-banda-valor"
+                      >{{ banda.fraccion * 100 | number: '1.0-0' }} % ·
+                      {{ banda.cantidad | number: '1.0-0' }}</span
+                    >
+                  </div>
+                }
+                <div class="pc-notas">
+                  <span
+                    >Mediana: <strong>{{ textoDistancia(elegido.mediana) }}</strong></span
+                  >
+                  <span
+                    >Más lejano: <strong>{{ textoDistancia(elegido.maximo) }}</strong></span
+                  >
+                  @if (elegido.sinCoordenadas) {
+                    <span
+                      >Sin coordenadas:
+                      <strong>{{ elegido.sinCoordenadas | number: '1.0-0' }}</strong></span
+                    >
+                  }
+                  @if (elegido.car.contacto) {
+                    <span>Contacto: {{ elegido.car.contacto }}</span>
+                  }
+                </div>
+              } @else {
+                <p class="pc-aviso">
+                  Este CAR no tiene local en el mapa: no se mide la distancia de sus clientes.
+                  Registre su latitud y longitud en Administración › CAR.
+                </p>
+              }
+            </section>
+          }
+          <table class="pc-tabla">
+            <thead>
+              <tr>
+                <th class="izquierda">CAR</th>
+                <th>Clientes</th>
+                <th>Pagos</th>
+                <th>S/</th>
+                <th>Mediana</th>
+                <th>{{ porcentajeAlcance }} %</th>
+                <th>≤ 1 km</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (resumen of resumenes; track resumen) {
+                <tr
+                  tabindex="0"
+                  (click)="filtrarPorCar(resumen.car.clave)"
+                  (keyup.enter)="filtrarPorCar(resumen.car.clave)"
+                  [class.elegida]="resumen.car.clave === carFiltrado"
+                  [class.apagada]="carFiltrado && resumen.car.clave !== carFiltrado"
+                  [title]="resumen.car.ubicacion ? resumen.car.direccion : 'Sin local en el mapa'"
+                >
+                  <td class="izquierda nombre">
+                    <span class="pc-muestra" [style.background]="fondoCar(resumen)"></span
+                    >{{ resumen.car.car }} · {{ resumen.car.descripcion }}
+                  </td>
+                  <td>{{ resumen.clientes | number: '1.0-0' }}</td>
+                  <td>{{ resumen.pagos | number: '1.0-0' }}</td>
+                  <td>{{ resumen.monto | number: '1.0-0' }}</td>
+                  <td>{{ textoDistancia(resumen.mediana) }}</td>
+                  <td class="alcance">{{ textoDistancia(resumen.alcance) }}</td>
+                  <td>
+                    {{
+                      resumen.fraccionCerca == null
+                        ? '-'
+                        : (resumen.fraccionCerca * 100 | number: '1.0-0') + ' %'
+                    }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    }
+    @if (!mostrarPanelResumen && !clienteSeleccionado && resumenes.length > 0) {
+      <button
+        type="button"
+        class="pc-mostrar"
+        (click)="mostrarPanelResumen = true"
+        title="Mostrar resumen por CAR"
+      >
+        <i class="pi pi-chart-line"></i> Resumen por CAR
+      </button>
+    }
+
+    @if (mostrarSearchPanel) {
+      <div class="cd-search-panel">
+        <div class="search-header">
+          <span><i class="pi pi-search"></i> Buscar Cliente</span>
+          <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+        </div>
+        <div class="search-body p-inputgroup mt-2">
+          <input
+            type="text"
+            pInputText
+            placeholder="Cód. Cliente..."
+            [(ngModel)]="searchCodCliente"
+            (keyup.enter)="buscarPorCodCliente()"
+          />
+          <button
+            pButton
+            type="button"
+            icon="pi pi-search"
+            (click)="buscarPorCodCliente()"
+            class="p-button-primary"
+            title="Buscar"
+          ></button>
+        </div>
       </div>
+    }
+    @if (!mostrarSearchPanel) {
+      <button class="cd-search-toggle" (click)="abrirBusqueda()" title="Buscar cliente">
+        <i class="pi pi-search"></i>
+      </button>
+    }
 
-      <div class="pc-cuerpo">
-        <section class="pc-ficha" *ngIf="resumenElegido as elegido">
-          <div class="pc-ficha-cabecera">
-            <span class="pc-avatar" [style.background]="fondoCar(elegido)">{{ elegido.car.car }}</span>
-            <div class="pc-ficha-datos">
-              <span class="pc-etiqueta">Centro autorizado de recaudación</span>
-              <strong>{{ elegido.car.descripcion }}</strong>
-              <span class="pc-direccion">{{ elegido.car.direccion || 'Sin dirección registrada' }}<ng-container *ngIf="elegido.car.nombresede"> · {{ elegido.car.nombresede }}</ng-container></span>
-            </div>
-          </div>
-
-          <div class="pc-indicadores">
-            <div class="pc-indicador resaltado"><span>Clientes</span><strong>{{ elegido.clientes | number:'1.0-0' }}</strong></div>
-            <div class="pc-indicador"><span>Pagos</span><strong>{{ elegido.pagos | number:'1.0-0' }}</strong></div>
-            <div class="pc-indicador"><span>Recaudado</span><strong>S/ {{ elegido.monto | number:'1.0-0' }}</strong></div>
-            <div class="pc-indicador"><span>Alcance {{ porcentajeAlcance }} %</span><strong>{{ textoDistancia(elegido.alcance) }}</strong></div>
-          </div>
-
-          <ng-container *ngIf="elegido.car.ubicacion; else carSinLocal">
-            <div class="pc-subtitulo">Distancia del cliente al CAR</div>
-            <div class="pc-banda" *ngFor="let banda of elegido.bandas">
-              <span class="pc-banda-nombre">{{ banda.nombre }}</span>
-              <span class="pc-banda-pista"><span class="pc-banda-barra" [style.width.%]="banda.fraccion * 100" [style.background]="elegido.car.color"></span></span>
-              <span class="pc-banda-valor">{{ banda.fraccion * 100 | number:'1.0-0' }} % · {{ banda.cantidad | number:'1.0-0' }}</span>
-            </div>
-            <div class="pc-notas">
-              <span>Mediana: <strong>{{ textoDistancia(elegido.mediana) }}</strong></span>
-              <span>Más lejano: <strong>{{ textoDistancia(elegido.maximo) }}</strong></span>
-              <span *ngIf="elegido.sinCoordenadas">Sin coordenadas: <strong>{{ elegido.sinCoordenadas | number:'1.0-0' }}</strong></span>
-              <span *ngIf="elegido.car.contacto">Contacto: {{ elegido.car.contacto }}</span>
-            </div>
-          </ng-container>
-          <ng-template #carSinLocal>
-            <p class="pc-aviso">Este CAR no tiene local en el mapa: no se mide la distancia de sus clientes. Registre su latitud y longitud en Administración › CAR.</p>
-          </ng-template>
-        </section>
-
-        <table class="pc-tabla">
-          <thead>
-            <tr>
-              <th class="izquierda">CAR</th>
-              <th>Clientes</th>
-              <th>Pagos</th>
-              <th>S/</th>
-              <th>Mediana</th>
-              <th>{{ porcentajeAlcance }} %</th>
-              <th>≤ 1 km</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let resumen of resumenes" tabindex="0" (click)="filtrarPorCar(resumen.car.clave)"
-              (keyup.enter)="filtrarPorCar(resumen.car.clave)" [class.elegida]="resumen.car.clave === carFiltrado"
-              [class.apagada]="carFiltrado && resumen.car.clave !== carFiltrado"
-              [title]="resumen.car.ubicacion ? resumen.car.direccion : 'Sin local en el mapa'">
-              <td class="izquierda nombre"><span class="pc-muestra" [style.background]="fondoCar(resumen)"></span>{{ resumen.car.car }} · {{ resumen.car.descripcion }}</td>
-              <td>{{ resumen.clientes | number:'1.0-0' }}</td>
-              <td>{{ resumen.pagos | number:'1.0-0' }}</td>
-              <td>{{ resumen.monto | number:'1.0-0' }}</td>
-              <td>{{ textoDistancia(resumen.mediana) }}</td>
-              <td class="alcance">{{ textoDistancia(resumen.alcance) }}</td>
-              <td>{{ resumen.fraccionCerca == null ? '-' : (resumen.fraccionCerca * 100 | number:'1.0-0') + ' %' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </aside>
-    <button type="button" class="pc-mostrar" *ngIf="!mostrarPanelResumen && !clienteSeleccionado && resumenes.length > 0"
-      (click)="mostrarPanelResumen = true" title="Mostrar resumen por CAR">
-      <i class="pi pi-chart-line"></i> Resumen por CAR
-    </button>
-
-    <div class="cd-search-panel" *ngIf="mostrarSearchPanel">
-      <div class="search-header">
-        <span><i class="pi pi-search"></i> Buscar Cliente</span>
-        <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
-      </div>
-      <div class="search-body p-inputgroup mt-2">
-        <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
-          (keyup.enter)="buscarPorCodCliente()">
-        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()" class="p-button-primary"
-          title="Buscar"></button>
-      </div>
-    </div>
-    <button class="cd-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()" title="Buscar cliente">
-      <i class="pi pi-search"></i>
-    </button>
-
-    <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive" [commercialLayers]="commercialLayers"
-      (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleCommercialLayer($event)"
-      (abiertoChange)="onSidebarToggle()">
+    <app-capas-sidebar
+      [baseLayers]="baseLayers"
+      [baseActive]="baseActive"
+      [commercialLayers]="commercialLayers"
+      (baseLayerChange)="setBaseLayer($event)"
+      (layerToggle)="toggleCommercialLayer($event)"
+      (abiertoChange)="onSidebarToggle()"
+    >
     </app-capas-sidebar>
 
-    <div class="user-popup" *ngIf="clienteSeleccionado as cliente" (click)="$event.stopPropagation()">
-      <div class="up-header">
-        <div class="up-header-left">
-          <div class="up-avatar"><img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario"></div>
-          <div class="up-header-info">
-            <span class="up-label">TITULAR</span>
-            <strong class="up-name">{{ cliente.propietario || 'SIN REGISTRO' }}</strong>
-          </div>
-        </div>
-        <button class="up-close" (click)="cerrarPopup()" aria-label="Cerrar ficha"><i class="pi pi-times"></i></button>
-      </div>
-
-      <div class="up-suministro">
-        <div class="up-sum-item primary">
-          <i class="pi pi-bolt"></i>
-          <span class="up-sum-label">CÓDIGO CLIENTE</span>
-          <span class="up-sum-value">{{ cliente.codcliente }}</span>
-        </div>
-        <div class="up-sum-sep"></div>
-        <div class="up-sum-item">
-          <i class="pi pi-wallet"></i>
-          <span class="up-sum-label">PAGOS EN EL RANGO</span>
-          <span class="up-sum-value">{{ cliente.nropagos }}</span>
-        </div>
-      </div>
-
-      <div class="up-body">
-        <div class="up-section">
-          <div class="up-section-title loc" style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <img src="assets/images/img-georeferencia/ubication-icon.gif" class="gif-icon" alt="Ubicación"> DÓNDE PAGA
+    @if (clienteSeleccionado; as cliente) {
+      <div class="user-popup" (click)="$event.stopPropagation()">
+        <div class="up-header">
+          <div class="up-header-left">
+            <div class="up-avatar">
+              <img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario" />
             </div>
-            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning" title="Ver en Google Street View"
-              (click)="abrirStreetView()" style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2.5rem;" alt="Street View">
-              <span style="font-weight: 900;">Ver en Maps</span>
-            </button>
-          </div>
-          <div class="up-grid grid-2">
-            <div class="up-cell full"><span class="uc-label">Dirección</span><span class="uc-val">{{ cliente.direccion || '-' }}</span></div>
-            <div class="up-cell full"><span class="uc-label">CAR donde paga</span><span class="uc-val">{{ nombreCarDe(cliente.claveCar) }}</span></div>
-            <div class="up-cell"><span class="uc-label">Distancia al CAR</span><span class="uc-val">{{ textoDistancia(cliente.distanciaMetros) }}</span></div>
-            <div class="up-cell"><span class="uc-label">Monto pagado</span><span class="uc-val">S/ {{ cliente.imptotal | number:'1.2-2' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Primer pago</span><span class="uc-val">{{ cliente.primerdiapago | date:'dd/MM/yyyy' }}</span></div>
-            <div class="up-cell"><span class="uc-label">Último pago</span><span class="uc-val">{{ cliente.ultimodiapago | date:'dd/MM/yyyy' }}</span></div>
-            <div class="up-cell full" *ngIf="cliente.otrosCars.length > 0">
-              <span class="uc-label">También pagó en</span>
-              <span class="uc-val"><ng-container *ngFor="let otro of cliente.otrosCars; let ultimo = last">{{ nombreCarDe(otro.clave) }} ({{ otro.nropagos }}){{ ultimo ? '' : ', ' }}</ng-container></span>
+            <div class="up-header-info">
+              <span class="up-label">TITULAR</span>
+              <strong class="up-name">{{ cliente.propietario || 'SIN REGISTRO' }}</strong>
             </div>
           </div>
+          <button class="up-close" (click)="cerrarPopup()" aria-label="Cerrar ficha">
+            <i class="pi pi-times"></i>
+          </button>
         </div>
-
-        <div class="up-section" style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent;">
-          <button pButton type="button" icon="pi pi-search-plus" label="Ver más información" class="p-button-sm w-full btn-ver-mas"
-            (click)="verMasInformacion()"></button>
+        <div class="up-suministro">
+          <div class="up-sum-item primary">
+            <i class="pi pi-bolt"></i>
+            <span class="up-sum-label">CÓDIGO CLIENTE</span>
+            <span class="up-sum-value">{{ cliente.codcliente }}</span>
+          </div>
+          <div class="up-sum-sep"></div>
+          <div class="up-sum-item">
+            <i class="pi pi-wallet"></i>
+            <span class="up-sum-label">PAGOS EN EL RANGO</span>
+            <span class="up-sum-value">{{ cliente.nropagos }}</span>
+          </div>
+        </div>
+        <div class="up-body">
+          <div class="up-section">
+            <div
+              class="up-section-title loc"
+              style="display: flex; justify-content: space-between; align-items: center"
+            >
+              <div>
+                <img
+                  src="assets/images/img-georeferencia/ubication-icon.gif"
+                  class="gif-icon"
+                  alt="Ubicación"
+                />
+                DÓNDE PAGA
+              </div>
+              <button
+                pButton
+                type="button"
+                class="p-button-outlined p-button-sm p-button-warning"
+                title="Ver en Google Street View"
+                (click)="abrirStreetView()"
+                style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem"
+              >
+                <img
+                  src="assets/images/img-georeferencia/google-street-view-icon.gif"
+                  style="height: 2.5rem"
+                  alt="Street View"
+                />
+                <span style="font-weight: 900">Ver en Maps</span>
+              </button>
+            </div>
+            <div class="up-grid grid-2">
+              <div class="up-cell full">
+                <span class="uc-label">Dirección</span
+                ><span class="uc-val">{{ cliente.direccion || '-' }}</span>
+              </div>
+              <div class="up-cell full">
+                <span class="uc-label">CAR donde paga</span
+                ><span class="uc-val">{{ nombreCarDe(cliente.claveCar) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Distancia al CAR</span
+                ><span class="uc-val">{{ textoDistancia(cliente.distanciaMetros) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Monto pagado</span
+                ><span class="uc-val">S/ {{ cliente.imptotal | number: '1.2-2' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Primer pago</span
+                ><span class="uc-val">{{ cliente.primerdiapago | date: 'dd/MM/yyyy' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Último pago</span
+                ><span class="uc-val">{{ cliente.ultimodiapago | date: 'dd/MM/yyyy' }}</span>
+              </div>
+              @if (cliente.otrosCars.length > 0) {
+                <div class="up-cell full">
+                  <span class="uc-label">También pagó en</span>
+                  <span class="uc-val">
+                    @for (otro of cliente.otrosCars; track otro; let ultimo = $last) {
+                      {{ nombreCarDe(otro.clave) }} ({{ otro.nropagos }}){{ ultimo ? '' : ', ' }}
+                    }
+                  </span>
+                </div>
+              }
+            </div>
+          </div>
+          <div
+            class="up-section"
+            style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent"
+          >
+            <button
+              pButton
+              type="button"
+              icon="pi pi-search-plus"
+              label="Ver más información"
+              class="p-button-sm w-full btn-ver-mas"
+              (click)="verMasInformacion()"
+            ></button>
+          </div>
         </div>
       </div>
-    </div>
+    }
 
-    <app-paneles-mapa-gis [controlador]="controladorGis"
+    <app-paneles-mapa-gis
+      [controlador]="controladorGis"
       [hayPanelDerecho]="!!clienteSeleccionado || mostrarSearchPanel || mostrarPanelResumen"
-      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
+      (filaElegida)="ubicarFilaEnMapa($event)"
+    ></app-paneles-mapa-gis>
   </div>
 </div>

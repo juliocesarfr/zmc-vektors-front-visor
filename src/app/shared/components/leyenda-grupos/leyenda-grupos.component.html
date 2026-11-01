@@ -4,22 +4,41 @@
 </div>
 <div class="leyenda-subtitulo">
   {{ subtitulo }}
-  <span class="leyenda-cargando" *ngIf="cargando"><i class="pi pi-spin pi-spinner"></i> {{ textoCargando }}</span>
+  @if (cargando) {
+    <span class="leyenda-cargando"><i class="pi pi-spin pi-spinner"></i> {{ textoCargando }}</span>
+  }
 </div>
 <div class="leyenda-filas">
-  <button type="button" class="leyenda-fila" *ngFor="let entrada of entradas"
-    [class.activa]="grupoFiltrado === entrada.grupo.clave"
-    [class.atenuada]="!!grupoFiltrado && grupoFiltrado !== entrada.grupo.clave"
-    [style.--color-grupo]="entrada.grupo.color"
-    [style.--porcentaje]="entrada.porcentaje + '%'"
-    (click)="elegir.emit(entrada.grupo.clave)"
-    [title]="entrada.grupo.etiqueta + ' · ' + entrada.porcentaje + '% · ' + (grupoFiltrado === entrada.grupo.clave ? 'clic para ver todos' : 'clic para ver solo estos')">
-    <span class="muestra" [style.background]="fondoMuestra(entrada.grupo)"></span>
-    <span class="nombre">{{ entrada.grupo.etiqueta }}</span>
-    <span class="cantidad">{{ entrada.cantidad | number }}</span>
-  </button>
+  @for (entrada of entradas; track entrada) {
+    <button
+      type="button"
+      class="leyenda-fila"
+      [class.activa]="grupoFiltrado === entrada.grupo.clave"
+      [class.atenuada]="!!grupoFiltrado && grupoFiltrado !== entrada.grupo.clave"
+      [style.--color-grupo]="entrada.grupo.color"
+      [style.--porcentaje]="entrada.porcentaje + '%'"
+      (click)="elegir.emit(entrada.grupo.clave)"
+      [title]="
+        entrada.grupo.etiqueta +
+        ' · ' +
+        entrada.porcentaje +
+        '% · ' +
+        (grupoFiltrado === entrada.grupo.clave ? 'clic para ver todos' : 'clic para ver solo estos')
+      "
+    >
+      <span class="muestra" [style.background]="fondoMuestra(entrada.grupo)"></span>
+      <span class="nombre">{{ entrada.grupo.etiqueta }}</span>
+      <span class="cantidad">{{ entrada.cantidad | number }}</span>
+    </button>
+  }
 </div>
-<small class="leyenda-ayuda" *ngIf="!grupoFiltrado"><i class="pi pi-filter"></i> Clic en una fila para ir solo a esos clientes</small>
-<button type="button" class="leyenda-todos" *ngIf="grupoFiltrado" (click)="elegir.emit(grupoFiltrado)">
-  <i class="pi pi-filter-slash"></i> Ver todos
-</button>
+@if (!grupoFiltrado) {
+  <small class="leyenda-ayuda"
+    ><i class="pi pi-filter"></i> Clic en una fila para ir solo a esos clientes</small
+  >
+}
+@if (grupoFiltrado) {
+  <button type="button" class="leyenda-todos" (click)="elegir.emit(grupoFiltrado)">
+    <i class="pi pi-filter-slash"></i> Ver todos
+  </button>
+}

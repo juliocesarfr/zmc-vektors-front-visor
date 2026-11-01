@@ -18,5 +18,5 @@ export async function abrirConsultaUsuario(
     baseZIndex: 10000,
     maximizable: true,
     data: { codcliente, codsuc, operacion: "Vektors" },
-  });
+  })!;
 }

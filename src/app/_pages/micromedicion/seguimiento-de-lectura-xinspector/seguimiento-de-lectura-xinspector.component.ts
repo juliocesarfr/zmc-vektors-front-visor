@@ -35,7 +35,7 @@ import { MessageService } from "primeng/api";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
 import { TableModule } from "primeng/table";
@@ -112,7 +112,7 @@ const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
     PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     ButtonModule,
     ToastModule,
     TableModule,
@@ -217,7 +217,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   registroSeleccionado: DetalleTomaLecturaInspector | null = null;
   featureSeleccionado: Feature | null = null;
   baseActive: string | null = "osm";
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   readonly baseLayers = CAPAS_BASE_UI;
 

@@ -16,5 +16,5 @@ export function abrirVistaPreviaShape(
     maximizable: true,
     contentStyle: { overflow: "auto" },
     data: datos,
-  });
+  })!;
 }

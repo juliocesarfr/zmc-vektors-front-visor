@@ -6,7 +6,9 @@
     </div>
     <div class="vps-dato">
       <span class="vps-etiqueta">Zona</span>
-      <span class="vps-valor"><i class="pi pi-window-maximize"></i> Lo que se ve ahora en el mapa</span>
+      <span class="vps-valor"
+        ><i class="pi pi-window-maximize"></i> Lo que se ve ahora en el mapa</span
+      >
     </div>
     <div class="vps-dato">
       <span class="vps-etiqueta">Elementos de la pantalla</span>
@@ -17,48 +19,95 @@
   <div class="vps-capas">
     <span class="vps-etiqueta">Capas que tendrá el shape</span>
     <div class="vps-chips">
-      <button type="button" class="vps-chip" *ngFor="let capa of capasConElementos"
-        [class.activa]="capa === capaVisible" (click)="verCapa(capa)">
-        <i class="pi" [class.pi-circle-fill]="capa.tipo === 'punto'" [class.pi-minus]="capa.tipo === 'linea'"></i>
-        {{ capa.nombre }} <strong>{{ capa.elementos.length }}</strong>
-      </button>
-      <span class="vps-chip gis" *ngFor="let capa of datos.capasGis" title="Capa de GeoServer: se recorta a la vista al descargar">
-        <i class="pi pi-globe"></i> {{ capa }}
-      </span>
+      @for (capa of capasConElementos; track capa) {
+        <button
+          type="button"
+          class="vps-chip"
+          [class.activa]="capa === capaVisible"
+          (click)="verCapa(capa)"
+        >
+          <i
+            class="pi"
+            [class.pi-circle-fill]="capa.tipo === 'punto'"
+            [class.pi-minus]="capa.tipo === 'linea'"
+          ></i>
+          {{ capa.nombre }} <strong>{{ capa.elementos.length }}</strong>
+        </button>
+      }
+      @for (capa of datos.capasGis; track capa) {
+        <span class="vps-chip gis" title="Capa de GeoServer: se recorta a la vista al descargar">
+          <i class="pi pi-globe"></i> {{ capa }}
+        </span>
+      }
     </div>
-    <p class="vps-nota" *ngIf="datos.capasGis.length > 0">
-      Las capas de GeoServer se descargan con sus atributos públicos; los datos personales no salen.
-    </p>
+    @if (datos.capasGis.length > 0) {
+      <p class="vps-nota">
+        Las capas de GeoServer se descargan con sus atributos públicos; los datos personales no
+        salen.
+      </p>
+    }
   </div>
 
-  <div class="vps-tabla" *ngIf="capaVisible; else sinDatos">
-    <p-table [value]="capaVisible.elementos" [paginator]="capaVisible.elementos.length > 10" [rows]="10"
-      [scrollable]="true" scrollHeight="320px" styleClass="p-datatable-sm p-datatable-gridlines">
-      <ng-template pTemplate="header">
-        <tr>
-          <th *ngFor="let columna of capaVisible.columnas" [title]="columna.campo">{{ columna.nombre }}</th>
-          <th>lat, lon</th>
-        </tr>
-      </ng-template>
-      <ng-template pTemplate="body" let-elemento>
-        <tr>
-          <td *ngFor="let columna of capaVisible.columnas">{{ elemento.atributos[columna.campo] ?? '' }}</td>
-          <td class="vps-coordenada">{{ coordenadaDe(elemento) }}</td>
-        </tr>
-      </ng-template>
-    </p-table>
-  </div>
-  <ng-template #sinDatos>
+  @if (capaVisible) {
+    <div class="vps-tabla">
+      <p-table
+        [value]="capaVisible.elementos"
+        [paginator]="capaVisible.elementos.length > 10"
+        [rows]="10"
+        [scrollable]="true"
+        scrollHeight="320px"
+        styleClass="p-datatable-sm p-datatable-gridlines"
+      >
+        <ng-template pTemplate="header">
+          <tr>
+            @for (columna of capaVisible.columnas; track columna) {
+              <th [title]="columna.campo">{{ columna.nombre }}</th>
+            }
+            <th>lat, lon</th>
+          </tr>
+        </ng-template>
+        <ng-template pTemplate="body" let-elemento>
+          <tr>
+            @for (columna of capaVisible.columnas; track columna) {
+              <td>{{ elemento.atributos[columna.campo] ?? '' }}</td>
+            }
+            <td class="vps-coordenada">{{ coordenadaDe(elemento) }}</td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  } @else {
     <div class="vps-vacio">
       <i class="pi pi-info-circle"></i>
-      <span *ngIf="datos.capasGis.length > 0">No hay registros de la pantalla en la zona que se ve: el shape tendrá solo las capas de GeoServer.</span>
-      <span *ngIf="datos.capasGis.length === 0">No hay nada que descargar. Encienda una capa o acerque el mapa a la zona con registros.</span>
+      @if (datos.capasGis.length > 0) {
+        <span
+          >No hay registros de la pantalla en la zona que se ve: el shape tendrá solo las capas de
+          GeoServer.</span
+        >
+      }
+      @if (datos.capasGis.length === 0) {
+        <span
+          >No hay nada que descargar. Encienda una capa o acerque el mapa a la zona con
+          registros.</span
+        >
+      }
     </div>
-  </ng-template>
+  }
 
   <div class="vps-acciones">
-    <p-button label="Cancelar" icon="pi pi-times" [outlined]="true" severity="secondary" (click)="cancelar()"></p-button>
-    <p-button label="Descargar shape" icon="pi pi-download" severity="warning" [disabled]="!hayAlgoParaDescargar"
-      (click)="descargar()"></p-button>
+    <p-button
+      label="Cancelar"
+      icon="pi pi-times"
+      [outlined]="true"
+      severity="secondary"
+      (click)="cancelar()"
+    ></p-button>
+    <p-button
+      label="Descargar shape"
+      icon="pi pi-download"
+      severity="warn"
+      [disabled]="!hayAlgoParaDescargar"
+      (click)="descargar()"
+    ></p-button>
   </div>
 </div>

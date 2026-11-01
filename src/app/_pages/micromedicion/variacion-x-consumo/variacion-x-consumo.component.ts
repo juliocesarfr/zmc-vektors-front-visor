@@ -15,7 +15,7 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { forkJoin, of, Subject, Subscription } from "rxjs";
 import { catchError, takeUntil } from "rxjs/operators";
 import { ButtonModule } from "primeng/button";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { InputNumberModule } from "primeng/inputnumber";
 import { MultiSelectModule } from "primeng/multiselect";
 import { InputTextModule } from "primeng/inputtext";
@@ -107,7 +107,7 @@ const COLUMNAS_VARIACION: ColumnaListado[] = [
     CommonModule,
     FormsModule,
     ButtonModule,
-    DropdownModule,
+    SelectModule,
     InputNumberModule,
     InputTextModule,
     MultiSelectModule,
@@ -147,7 +147,7 @@ export class VariacionXConsumoComponent implements OnInit, AfterViewInit, OnDest
   map!: OlMap;
   private detenerObservadorMapa?: () => void;
   private peticionVariacion?: Subscription;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;

@@ -11,7 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DropdownModule } from 'primeng/dropdown';
+import { SelectModule } from 'primeng/select';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
@@ -68,9 +68,8 @@ import { TipodocidentService } from '@host/_servicios/catastro/tipodocident.serv
 import { Calles } from '@host/_models/catastro/calles';
 import { TipoDocIdent } from '@host/_models/catastro/tipodocident';
 import { AutoCompleteModule } from 'primeng/autocomplete';
-import { BusquedaAvanzadaClientesComponent } from '../../shared/components/busqueda-avanzada-clientes/busqueda-avanzada-clientes.component';
 import { BusquedaAvanzadaClientesService } from '../../../../../host/src/app/_servicios/vektors/busqueda-avanzada-clientes.service';
-import { BusquedaAvanzadaClientesRequest, BusquedaAvanzadaClienteResponse } from '../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models';
+import { BusquedaAvanzadaClientesRequest } from '../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models';
 
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
@@ -102,10 +101,9 @@ const SIN_TOPE_DE_REGISTROS = 99999;
   imports: [
     CapasSidebarComponent,
     PanelesMapaGisComponent,
-    BusquedaAvanzadaClientesComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     AutoCompleteModule,
     ButtonModule,
     InputTextModule,
@@ -230,7 +228,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
   indiceFotoAbierta = -1;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
   listaEstadosLectura: any[] = [];
 
   ngOnInit(): void {
@@ -665,7 +663,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     if (srcUsuarios.getFeatures().length > 0) extent = srcUsuarios.getExtent();
     if (srcCajaAgua.getFeatures().length > 0) {
       extent = extent
-        ? extend(extent, srcCajaAgua.getExtent())
+        ? extend(extent, srcCajaAgua.getExtent()!)
         : srcCajaAgua.getExtent();
     }
 
@@ -778,7 +776,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       const srcCaja = this.cajaAguaLayer?.getSource();
       if (srcUsr && srcUsr.getFeatures().length > 0) extent = srcUsr.getExtent();
       if (srcCaja && srcCaja.getFeatures().length > 0) {
-        extent = extent ? extend(extent, srcCaja.getExtent()) : srcCaja.getExtent();
+        extent = extent ? extend(extent, srcCaja.getExtent()!) : srcCaja.getExtent();
       }
     }
 

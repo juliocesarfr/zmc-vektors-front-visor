@@ -15,7 +15,7 @@ import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { InputTextModule } from "primeng/inputtext";
 import { AutoCompleteModule } from "primeng/autocomplete";
 import { MessageService } from "primeng/api";
@@ -134,7 +134,7 @@ const SIN_TOPE_DE_REGISTROS = 99999;
     FormsModule,
     ButtonModule,
     ToastModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
     AutoCompleteModule,
     LeyendaGruposComponent,
@@ -246,7 +246,7 @@ export class ConsultasComponent
 
   clienteSeleccionado: any = null;
   featureSeleccionado: Feature | null = null;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   readonly baseLayers = CAPAS_BASE_UI;
 
@@ -623,7 +623,7 @@ export class ConsultasComponent
       const extent = srcUsuarios.getExtent();
       this.map
         .getView()
-        .fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+        .fit(extent!, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
     if (!avisarResultado) return;
     this.avisar(
@@ -946,7 +946,7 @@ export class ConsultasComponent
 
   private encuadrarPuntos(): void {
     const extension = this.usuariosLayer.getSource()!.getExtent();
-    if (!isEmpty(extension)) this.controladorGis?.encuadrarEnZonaLibre(extension);
+    if (!isEmpty(extension!)) this.controladorGis?.encuadrarEnZonaLibre(extension!);
   }
 
   private codigoDe(registro: any): string {
@@ -1169,7 +1169,7 @@ export class ConsultasComponent
       capasLocales,
       capasGis: this.descargaShapeGis.etiquetasCapasGis(capasGis),
     });
-    this.ref.onClose
+    this.ref?.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmado) => {
         if (confirmado) this.ejecutarDescargaShape(capasGis, capasLocales, extension, nombreArchivo);

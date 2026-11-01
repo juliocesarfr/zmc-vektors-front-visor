@@ -557,7 +557,7 @@ $alto-barra: 46px;
       background: transparent;
       box-shadow: none;
 
-      .p-dropdown-label,
+      .p-select-label,
       .p-autocomplete-input {
         width: 100%;
         height: 30px;
@@ -570,13 +570,13 @@ $alto-barra: 46px;
         box-shadow: none;
       }
 
-      .p-dropdown-label.p-placeholder,
+      .p-select-label.p-placeholder,
       .p-autocomplete-input::placeholder {
         color: rgba(154, 166, 181, 0.75);
         font-weight: 400;
       }
 
-      .p-dropdown-trigger,
+      .p-select-dropdown,
       .p-autocomplete-dropdown {
         width: 26px;
         border: 0;

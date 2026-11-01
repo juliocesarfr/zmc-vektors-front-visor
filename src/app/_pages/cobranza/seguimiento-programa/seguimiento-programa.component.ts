@@ -16,7 +16,7 @@ import { FormsModule } from "@angular/forms";
 import { Observable, forkJoin, of } from "rxjs";
 import { catchError, map, switchMap } from "rxjs/operators";
 
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { ButtonModule } from "primeng/button";
 import { InputNumberModule } from "primeng/inputnumber";
 import { InputTextModule } from "primeng/inputtext";
@@ -113,7 +113,7 @@ const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
     PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     ButtonModule,
     InputNumberModule,
     InputTextModule,
@@ -221,7 +221,7 @@ export class SeguimientoProgramaComponent
     { id: "calles", label: "Calles", active: false },
   ];
 
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   constructor(
     private consultaService: ConsulGenericService,
@@ -311,8 +311,8 @@ export class SeguimientoProgramaComponent
       baseZIndex: 10000,
       maximizable: true,
       data: { tipooperacion: this.modo.tipoOperacion },
-    });
-    this.ref.onClose
+    })!;
+    this.ref?.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((programa) => {
         if (!programa?.nroprecorte) return;

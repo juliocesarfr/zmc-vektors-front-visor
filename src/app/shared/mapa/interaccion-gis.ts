@@ -108,8 +108,8 @@ export class InteraccionGis {
 
     this.rotulo = document.createElement("div");
     this.rotulo.className = "geo-rotulo-cursor";
-    this.map.getViewport().appendChild(this.rotulo);
-    this.map.getViewport().addEventListener("mouseleave", this.alSalirDelMapa);
+    this.map.getViewport()!.appendChild(this.rotulo);
+    this.map.getViewport()!.addEventListener("mouseleave", this.alSalirDelMapa);
 
     this.claveMovimiento = this.map.on("pointermove", (evento) => this.alMoverCursor(evento));
     // La pista quedaría encima de la primera opción del menú de clic derecho.
@@ -164,7 +164,7 @@ export class InteraccionGis {
     this.cancelar();
     unByKey(this.claveMovimiento);
     unByKey(this.claveMenuDibujo);
-    this.map.getViewport().removeEventListener("mouseleave", this.alSalirDelMapa);
+    this.map.getViewport()!.removeEventListener("mouseleave", this.alSalirDelMapa);
     this.rotulo.remove();
     this.map.removeOverlay(this.indicador);
     this.map.removeLayer(this.capaResaltado);
@@ -269,6 +269,6 @@ export class InteraccionGis {
   private ponerCursor(cursor: string): void {
     if (cursor === this.cursorActual) return;
     this.cursorActual = cursor;
-    this.map.getViewport().style.cursor = cursor;
+    this.map.getViewport()!.style.cursor = cursor;
   }
 }

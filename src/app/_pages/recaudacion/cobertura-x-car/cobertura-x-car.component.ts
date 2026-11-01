@@ -15,8 +15,8 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { of, Subscription } from "rxjs";
 import { catchError, map } from "rxjs/operators";
 import { ButtonModule } from "primeng/button";
-import { CalendarModule } from "primeng/calendar";
-import { DropdownModule } from "primeng/dropdown";
+import { DatePickerModule } from "primeng/datepicker";
+import { SelectModule } from "primeng/select";
 import { InputTextModule } from "primeng/inputtext";
 import { ToastModule } from "primeng/toast";
 import { MessageService } from "primeng/api";
@@ -112,8 +112,8 @@ const COLUMNAS_RESUMEN: ColumnaListado[] = [
     CommonModule,
     FormsModule,
     ButtonModule,
-    CalendarModule,
-    DropdownModule,
+    DatePickerModule,
+    SelectModule,
     InputTextModule,
     ToastModule,
     CapasSidebarComponent,
@@ -147,7 +147,7 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
   private peticionCobertura?: Subscription;
   /** Todos los CAR de la empresa, con su ubicación; se piden una vez y se filtran por la sede elegida. */
   private registrosCar: RegistroCar[] = [];
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
@@ -499,7 +499,7 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
     const extension = createEmpty();
     [this.clientesLayer, this.carsLayer].forEach((capa) => {
       const fuente = capa.getSource()!;
-      if (fuente.getFeatures().length) extend(extension, fuente.getExtent());
+      if (fuente.getFeatures().length) extend(extension, fuente.getExtent()!);
     });
     if (!isEmpty(extension)) this.controladorGis?.encuadrarEnZonaLibre(extension);
   }

@@ -15,7 +15,7 @@ import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { InputTextModule } from "primeng/inputtext";
 import { MessageService } from "primeng/api";
 import { CatastroService } from "@host/_servicios/vektors/catastro.service";
@@ -121,7 +121,7 @@ const COLUMNAS_SHAPE_PADRON: ColumnaShape[] = [
     FormsModule,
     ButtonModule,
     ToastModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
     LeyendaGruposComponent,
   ],
@@ -207,7 +207,7 @@ export class PadronDeClientesComponent
 
   clienteSeleccionado: any = null;
   featureSeleccionado: Feature | null = null;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   readonly baseLayers = CAPAS_BASE_UI;
 
@@ -578,7 +578,7 @@ export class PadronDeClientesComponent
       const extent = srcUsuarios.getExtent();
       this.map
         .getView()
-        .fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+        .fit(extent!, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
     // Sin encuadre es la búsqueda de un cliente: avisar "clientes cargados" ahí solo confunde.
     if (!fitBounds) return;
@@ -1001,7 +1001,7 @@ export class PadronDeClientesComponent
       capasLocales,
       capasGis: this.descargaShapeGis.etiquetasCapasGis(capasGis),
     });
-    this.ref.onClose
+    this.ref?.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((confirmado) => {
         if (confirmado) this.ejecutarDescargaShape(capasGis, capasLocales, extension, nombreArchivo);

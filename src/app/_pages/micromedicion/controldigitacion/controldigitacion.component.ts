@@ -43,7 +43,7 @@ import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { ButtonModule } from "primeng/button";
 import { MultiSelectModule } from "primeng/multiselect";
 import { InputNumberModule } from "primeng/inputnumber";
@@ -153,7 +153,7 @@ const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
     PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     MultiSelectModule,
     ButtonModule,
     InputNumberModule,
@@ -288,7 +288,7 @@ export class ControldigitacionComponent
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
   datosClientePopup: any = null;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   /** Foto abierta en el visor; -1 = cerrado. */
   indiceFotoAbierta = -1;
@@ -716,7 +716,7 @@ export class ControldigitacionComponent
     if (srcUsuarios.getFeatures().length > 0) extent = srcUsuarios.getExtent();
     if (srcCajaAgua.getFeatures().length > 0) {
       extent = extent
-        ? extend(extent, srcCajaAgua.getExtent())
+        ? extend(extent, srcCajaAgua.getExtent()!)
         : srcCajaAgua.getExtent();
     }
 

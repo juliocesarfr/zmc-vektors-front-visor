@@ -305,7 +305,7 @@ export class ConsultaCapasGisService {
       return this.formatoGeoJson.readGeometry(geometria, {
         dataProjection: proyeccionDatos ?? proyeccionMapa,
         featureProjection: proyeccionMapa,
-      });
+      }) ?? undefined;
     } catch {
       return undefined;
     }

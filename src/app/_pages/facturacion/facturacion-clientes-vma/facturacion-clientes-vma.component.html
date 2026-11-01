@@ -11,23 +11,34 @@
   (mapReady)="onMapReady($event)"
   [listado]="listadoMapa"
   [hayPopupAbierto]="!!clienteSeleccionado"
-  (aviso)="mostrarAvisoMapa($event)">
-  
+  (aviso)="mostrarAvisoMapa($event)"
+>
   <ng-container toolbar-actions>
-    <div class="cd-filtros-summary" *ngIf="!filtrosVisible">
-      <span class="filtro-chip ciclo" *ngIf="selectedCiclo">
-        <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
-      </span>
-      <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
-        <i class="pi pi-building"></i> {{ selectedSucursal?.nombre || selectedSucursal?.descsucursal }}
-      </span>
-      <span class="filtro-chip anio" *ngIf="selectedAnio">
-        <i class="pi pi-calendar-times"></i> Año: {{ selectedAnio }}
-      </span>
-      <span class="filtro-chip mes" *ngIf="selectedMes">
-        <i class="pi pi-calendar"></i> Mes: {{ selectedMes }}
-      </span>
-    </div>
+    @if (!filtrosVisible) {
+      <div class="cd-filtros-summary">
+        @if (selectedCiclo) {
+          <span class="filtro-chip ciclo">
+            <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
+          </span>
+        }
+        @if (selectedSucursal) {
+          <span class="filtro-chip sucursal">
+            <i class="pi pi-building"></i>
+            {{ selectedSucursal?.nombre || selectedSucursal?.descsucursal }}
+          </span>
+        }
+        @if (selectedAnio) {
+          <span class="filtro-chip anio">
+            <i class="pi pi-calendar-times"></i> Año: {{ selectedAnio }}
+          </span>
+        }
+        @if (selectedMes) {
+          <span class="filtro-chip mes">
+            <i class="pi pi-calendar"></i> Mes: {{ selectedMes }}
+          </span>
+        }
+      </div>
+    }
     <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
       <span class="toggle-icon-wrap">
         <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
@@ -37,80 +48,128 @@
     </button>
   </ng-container>
 
-
   <ng-container filtros-panel>
     <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
       <div class="cd-filtros-inner">
         <div class="cd-filtros">
           <span class="p-float-label">
-            <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
-              (ngModelChange)="onCicloChange()" [style]="{ width: '160px' }" placeholder="Ciclo"
-              [appendTo]="'body'"></p-dropdown>
+            <p-select
+              [options]="dataCiclos"
+              [(ngModel)]="selectedCiclo"
+              optionLabel="descripcion"
+              (ngModelChange)="onCicloChange()"
+              [style]="{ width: '160px' }"
+              placeholder="Ciclo"
+              [appendTo]="'body'"
+            ></p-select>
             <label>Ciclo</label>
           </span>
 
-          <span class="p-float-label" *ngIf="selectedCiclo">
-            <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
-              [style]="{ width: '180px' }" placeholder="Sucursales"
-              [appendTo]="'body'">
-              <ng-template let-sucursal pTemplate="item">
-                <div>{{ sucursal.nombre || sucursal.descsucursal }}</div>
-              </ng-template>
-              <ng-template pTemplate="selectedItem" let-sucursal>
-                <div>{{ sucursal.nombre || sucursal.descsucursal }}</div>
-              </ng-template>  
-            </p-dropdown>
-            <label>Sucursal</label>
-          </span>
+          @if (selectedCiclo) {
+            <span class="p-float-label">
+              <p-select
+                [options]="listaSucursales"
+                [(ngModel)]="selectedSucursal"
+                optionLabel="nombre"
+                [style]="{ width: '180px' }"
+                placeholder="Sucursales"
+                [appendTo]="'body'"
+              >
+                <ng-template let-sucursal pTemplate="item">
+                  <div>{{ sucursal.nombre || sucursal.descsucursal }}</div>
+                </ng-template>
+                <ng-template pTemplate="selectedItem" let-sucursal>
+                  <div>{{ sucursal.nombre || sucursal.descsucursal }}</div>
+                </ng-template>
+              </p-select>
+              <label>Sucursal</label>
+            </span>
+          }
 
-          <span class="p-float-label" *ngIf="selectedSucursal">
-            <p-dropdown [options]="anios" [(ngModel)]="selectedAnio" optionLabel="label" optionValue="value"
-              [style]="{ width: '120px' }" placeholder="Año" [appendTo]="'body'">
-            </p-dropdown>
-            <label>Año</label>
-          </span>
+          @if (selectedSucursal) {
+            <span class="p-float-label">
+              <p-select
+                [options]="anios"
+                [(ngModel)]="selectedAnio"
+                optionLabel="label"
+                optionValue="value"
+                [style]="{ width: '120px' }"
+                placeholder="Año"
+                [appendTo]="'body'"
+              >
+              </p-select>
+              <label>Año</label>
+            </span>
+          }
 
-          <span class="p-float-label" *ngIf="selectedSucursal">
-            <p-dropdown [options]="meses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
-               [style]="{ width: '140px' }" placeholder="Mes" [appendTo]="'body'">
-            </p-dropdown>
-            <label>Mes</label>
-          </span>
+          @if (selectedSucursal) {
+            <span class="p-float-label">
+              <p-select
+                [options]="meses"
+                [(ngModel)]="selectedMes"
+                optionLabel="mes"
+                optionValue="numero"
+                [style]="{ width: '140px' }"
+                placeholder="Mes"
+                [appendTo]="'body'"
+              >
+              </p-select>
+              <label>Mes</label>
+            </span>
+          }
 
-          <div class="filtros-btns" *ngIf="selectedSucursal">
-            <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
-              [loading]="cargando"></p-button>
-            <p-button (click)="limpiar()" icon="pi pi-filter-slash" label="Limpiar" [outlined]="true"></p-button>
-          </div>
+          @if (selectedSucursal) {
+            <div class="filtros-btns">
+              <p-button
+                (click)="procesar()"
+                icon="pi pi-search"
+                label="BUSCAR"
+                severity="warn"
+                [loading]="cargando"
+              ></p-button>
+              <p-button
+                (click)="limpiar()"
+                icon="pi pi-filter-slash"
+                label="Limpiar"
+                [outlined]="true"
+              ></p-button>
+            </div>
+          }
         </div>
       </div>
     </div>
   </ng-container>
 
   <ng-container map-summary>
-    <div class="cd-resumen" *ngIf="totalClientes > 0">
-      <div class="card-resumen">
-        <span class="numero">{{ totalClientes }}</span>
-        <span class="titulo">Clientes</span>
+    @if (totalClientes > 0) {
+      <div class="cd-resumen">
+        <div class="card-resumen">
+          <span class="numero">{{ totalClientes }}</span>
+          <span class="titulo">Clientes</span>
+        </div>
+        <div class="card-resumen ok">
+          <span class="numero">{{ totalClientes - totalSinCoordenadas }}</span>
+          <span class="titulo">En Mapa</span>
+        </div>
+        <div
+          class="card-resumen warn"
+          [class.descargable]="totalSinCoordenadas > 0"
+          (click)="descargarSinCoordenadas()"
+          title="Descargar en Excel los clientes sin coordenadas"
+        >
+          <span class="numero">{{ totalSinCoordenadas }}</span>
+          <span class="titulo">Sin Coord.</span>
+        </div>
       </div>
-      <div class="card-resumen ok">
-        <span class="numero">{{ totalClientes - totalSinCoordenadas }}</span>
-        <span class="titulo">En Mapa</span>
-      </div>
-      <div class="card-resumen warn" [class.descargable]="totalSinCoordenadas > 0"
-        (click)="descargarSinCoordenadas()" title="Descargar en Excel los clientes sin coordenadas">
-        <span class="numero">{{ totalSinCoordenadas }}</span>
-        <span class="titulo">Sin Coord.</span>
-      </div>
-    </div>
+    }
   </ng-container>
 
   <ng-container map-popup>
     <app-mapa-popup-cliente
       [clienteSeleccionado]="clienteSeleccionado"
       (onCerrar)="cerrarPopup()"
-      (onVerStreetView)="abrirStreetView()">
+      (onVerStreetView)="abrirStreetView()"
+    >
     </app-mapa-popup-cliente>
   </ng-container>
-
 </app-mapa-visor>

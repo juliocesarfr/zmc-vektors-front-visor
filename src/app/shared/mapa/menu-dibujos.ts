@@ -46,7 +46,7 @@ export class MenuDibujos {
     });
     this.map.addOverlay(this.overlay);
 
-    this.map.getViewport().addEventListener("contextmenu", this.alClicDerecho);
+    this.map.getViewport()!.addEventListener("contextmenu", this.alClicDerecho);
     document.addEventListener("pointerdown", this.alPulsarFuera, true);
     document.addEventListener("keydown", this.alPulsarTecla);
     this.claveMovimiento = this.map.on("movestart", () => this.cerrar());
@@ -68,7 +68,7 @@ export class MenuDibujos {
   destruir(): void {
     this.cerrar();
     unByKey(this.claveMovimiento);
-    this.map.getViewport().removeEventListener("contextmenu", this.alClicDerecho);
+    this.map.getViewport()!.removeEventListener("contextmenu", this.alClicDerecho);
     document.removeEventListener("pointerdown", this.alPulsarFuera, true);
     document.removeEventListener("keydown", this.alPulsarTecla);
     this.map.removeOverlay(this.overlay);
