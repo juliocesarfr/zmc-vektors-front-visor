@@ -14,6 +14,8 @@ module.exports = withNativeFederation({
   // esbuild deja externas también las rutas profundas de un paquete compartido, y el import map solo trae las que
   // el paquete declara una por una: los que se importan por rutas sin declarar se empaquetan dentro de cada proyecto
   skip: [
+    // primeng/types/* son solo tipos: compartidos salían como archivos vacíos que Hostinger no sube (404 y página en blanco)
+    new RegExp("^primeng/types/"),
     "rxjs/ajax",
     "rxjs/fetch",
     "rxjs/testing",
