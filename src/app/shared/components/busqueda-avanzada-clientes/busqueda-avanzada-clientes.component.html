@@ -5,7 +5,7 @@
       <!-- Sucursal -->
       <div class="col-12 col-md-3">
         <label class="form-label-custom">Sucursal</label>
-        <p-dropdown
+        <p-select
           [options]="listaSucursales"
           [(ngModel)]="_codsuc"
           [disabled]="seleccionarTodasSucursales"
@@ -15,7 +15,7 @@
           placeholder="Seleccione Sucursal"
           styleClass="w-100 p-inputtext-sm"
           [appendTo]="'body'"
-        ></p-dropdown>
+        ></p-select>
       </div>
 
       <!-- Checkbox Todas las Sucursales -->
@@ -26,15 +26,13 @@
           (onChange)="onToggleTodasSucursales()"
           [binary]="true"
         ></p-checkbox>
-        <label for="chkTodasSuc" class="ms-2 mb-0 chk-label">
-          Ver todas las sucursales
-        </label>
+        <label for="chkTodasSuc" class="ms-2 mb-0 chk-label"> Ver todas las sucursales </label>
       </div>
 
       <!-- Calles -->
       <div class="col-12 col-md-3">
         <label class="form-label-custom">Calle / Vía</label>
-        <p-dropdown
+        <p-select
           [options]="listaCalles"
           [(ngModel)]="codcalle"
           optionValue="codcalle"
@@ -46,13 +44,13 @@
           [virtualScrollItemSize]="38"
           styleClass="w-100 p-inputtext-sm"
           [appendTo]="'body'"
-        ></p-dropdown>
+        ></p-select>
       </div>
 
       <!-- Urbanizaciones -->
       <div class="col-12 col-md-3">
         <label class="form-label-custom">Urbanización / Asoc.</label>
-        <p-dropdown
+        <p-select
           [options]="listaUrbanizaciones"
           [(ngModel)]="codurbaso"
           optionValue="codurbaso"
@@ -62,7 +60,7 @@
           filterBy="descripcionurba"
           styleClass="w-100 p-inputtext-sm"
           [appendTo]="'body'"
-        ></p-dropdown>
+        ></p-select>
       </div>
     </div>
 
@@ -103,7 +101,7 @@
       <!-- Tipo Doc. -->
       <div class="col-12 col-sm-6 col-md-2">
         <label class="form-label-custom">Tipo Documento</label>
-        <p-dropdown
+        <p-select
           [options]="listaTiposDoc"
           [(ngModel)]="tipodocident"
           optionValue="tipodocident"
@@ -111,7 +109,7 @@
           placeholder="Tipo Doc."
           styleClass="w-100 p-inputtext-sm"
           [appendTo]="'body'"
-        ></p-dropdown>
+        ></p-select>
       </div>
 
       <!-- Nro. Documento -->
@@ -140,13 +138,15 @@
               [class.active]="letrainicio === 0"
               (click)="letrainicio = 0"
               title="Busca texto en cualquier posición"
-            >Contiene</span>
+              >Contiene</span
+            >
             <span
               class="badge-toggle"
               [class.active]="letrainicio === 1"
               (click)="letrainicio = 1"
               title="Busca texto que inicie con los caracteres ingresados"
-            >Inicia con</span>
+              >Inicia con</span
+            >
           </div>
         </div>
         <span class="p-input-icon-left w-100">
@@ -164,76 +164,78 @@
     </div>
 
     <!-- Filtros Catastrales / Documentarios Desplegables -->
-    <div class="filtros-avanzados-collapse mt-2" *ngIf="mostrarFiltrosAvanzados">
-      <div class="row g-2 align-items-center">
-        <div class="col-6 col-md-2">
-          <label class="form-label-custom">Sector</label>
-          <input
-            pInputText
-            type="text"
-            class="w-100 p-inputtext-sm"
-            placeholder="Cod. Sector"
-            [(ngModel)]="codsector"
-            (keydown.enter)="buscarClick()"
-          />
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label-custom">Manzana</label>
-          <input
-            pInputText
-            type="text"
-            class="w-100 p-inputtext-sm"
-            placeholder="Mza"
-            [(ngModel)]="codmza"
-            (keydown.enter)="buscarClick()"
-          />
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label-custom">Lote</label>
-          <input
-            pInputText
-            type="text"
-            class="w-100 p-inputtext-sm"
-            placeholder="Lote"
-            [(ngModel)]="nrolote"
-            (keydown.enter)="buscarClick()"
-          />
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label-custom">Sublote</label>
-          <input
-            pInputText
-            type="text"
-            class="w-100 p-inputtext-sm"
-            placeholder="Sublote"
-            [(ngModel)]="nrosublote"
-            (keydown.enter)="buscarClick()"
-          />
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label-custom">Nro. Recibo</label>
-          <input
-            pInputText
-            type="text"
-            class="w-100 p-inputtext-sm"
-            placeholder="Nro. Recibo"
-            [(ngModel)]="nrorecibo"
-            (keydown.enter)="buscarClick()"
-          />
-        </div>
-        <div class="col-6 col-md-2">
-          <label class="form-label-custom">Pedido QR / VISA</label>
-          <input
-            pInputText
-            type="text"
-            class="w-100 p-inputtext-sm"
-            placeholder="Nro. Pedido"
-            [(ngModel)]="nropedidoqr"
-            (keydown.enter)="buscarClick()"
-          />
+    @if (mostrarFiltrosAvanzados) {
+      <div class="filtros-avanzados-collapse mt-2">
+        <div class="row g-2 align-items-center">
+          <div class="col-6 col-md-2">
+            <label class="form-label-custom">Sector</label>
+            <input
+              pInputText
+              type="text"
+              class="w-100 p-inputtext-sm"
+              placeholder="Cod. Sector"
+              [(ngModel)]="codsector"
+              (keydown.enter)="buscarClick()"
+            />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label-custom">Manzana</label>
+            <input
+              pInputText
+              type="text"
+              class="w-100 p-inputtext-sm"
+              placeholder="Mza"
+              [(ngModel)]="codmza"
+              (keydown.enter)="buscarClick()"
+            />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label-custom">Lote</label>
+            <input
+              pInputText
+              type="text"
+              class="w-100 p-inputtext-sm"
+              placeholder="Lote"
+              [(ngModel)]="nrolote"
+              (keydown.enter)="buscarClick()"
+            />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label-custom">Sublote</label>
+            <input
+              pInputText
+              type="text"
+              class="w-100 p-inputtext-sm"
+              placeholder="Sublote"
+              [(ngModel)]="nrosublote"
+              (keydown.enter)="buscarClick()"
+            />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label-custom">Nro. Recibo</label>
+            <input
+              pInputText
+              type="text"
+              class="w-100 p-inputtext-sm"
+              placeholder="Nro. Recibo"
+              [(ngModel)]="nrorecibo"
+              (keydown.enter)="buscarClick()"
+            />
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label-custom">Pedido QR / VISA</label>
+            <input
+              pInputText
+              type="text"
+              class="w-100 p-inputtext-sm"
+              placeholder="Nro. Pedido"
+              [(ngModel)]="nropedidoqr"
+              (keydown.enter)="buscarClick()"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    }
 
     <!-- Barra de Acciones de Búsqueda -->
     <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top">
@@ -243,7 +245,11 @@
           type="button"
           class="p-button-text p-button-sm btn-link-toggle"
           [icon]="mostrarFiltrosAvanzados ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
-          [label]="mostrarFiltrosAvanzados ? 'Ocultar filtros catastrales' : 'Más filtros (Sector, Mza, Lote, Recibo)'"
+          [label]="
+            mostrarFiltrosAvanzados
+              ? 'Ocultar filtros catastrales'
+              : 'Más filtros (Sector, Mza, Lote, Recibo)'
+          "
           (click)="mostrarFiltrosAvanzados = !mostrarFiltrosAvanzados"
         ></button>
       </div>
@@ -276,12 +282,14 @@
   <div class="resultados-card mt-3">
     <div class="d-flex justify-content-between align-items-center mb-2 px-1">
       <div class="resultados-contador">
-        <span class="badge-total" *ngIf="totalRecords > 0">
-          <i class="pi pi-users me-1"></i> {{ totalRecords }} cliente(s) encontrado(s)
-        </span>
-        <span class="text-muted fs-12" *ngIf="totalRecords === 0 && !cargando">
-          Ingrese filtros y presione <b>Buscar Clientes</b>
-        </span>
+        @if (totalRecords > 0) {
+          <span class="badge-total">
+            <i class="pi pi-users me-1"></i> {{ totalRecords }} cliente(s) encontrado(s)
+          </span>
+        }
+        @if (totalRecords === 0 && !cargando) {
+          <span class="text-muted fs-12"> Ingrese filtros y presione <b>Buscar Clientes</b> </span>
+        }
       </div>
     </div>
 
@@ -301,17 +309,17 @@
     >
       <ng-template pTemplate="header">
         <tr>
-          <th style="width: 100px;" class="text-center">Suministro</th>
+          <th style="width: 100px" class="text-center">Suministro</th>
           <th>Propietario</th>
           <th>Dirección / Ubicación</th>
-          <th style="width: 120px;">Urbanización</th>
-          <th style="width: 110px;" class="text-center">Sector / Mza</th>
-          <th style="width: 100px;" class="text-center">Medidor</th>
-          <th style="width: 110px;">Doc. Ident.</th>
-          <th style="width: 100px;">Tarifa</th>
-          <th style="width: 110px;" class="text-center">Est. Servicio</th>
-          <th style="width: 100px;" class="text-center">Georref.</th>
-          <th style="width: 110px;" class="text-center">Acción</th>
+          <th style="width: 120px">Urbanización</th>
+          <th style="width: 110px" class="text-center">Sector / Mza</th>
+          <th style="width: 100px" class="text-center">Medidor</th>
+          <th style="width: 110px">Doc. Ident.</th>
+          <th style="width: 100px">Tarifa</th>
+          <th style="width: 110px" class="text-center">Est. Servicio</th>
+          <th style="width: 100px" class="text-center">Georref.</th>
+          <th style="width: 110px" class="text-center">Acción</th>
         </tr>
       </ng-template>
 
@@ -325,17 +333,22 @@
           <!-- Propietario -->
           <td>
             <div class="fw-bold fs-12">{{ cliente.propietario || '-' }}</div>
-            <span class="text-muted fs-11" *ngIf="cliente.descsucursal">
-              <i class="pi pi-building me-1"></i>{{ cliente.descsucursal }}
-            </span>
+            @if (cliente.descsucursal) {
+              <span class="text-muted fs-11">
+                <i class="pi pi-building me-1"></i>{{ cliente.descsucursal }}
+              </span>
+            }
           </td>
 
           <!-- Dirección -->
           <td class="fs-12">
-            <span>{{ cliente.descripcioncorta }} {{ cliente.descripcioncalle }} {{ cliente.nrocalle ? 'N° ' + cliente.nrocalle : '' }}</span>
-            <div class="text-muted fs-11 fst-italic" *ngIf="cliente.referencia">
-              Ref: {{ cliente.referencia }}
-            </div>
+            <span
+              >{{ cliente.descripcioncorta }} {{ cliente.descripcioncalle }}
+              {{ cliente.nrocalle ? 'N° ' + cliente.nrocalle : '' }}</span
+            >
+            @if (cliente.referencia) {
+              <div class="text-muted fs-11 fst-italic">Ref: {{ cliente.referencia }}</div>
+            }
           </td>
 
           <!-- Urbanización -->
@@ -345,28 +358,40 @@
 
           <!-- Sector / Manzana / Lote -->
           <td class="text-center fs-12">
-            <span *ngIf="cliente.codsector">S: {{ cliente.codsector }}</span>
-            <span *ngIf="cliente.codmza"> Mz: {{ cliente.codmza }}</span>
-            <span *ngIf="cliente.nrolote"> Lt: {{ cliente.nrolote }}</span>
-            <span *ngIf="!cliente.codsector && !cliente.codmza && !cliente.nrolote">-</span>
+            @if (cliente.codsector) {
+              <span>S: {{ cliente.codsector }}</span>
+            }
+            @if (cliente.codmza) {
+              <span> Mz: {{ cliente.codmza }}</span>
+            }
+            @if (cliente.nrolote) {
+              <span> Lt: {{ cliente.nrolote }}</span>
+            }
+            @if (!cliente.codsector && !cliente.codmza && !cliente.nrolote) {
+              <span>-</span>
+            }
           </td>
 
           <!-- Medidor -->
           <td class="text-center fs-12">
-            <span class="badge-medidor" *ngIf="cliente.nromed && cliente.nromed !== 'SIN MEDIDOR'">
-              {{ cliente.nromed }}
-            </span>
-            <span class="text-muted fs-11" *ngIf="!cliente.nromed || cliente.nromed === 'SIN MEDIDOR'">
-              S/M
-            </span>
+            @if (cliente.nromed && cliente.nromed !== 'SIN MEDIDOR') {
+              <span class="badge-medidor">
+                {{ cliente.nromed }}
+              </span>
+            }
+            @if (!cliente.nromed || cliente.nromed === 'SIN MEDIDOR') {
+              <span class="text-muted fs-11"> S/M </span>
+            }
           </td>
 
           <!-- Doc. Identidad -->
           <td class="fs-12">
-            <span *ngIf="cliente.nrodocident">
-              {{ cliente.tipodocident || '' }} {{ cliente.nrodocident }}
-            </span>
-            <span class="text-muted" *ngIf="!cliente.nrodocident">-</span>
+            @if (cliente.nrodocident) {
+              <span> {{ cliente.tipodocident || '' }} {{ cliente.nrodocident }} </span>
+            }
+            @if (!cliente.nrodocident) {
+              <span class="text-muted">-</span>
+            }
           </td>
 
           <!-- Tarifa -->
@@ -378,29 +403,32 @@
           <td class="text-center">
             <span
               class="badge-estado"
-              [class.activo]="cliente.estadoservicio === '001' || cliente.descripcionestservicio === 'ACTIVO'"
+              [class.activo]="
+                cliente.estadoservicio === '001' || cliente.descripcionestservicio === 'ACTIVO'
+              "
               [class.cortado]="cliente.estadoservicio !== '001' && cliente.estadoservicio"
             >
-              {{ cliente.descripcionestservicio || cliente.desestadoservicio || cliente.estadoservicio || '-' }}
+              {{
+                cliente.descripcionestservicio ||
+                  cliente.desestadoservicio ||
+                  cliente.estadoservicio ||
+                  '-'
+              }}
             </span>
           </td>
 
           <!-- Georreferenciado -->
           <td class="text-center">
-            <span
-              *ngIf="tieneCoordenadas(cliente)"
-              class="badge-geo si"
-              pTooltip="Cuenta con coordenadas GIS"
-            >
-              <i class="pi pi-check-circle me-1"></i> Sí
-            </span>
-            <span
-              *ngIf="!tieneCoordenadas(cliente)"
-              class="badge-geo no"
-              pTooltip="Sin coordenadas en GIS"
-            >
-              <i class="pi pi-times-circle me-1"></i> No
-            </span>
+            @if (tieneCoordenadas(cliente)) {
+              <span class="badge-geo si" pTooltip="Cuenta con coordenadas GIS">
+                <i class="pi pi-check-circle me-1"></i> Sí
+              </span>
+            }
+            @if (!tieneCoordenadas(cliente)) {
+              <span class="badge-geo no" pTooltip="Sin coordenadas en GIS">
+                <i class="pi pi-times-circle me-1"></i> No
+              </span>
+            }
           </td>
 
           <!-- Acciones -->

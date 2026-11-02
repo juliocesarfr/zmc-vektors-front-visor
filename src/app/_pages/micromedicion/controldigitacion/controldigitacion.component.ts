@@ -43,7 +43,7 @@ import { FiltroLecturas } from "@host/_models/vektors/FiltroLecturas";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { ButtonModule } from "primeng/button";
 import { MultiSelectModule } from "primeng/multiselect";
 import { InputNumberModule } from "primeng/inputnumber";
@@ -95,6 +95,7 @@ import {
   ConsultaCapasGisService,
   GisConfigService,
 } from "../../../core/gis";
+import { registrosSinCoordenadas } from "../../../shared/utils/sin-coordenadas-excel";
 import { CapasSidebarComponent } from "../../../shared/components/capas-sidebar/capas-sidebar.component";
 import { VisorImagenesComponent } from "../../../shared/components/visor-imagenes/visor-imagenes.component";
 import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
@@ -120,7 +121,6 @@ import {
   formatoFechaCorta,
   rangoFotosRecientes,
 } from "../../../shared/utils/fechas.utils";
-import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 
 /** Qué ficha muestra el popup según la capa en que se hizo clic. */
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
@@ -153,7 +153,7 @@ const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
     PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     MultiSelectModule,
     ButtonModule,
     InputNumberModule,
@@ -188,7 +188,6 @@ export class ControldigitacionComponent
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
-  private readonly factArchService = inject(FactArchService);
   private readonly excelService = inject(ExcelService);
   private readonly router = inject(Router);
 
@@ -215,6 +214,7 @@ export class ControldigitacionComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
   centroideFichaLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
@@ -239,8 +239,8 @@ export class ControldigitacionComponent
   selectedEstados: string[] = [];
   selectedAnio = "";
   selectedMes = "";
-  consumoInicial: number | null = 0;
-  consumoFinal: number | null = 0;
+  consumoInicial: number | null = null;
+  consumoFinal: number | null = null;
   selectedTipoPromedio: (typeof TIPOS_PROMEDIO)[number] | null =
     TIPOS_PROMEDIO[0]; // default: MEDIDO
 
@@ -280,6 +280,7 @@ export class ControldigitacionComponent
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false },
     { id: "acc_alc", label: "Acometida de Alcantarillado", active: false },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
     { id: "rutaLectura", label: "Ruta de Lectura", active: false },
   ];
@@ -287,7 +288,7 @@ export class ControldigitacionComponent
   imagenesPopup: any[] = [];
   cargandoImagenes = false;
   datosClientePopup: any = null;
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   /** Foto abierta en el visor; -1 = cerrado. */
   indiceFotoAbierta = -1;
@@ -475,19 +476,7 @@ export class ControldigitacionComponent
       .pipe(
         tap((response) => {
           this.fechaCiclos = response.data;
-          this.factArchService
-            .recuperar_ultimo_periodo_comercial("001")
-            .pipe(takeUntilDestroyed(this.destroyRef))
-            .subscribe((res) => {
-              const aniomes = res?.aniomes || "202609";
-              const anio = aniomes.substring(0, 4);
-              const mes = aniomes.substring(4, 6);
-              if (!this.listaYear.find((y) => y.anio === anio)) {
-                this.listaYear.unshift({ anio: anio });
-              }
-              this.selectedAnio = anio;
-              this.selectedMes = mes;
-            });
+          this.ponerPeriodoActual();
         }),
         switchMap(() =>
           this.sucursalesService.drop_sucursales_x_ciclo(
@@ -524,8 +513,8 @@ export class ControldigitacionComponent
         this.listaSectores = [SECTOR_TODOS, ...data];
         const def = this.sectorPorDefecto();
         this.selectedSector = def;
-        this.consumoInicial = 0;
-        this.consumoFinal = 0;
+        this.consumoInicial = null;
+        this.consumoFinal = null;
       });
   }
 
@@ -627,26 +616,24 @@ export class ControldigitacionComponent
     const def = this.sectorPorDefecto();
     this.selectedSector = def;
     this.selectedEstados = [];
-    this.consumoInicial = 0;
-    this.consumoFinal = 0;
+    this.consumoInicial = null;
+    this.consumoFinal = null;
     this.selectedTipoPromedio = TIPOS_PROMEDIO[0];
     this.resultadoBusquedaJson = null;
     if (this.fechaCiclos) {
-      this.factArchService
-        .recuperar_ultimo_periodo_comercial("001")
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe((res) => {
-          const aniomes = res?.aniomes || "202609";
-          const anio = aniomes.substring(0, 4);
-          const mes = aniomes.substring(4, 6);
-          if (!this.listaYear.find((y) => y.anio === anio)) {
-            this.listaYear.unshift({ anio: anio });
-          }
-          this.selectedAnio = anio;
-          this.selectedMes = mes;
-        });
+      this.ponerPeriodoActual();
     }
     this.limpiarCapas();
+  }
+
+  private ponerPeriodoActual(): void {
+    const hoy = new Date();
+    const anio = String(hoy.getFullYear());
+    if (!this.listaYear.find((y) => y.anio === anio)) {
+      this.listaYear.unshift({ anio: anio });
+    }
+    this.selectedAnio = anio;
+    this.selectedMes = String(hoy.getMonth() + 1).padStart(2, "0");
   }
 
   // ============================================================
@@ -703,7 +690,8 @@ export class ControldigitacionComponent
       .getSource()!
       .addFeatures(lineas("desague", "acometidaDesague"));
 
-    this.totalSinCoordenadas = registros.length - featuresUsr.length;
+    // Por registro y no por punto: los clientes de un mismo predio comparten un punto en el mapa.
+    this.totalSinCoordenadas = registrosSinCoordenadas(registros, ORIGENES_COORDENADA.usuario).length;
 
     this.ajustarVista(fitBounds);
   }
@@ -728,7 +716,7 @@ export class ControldigitacionComponent
     if (srcUsuarios.getFeatures().length > 0) extent = srcUsuarios.getExtent();
     if (srcCajaAgua.getFeatures().length > 0) {
       extent = extent
-        ? extend(extent, srcCajaAgua.getExtent())
+        ? extend(extent, srcCajaAgua.getExtent()!)
         : srcCajaAgua.getExtent();
     }
 
@@ -737,6 +725,8 @@ export class ControldigitacionComponent
         .getView()
         .fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
+    // Sin encuadre es la búsqueda de un usuario: avisar "lecturas cargadas" ahí solo confunde.
+    if (!fitBounds) return;
     this.avisar(
       "success",
       "Proceso completado",
@@ -785,6 +775,11 @@ export class ControldigitacionComponent
       this.gis.capa("calles"),
       false,
     );
+    this.manzanasLayer = crearCapaWms(
+      this.gis.urlWms(),
+      this.gis.capa("manzanas"),
+      false,
+    );
     this.rutaLecturaLayer = crearCapaWms(
       this.gis.urlWms(),
       this.gis.capa("rutaLectura"),
@@ -828,6 +823,7 @@ export class ControldigitacionComponent
       acc_alc: this.acomDesagueLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
       rutaLectura: this.rutaLecturaLayer,
       centroideFicha: this.centroideFichaLayer,
     };
@@ -837,6 +833,7 @@ export class ControldigitacionComponent
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.rutaLecturaLayer,
@@ -947,6 +944,7 @@ export class ControldigitacionComponent
       { rol: "centroideFicha", capa: this.centroideFichaLayer },
       { rol: "lotes", capa: this.lotesLayer },
       { rol: "calles", capa: this.callesLayer },
+      { rol: "manzanas", capa: this.manzanasLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
     ];
   }
@@ -1014,13 +1012,14 @@ export class ControldigitacionComponent
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc ||
-        this.lecturaSeleccionada?.codsuc ||
-        this.datosClientePopup?.codsuc,
-    );
+      // Con "Todas" las sucursales el código de la sucursal sale del propio usuario.
+      this.lecturaSeleccionada?.codsuc ||
+        this.datosClientePopup?.codsuc ||
+        this.selectedSucursal?.codsuc,
+    ).then((referencia) => (this.ref = referencia));
   }
 
   cerrarPopup(): void {
@@ -1392,6 +1391,17 @@ export class ControldigitacionComponent
       return;
     }
     abrirGoogleStreetView(lonLat);
+  }
+
+  /** Clic en la tarjeta "Sin Coord.": Excel de los clientes cargados que no se pintan en el mapa. */
+  async descargarSinCoordenadas(): Promise<void> {
+    if (this.totalSinCoordenadas === 0) return;
+    const cantidad = await (this.controladorGis?.descargarSinCoordenadas() ?? Promise.resolve(0));
+    if (cantidad === 0) {
+      this.avisar("info", "Aviso", "Todos los registros cargados tienen coordenadas.");
+    } else {
+      this.avisar("success", "Excel descargado", `${cantidad} registros sin coordenadas.`);
+    }
   }
 
   private avisar(

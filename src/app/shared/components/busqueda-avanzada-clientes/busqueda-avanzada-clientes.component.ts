@@ -10,7 +10,7 @@ import {
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { TableModule } from "primeng/table";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { InputTextModule } from "primeng/inputtext";
 import { ButtonModule } from "primeng/button";
 import { CheckboxModule } from "primeng/checkbox";
@@ -37,7 +37,7 @@ import { BusquedaAvanzadaClientesService } from "../../../../../../host/src/app/
     CommonModule,
     FormsModule,
     TableModule,
-    DropdownModule,
+    SelectModule,
     InputTextModule,
     ButtonModule,
     CheckboxModule,

@@ -8,17 +8,35 @@
         </div>
       </ng-template>
       <span class="p-float-label mt-2">
-        <p-dropdown [options]="listaSede" [(ngModel)]="envioLista.codsede" optionLabel="descripcion"
-          optionValue="codigo" [style]="{ width: '100%' }" [appendTo]="'body'"></p-dropdown>
+        <p-select
+          [options]="listaSede"
+          [(ngModel)]="envioLista.codsede"
+          optionLabel="descripcion"
+          optionValue="codigo"
+          [style]="{ width: '100%' }"
+          [appendTo]="'body'"
+        ></p-select>
         <label class="form-label">Sede</label>
       </span>
       <span class="p-float-label mt-3">
-        <p-dropdown [options]="estados" [(ngModel)]="envioLista.codestado" optionLabel="descripcion"
-          optionValue="codigo" [style]="{ width: '100%' }" [appendTo]="'body'"></p-dropdown>
+        <p-select
+          [options]="estados"
+          [(ngModel)]="envioLista.codestado"
+          optionLabel="descripcion"
+          optionValue="codigo"
+          [style]="{ width: '100%' }"
+          [appendTo]="'body'"
+        ></p-select>
         <label class="form-label">Estados de Programa</label>
       </span>
-      <button pButton label="Procesar" class="p-button-outlined p-button-success mt-2" icon="pi pi-search"
-        [loading]="loading" (click)="cargarLista()"></button>
+      <button
+        pButton
+        label="Procesar"
+        class="p-button-outlined p-button-success mt-2"
+        icon="pi pi-search"
+        [loading]="loading"
+        (click)="cargarLista()"
+      ></button>
     </p-panel>
   </div>
   <div class="col-md-6 col-sm-12">
@@ -30,38 +48,66 @@
         </div>
       </ng-template>
       <span class="p-float-label mt-2">
-        <p-inputNumber [(ngModel)]="envioLista.nroprecorte_start" [useGrouping]="false" [style]="{ width: '100%' }"
-          [inputStyle]="{ width: '100%' }" class="w-full"></p-inputNumber>
+        <p-inputNumber
+          [(ngModel)]="envioLista.nroprecorte_start"
+          [useGrouping]="false"
+          [style]="{ width: '100%' }"
+          [inputStyle]="{ width: '100%' }"
+          class="w-full"
+        ></p-inputNumber>
         <label>Nro corte</label>
       </span>
       <span class="p-float-label mt-3">
-        <p-inputNumber [(ngModel)]="envioLista.nroprecrte_end" [useGrouping]="false" [style]="{ width: '100%' }"
-          [inputStyle]="{ width: '100%' }" class="w-full"></p-inputNumber>
+        <p-inputNumber
+          [(ngModel)]="envioLista.nroprecrte_end"
+          [useGrouping]="false"
+          [style]="{ width: '100%' }"
+          [inputStyle]="{ width: '100%' }"
+          class="w-full"
+        ></p-inputNumber>
         <label>Nro corte final</label>
       </span>
-      <span class="p-float-label mt-3" *ngIf="rangeDates.length > 0">
-        <p-calendar [(ngModel)]="rangeDates" selectionMode="range" [readonlyInput]="true" class="w-full"
-          dateFormat="dd/mm/yy" appendTo="body" [baseZIndex]="20000" [style]="{ width: '100%' }" />
-        <label>Rango de Fechas</label>
-      </span>
+      @if (rangeDates.length > 0) {
+        <span class="p-float-label mt-3">
+          <p-datepicker
+            [(ngModel)]="rangeDates"
+            selectionMode="range"
+            [readonlyInput]="true"
+            class="w-full"
+            dateFormat="dd/mm/yy"
+            appendTo="body"
+            [baseZIndex]="20000"
+            [style]="{ width: '100%' }"
+          />
+          <label>Rango de Fechas</label>
+        </span>
+      }
     </p-panel>
   </div>
 </div>
 
-<p-table class="mt-2" [value]="programas" [rowHover]="true" [scrollable]="true" scrollHeight="320px"
-  [loading]="loading" styleClass="p-datatable-striped p-datatable-sm" [tableStyle]="{ 'min-width': '50rem' }">
+<p-table
+  class="mt-2"
+  [value]="programas"
+  [rowHover]="true"
+  [scrollable]="true"
+  scrollHeight="320px"
+  [loading]="loading"
+  styleClass="p-datatable-striped p-datatable-sm"
+  [tableStyle]="{ 'min-width': '50rem' }"
+>
   <ng-template pTemplate="header">
     <tr class="fs-11">
-      <th style="min-width:40px">Año</th>
-      <th style="min-width:40px">Mes</th>
-      <th style="min-width:50px">Precorte</th>
-      <th style="min-width:100px">Tipo de Operación</th>
-      <th style="min-width:100px">F.Programa</th>
-      <th style="min-width:50px">Total</th>
-      <th style="min-width:50px">Pend.</th>
-      <th style="min-width:50px">Ejecut.</th>
-      <th style="min-width:50px">Pagó</th>
-      <th style="min-width:150px">Rendimiento</th>
+      <th style="min-width: 40px">Año</th>
+      <th style="min-width: 40px">Mes</th>
+      <th style="min-width: 50px">Precorte</th>
+      <th style="min-width: 100px">Tipo de Operación</th>
+      <th style="min-width: 100px">F.Programa</th>
+      <th style="min-width: 50px">Total</th>
+      <th style="min-width: 50px">Pend.</th>
+      <th style="min-width: 50px">Ejecut.</th>
+      <th style="min-width: 50px">Pagó</th>
+      <th style="min-width: 150px">Rendimiento</th>
     </tr>
   </ng-template>
   <ng-template pTemplate="body" let-rows>
@@ -69,8 +115,12 @@
       <td class="text-center">{{ rows.filtroanio }}</td>
       <td>{{ rows.filtromes }}</td>
       <td>
-        <p-button [label]="rows.nroprecorte" pTooltip="Seleccionar programa" severity="info"
-          (click)="seleccionar(rows)" />
+        <p-button
+          [label]="rows.nroprecorte"
+          pTooltip="Seleccionar programa"
+          severity="info"
+          (click)="seleccionar(rows)"
+        />
       </td>
       <td>{{ rows.c_destipoopera }}</td>
       <td class="text-center">{{ rows.fechareg | date: 'dd/MM/yyyy HH:mm' }}</td>

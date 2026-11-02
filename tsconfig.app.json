@@ -9,7 +9,11 @@
   ],
   "include": [
     "src/**/*.d.ts",
-    "src/**/*.module.ts",
-    "./src/main.ts"
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "src/**/*.server.ts",
+    "src/**/*.spec.ts",
+    "src/main.server.ts"
   ]
 }

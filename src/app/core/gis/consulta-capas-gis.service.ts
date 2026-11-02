@@ -1,6 +1,6 @@
 import { Injectable, inject } from "@angular/core";
 import { HttpBackend, HttpClient } from "@angular/common/http";
-import { Observable, of } from "rxjs";
+import { forkJoin, Observable, of } from "rxjs";
 import { catchError, map } from "rxjs/operators";
 import GeoJSON from "ol/format/GeoJSON";
 import { get as obtenerProyeccion } from "ol/proj";
@@ -36,6 +36,9 @@ export interface ElementoGis {
   geometria?: Geometry;
 }
 
+// Cuántos códigos de cliente van en cada CQL `IN (...)`: más largo y algunos GeoServer cortan la URL.
+const CODIGOS_POR_PEDIDO_LOTES = 100;
+
 interface RespuestaGeoServer {
   features?: any[];
   crs?: { properties?: { name?: string } };
@@ -47,12 +50,17 @@ const MAXIMO_ELEMENTOS = 10;
 const TOLERANCIA_PX = 8;
 
 // Solo se ocultan cuando la capa no declara sus atributos en CONFIG_EPS.
-const COLUMNAS_OCULTAS = new Set([
+export const COLUMNAS_OCULTAS = new Set([
   "geom", "the_geom", "geometry", "shape", "bbox", "id_prov", "id_dist", "minorloss",
   "roughness", "hor_reg", "plano_pdf", "plano_dwg", "plano_dxf", "doc_adicional",
 ]);
 
 const PRIORIDAD_POLIGONO = 2;
+
+// Medio lado del cuadrito que se busca alrededor del punto del cliente: unos 2 m.
+const MARGEN_PUNTO_PREDIO_GRADOS = 0.00002;
+const MARGEN_PUNTO_PREDIO_METROS = 2;
+const MAXIMO_LOTES_EN_PUNTO = 5;
 
 // Un punto encima de una línea o de un lote es casi siempre lo que el usuario quiso tocar.
 const PRIORIDAD_GEOMETRIA: Record<string, number> = {
@@ -108,6 +116,8 @@ export class ConsultaCapasGisService {
       {
         LAYERS: capasTexto,
         QUERY_LAYERS: capasTexto,
+        // El estilo propio de la primera capa solo nombra a esa capa: con él GeoServer no consulta las demás.
+        SLD_BODY: undefined,
         INFO_FORMAT: "application/json",
         FEATURE_COUNT: MAXIMO_ELEMENTOS,
         BUFFER: TOLERANCIA_PX,
@@ -162,6 +172,105 @@ export class ConsultaCapasGisService {
     );
   }
 
+  /**
+   * Polígonos de los lotes de varios clientes, por código, en la proyección del mapa.
+   * Vacío si la EPS no publica el código de cliente en sus lotes.
+   */
+  buscarPrediosDeClientes(codigos: string[], proyeccionMapa: string): Observable<Map<string, Geometry>> {
+    const { campoCliente } = this.gis.consultaCapa("lotes");
+    // Solo dígitos: los códigos van dentro de un filtro CQL.
+    const validos = [...new Set(codigos.filter((codigo) => /^\d+$/.test(codigo)))];
+    if (!campoCliente || validos.length === 0) return of(new Map());
+
+    const tandas: string[][] = [];
+    for (let inicio = 0; inicio < validos.length; inicio += CODIGOS_POR_PEDIDO_LOTES) {
+      tandas.push(validos.slice(inicio, inicio + CODIGOS_POR_PEDIDO_LOTES));
+    }
+
+    const pedidos = tandas.map((tanda) => {
+      const url = this.gis.urlGetFeature("lotes", `${campoCliente} IN (${tanda.join(",")})`, {
+        srsName: proyeccionMapa,
+        maxFeatures: String(tanda.length * 2),
+      });
+      if (!url) return of<RespuestaGeoServer>({});
+      return this.http.get<RespuestaGeoServer>(url).pipe(
+        catchError((error) => {
+          console.warn("[GIS] No se pudieron traer los lotes de los clientes.", error);
+          return of<RespuestaGeoServer>({});
+        }),
+      );
+    });
+
+    return forkJoin(pedidos).pipe(
+      map((respuestas) => {
+        const lotes = new Map<string, Geometry>();
+        for (const respuesta of respuestas) {
+          for (const lote of respuesta.features ?? []) {
+            const codigo = String(lote?.properties?.[campoCliente] ?? "").trim();
+            const geometria = this.leerGeometria(lote?.geometry, respuesta.crs?.properties?.name, proyeccionMapa);
+            if (codigo && geometria && !lotes.has(codigo)) lotes.set(codigo, geometria);
+          }
+        }
+        return lotes;
+      }),
+    );
+  }
+
+  /**
+   * Lote que contiene el punto del cliente, para las EPS cuyos lotes no guardan el código de cliente (021).
+   * Se filtra con `bbox` y no con CQL porque el nombre del campo de geometría cambia en cada EPS.
+   */
+  buscarPredioEnPunto(coordenada: Coordinate, proyeccionMapa: string): Observable<Geometry | undefined> {
+    const margen = obtenerProyeccion(proyeccionMapa)?.getUnits() === "degrees"
+      ? MARGEN_PUNTO_PREDIO_GRADOS
+      : MARGEN_PUNTO_PREDIO_METROS;
+    const [x, y] = coordenada;
+    const url = this.gis.urlGetFeature("lotes", undefined, {
+      srsName: proyeccionMapa,
+      maxFeatures: String(MAXIMO_LOTES_EN_PUNTO),
+      bbox: [x - margen, y - margen, x + margen, y + margen, proyeccionMapa].join(","),
+    });
+    if (!url) return of(undefined);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) => {
+        const lotes = (respuesta.features ?? [])
+          .map((lote) => this.leerGeometria(lote?.geometry, respuesta.crs?.properties?.name, proyeccionMapa))
+          .filter((geometria): geometria is Geometry => !!geometria);
+        // Un punto sobre el lindero toca dos lotes: se prefiere el que lo contiene.
+        return lotes.find((geometria) => geometria.intersectsCoordinate(coordenada)) ?? lotes[0];
+      }),
+      catchError((error) => {
+        console.warn("[GIS] No se pudo ubicar el lote del punto del cliente.", error);
+        return of(undefined);
+      }),
+    );
+  }
+
+  /** Tramos de la calle con ese nombre en la capa de calles. Vacío si la EPS no declara el campo del nombre. */
+  buscarCalle(nombre: string, proyeccionMapa: string): Observable<Geometry[]> {
+    const { campoTitulo } = this.gis.consultaCapa("calles");
+    const texto = nombre.trim();
+    if (!campoTitulo || !texto) return of([]);
+
+    // Las comillas simples se duplican: el nombre va dentro de un filtro CQL.
+    const filtro = `${campoTitulo} ILIKE '%${texto.replace(/'/g, "''")}%'`;
+    const url = this.gis.urlGetFeature("calles", filtro, { srsName: proyeccionMapa });
+    if (!url) return of([]);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) =>
+        (respuesta.features ?? [])
+          .map((tramo) => this.leerGeometria(tramo?.geometry, respuesta.crs?.properties?.name, proyeccionMapa))
+          .filter((geometria): geometria is Geometry => !!geometria),
+      ),
+      catchError((error) => {
+        console.warn("[GIS] No se pudo ubicar la calle.", error);
+        return of([]);
+      }),
+    );
+  }
+
   // GeoServer identifica cada elemento como "<capa>.<id>", sin el workspace.
   private aElementoGis(
     elemento: any,
@@ -196,7 +305,7 @@ export class ConsultaCapasGisService {
       return this.formatoGeoJson.readGeometry(geometria, {
         dataProjection: proyeccionDatos ?? proyeccionMapa,
         featureProjection: proyeccionMapa,
-      });
+      }) ?? undefined;
     } catch {
       return undefined;
     }

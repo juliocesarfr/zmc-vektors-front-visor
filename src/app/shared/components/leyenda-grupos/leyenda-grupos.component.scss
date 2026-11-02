@@ -1,0 +1,141 @@
+:host {
+  display: block;
+  font-size: 12px;
+}
+
+.leyenda-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+  color: #5cc6e8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  i:not(.cerrar) {
+    margin-right: 6px;
+  }
+
+  .cerrar {
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+}
+
+.leyenda-subtitulo {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+}
+
+.leyenda-cargando {
+  color: #5cc6e8;
+}
+
+// Con muchos grupos la lista se desplaza y no se monta sobre el panel de capas.
+.leyenda-filas {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
+// Una línea por grupo; el porcentaje es el fondo suave de la fila.
+.leyenda-fila {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  column-gap: 8px;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--color-grupo) 22%, transparent) var(--porcentaje),
+    transparent var(--porcentaje)
+  );
+  color: #ffffff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  &.activa {
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 3px 0 0 var(--color-grupo);
+  }
+
+  &.atenuada {
+    opacity: 0.35;
+  }
+}
+
+.muestra {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.nombre {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cantidad {
+  min-width: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.leyenda-ayuda {
+  display: block;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 10.5px;
+}
+
+.leyenda-todos {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: 1px solid rgba(92, 198, 232, 0.5);
+  border-radius: 999px;
+  background: transparent;
+  color: #5cc6e8;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(92, 198, 232, 0.12);
+  }
+}

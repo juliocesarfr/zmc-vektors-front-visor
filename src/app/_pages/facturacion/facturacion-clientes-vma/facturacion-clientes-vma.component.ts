@@ -10,7 +10,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { MessageService } from "primeng/api";
 import { ConsulGenericService } from "@host/_servicios/consultaGeneral/consul-generic.service";
 import { SucursalesService } from "@host/_servicios/seguridad/sucursales.service";
@@ -23,7 +23,6 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import { Feature } from "ol";
 
-import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-visor.component";
 import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
 import { MapEstilosFactory, RADIOS_LECTURA } from "../../../shared/mapa/mapa-estilos";
@@ -57,7 +56,7 @@ const COLUMNAS_TABLA_FACTURACION_VMA: ColumnaListado[] = [
     FormsModule,
     ButtonModule,
     ToastModule,
-    DropdownModule,
+    SelectModule,
     MapaVisorComponent,
     MapaPopupClienteComponent
   ],
@@ -73,7 +72,6 @@ export class FacturacionClientesVmaComponent implements OnInit {
   // opción anterior; si no, una respuesta que llega tarde llenaría los combos con datos viejos.
   private readonly cicloCambiado = new Subject<void>();
   private readonly estilos = new MapEstilosFactory();
-  private readonly factArchService = inject(FactArchService);
 
   map?: OlMap;
 
@@ -152,6 +150,17 @@ export class FacturacionClientesVmaComponent implements OnInit {
     this.filtrosVisible = !this.filtrosVisible;
   }
 
+  /** Clic en la tarjeta "Sin Coord.": Excel de los clientes cargados que no se pintan en el mapa. */
+  async descargarSinCoordenadas(): Promise<void> {
+    if (this.totalSinCoordenadas === 0) return;
+    const cantidad = await (this.visor?.descargarSinCoordenadas() ?? Promise.resolve(0));
+    if (cantidad === 0) {
+      this.avisar("info", "Aviso", "Todos los registros cargados tienen coordenadas.");
+    } else {
+      this.avisar("success", "Excel descargado", `${cantidad} registros sin coordenadas.`);
+    }
+  }
+
   private avisar(
     severity: "success" | "info" | "warn" | "error",
     summary: string,
@@ -166,16 +175,8 @@ export class FacturacionClientesVmaComponent implements OnInit {
       this.anios.push({ label: i.toString(), value: i.toString() });
     }
     
-    this.factArchService.recuperar_ultimo_periodo_comercial('001').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(response => {
-      const aniomes = response?.aniomes || '202609';
-      const anio = aniomes.substring(0, 4);
-      const mes = aniomes.substring(4, 6);
-      if (!this.anios.find(a => a.value === anio)) {
-        this.anios.unshift({ label: anio, value: anio });
-      }
-      this.selectedAnio = anio;
-      this.selectedMes = mes;
-    });
+    this.selectedAnio = String(currentYear);
+    this.selectedMes = String(new Date().getMonth() + 1).padStart(2, '0');
   }
 
   private cargarCombosDinamicos(): void {
@@ -290,7 +291,7 @@ export class FacturacionClientesVmaComponent implements OnInit {
     }
     if (fitBounds && this.map) {
       const extent = srcUsuarios.getExtent();
-      this.map.getView().fit(extent, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
+      this.map.getView().fit(extent!, { duration: 800, maxZoom: 18, padding: [60, 60, 60, 60] });
     }
     this.avisar("success", "Proceso completado", "Clientes cargados en el mapa");
   }

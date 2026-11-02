@@ -1,7 +1,6 @@
 <p-toast [appendTo]="'body'"></p-toast>
 
 <div class="sl-wrapper">
-
   <!-- TOOLBAR -->
   <div class="sl-toolbar">
     <div class="sl-title">
@@ -15,50 +14,76 @@
         [title]="
           ultimaEnVivo
             ? ultimaEnVivo.inspector + ' tomó lectura de ' + ultimaEnVivo.codcliente
-            : (conectadoEnVivo ? 'Recibiendo lecturas en tiempo real' : 'Sin conexión en tiempo real')
+            : conectadoEnVivo
+              ? 'Recibiendo lecturas en tiempo real'
+              : 'Sin conexión en tiempo real'
         "
       >
         <span class="sl-envivo__pulso"></span>
-        <span class="sl-envivo__texto" *ngIf="ultimaEnVivo; else slSinActividad">
-          <strong>{{ ultimaEnVivo.inspector }}</strong> · {{ ultimaEnVivo.codcliente }}
-        </span>
-        <ng-template #slSinActividad>
+        @if (ultimaEnVivo) {
           <span class="sl-envivo__texto">
-            {{ conectadoEnVivo ? "Tiempo Real" : "Sin conexión" }}
+            <strong>{{ ultimaEnVivo.inspector }}</strong> · {{ ultimaEnVivo.codcliente }}
           </span>
-        </ng-template>
+        } @else {
+          <span class="sl-envivo__texto">
+            {{ conectadoEnVivo ? 'Tiempo Real' : 'Sin conexión' }}
+          </span>
+        }
       </span>
     </div>
 
     <div class="sl-toolbar-actions">
-      <div class="sl-filtros-summary" *ngIf="!filtrosVisible">
-        <span class="filtro-chip ciclo" *ngIf="selectedCiclo">
-          <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
-        </span>
-        <span class="filtro-chip mes" *ngIf="selectedMes && fechaCiclos">
-          <i class="pi pi-calendar"></i> {{ selectedMes }}/{{ selectedAnio }}
-        </span>
-        <span class="filtro-chip sucursal" *ngIf="selectedSucursal">
-          <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
-        </span>
-        <span class="filtro-chip sector" *ngIf="selectedSector">
-          <i class="pi pi-map"></i> {{ selectedSector?.descripcion }}
-        </span>
-        <span class="filtro-chip estado" *ngIf="selectedInspector">
-          <i class="pi pi-user"></i> {{ selectedInspector?.names }}
-        </span>
-      </div>
+      @if (!filtrosVisible) {
+        <div class="sl-filtros-summary">
+          @if (selectedCiclo) {
+            <span class="filtro-chip ciclo">
+              <i class="pi pi-sync"></i> {{ selectedCiclo?.descripcion }}
+            </span>
+          }
+          @if (selectedMes && fechaCiclos) {
+            <span class="filtro-chip mes">
+              <i class="pi pi-calendar"></i> {{ selectedMes }}/{{ selectedAnio }}
+            </span>
+          }
+          @if (selectedSucursal) {
+            <span class="filtro-chip sucursal">
+              <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
+            </span>
+          }
+          @if (selectedSector) {
+            <span class="filtro-chip sector">
+              <i class="pi pi-map"></i> {{ selectedSector?.descripcion }}
+            </span>
+          }
+          @if (selectedInspector) {
+            <span class="filtro-chip estado">
+              <i class="pi pi-user"></i> {{ selectedInspector?.names }}
+            </span>
+          }
+        </div>
+      }
 
       <button class="sl-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
         <span class="toggle-icon-wrap">
-          <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
-          <span class="pulse-dot" *ngIf="!selectedSucursal && !filtrosVisible"></span>
+          <i
+            class="pi"
+            [class.pi-sliders-h]="!filtrosVisible"
+            [class.pi-times]="filtrosVisible"
+          ></i>
+          @if (!selectedSucursal && !filtrosVisible) {
+            <span class="pulse-dot"></span>
+          }
         </span>
         <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
         <i class="pi pi-chevron-down sl-chevron" [class.rotated]="filtrosVisible"></i>
       </button>
 
-      <button type="button" class="btn-volver-main" (click)="volverAlMain()" title="Volver al Visor Principal de Georreferencia">
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="volverAlMain()"
+        title="Volver al Visor Principal de Georreferencia"
+      >
         <i class="pi pi-arrow-left"></i>
         <span>Volver al Principal</span>
       </button>
@@ -69,239 +94,410 @@
   <div class="sl-filtros-panel" [class.visible]="filtrosVisible">
     <div class="sl-filtros">
       <span class="p-float-label">
-        <p-dropdown [options]="dataCiclos" [(ngModel)]="selectedCiclo" optionLabel="descripcion"
-          (ngModelChange)="onCicloChange()" [style]="{ width: '160px' }" placeholder="Ciclos"
-          [appendTo]="'body'"></p-dropdown>
+        <p-select
+          [options]="dataCiclos"
+          [(ngModel)]="selectedCiclo"
+          optionLabel="descripcion"
+          (ngModelChange)="onCicloChange()"
+          [style]="{ width: '160px' }"
+          placeholder="Ciclos"
+          [appendTo]="'body'"
+        ></p-select>
         <label>Ciclo</label>
       </span>
 
-      <span class="p-float-label" *ngIf="fechaCiclos">
-        <p-dropdown [options]="listaMeses" [(ngModel)]="selectedMes" optionLabel="mes" optionValue="numero"
-          [style]="{ width: '130px' }" placeholder="Mes" [appendTo]="'body'"></p-dropdown>
-        <label>Mes</label>
-      </span>
+      @if (fechaCiclos) {
+        <span class="p-float-label">
+          <p-select
+            [options]="listaMeses"
+            [(ngModel)]="selectedMes"
+            optionLabel="mes"
+            optionValue="numero"
+            [style]="{ width: '130px' }"
+            placeholder="Mes"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Mes</label>
+        </span>
+      }
 
-      <span class="p-float-label" *ngIf="fechaCiclos">
-        <p-dropdown [options]="listaYear" [(ngModel)]="selectedAnio" optionLabel="anio" optionValue="anio"
-          [style]="{ width: '100px' }" placeholder="Año" [appendTo]="'body'"></p-dropdown>
-        <label>Año</label>
-      </span>
+      @if (fechaCiclos) {
+        <span class="p-float-label">
+          <p-select
+            [options]="listaYear"
+            [(ngModel)]="selectedAnio"
+            optionLabel="anio"
+            optionValue="anio"
+            [style]="{ width: '100px' }"
+            placeholder="Año"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Año</label>
+        </span>
+      }
 
-      <span class="p-float-label" *ngIf="selectedCiclo">
-        <p-dropdown [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
-          (ngModelChange)="onSucursalChange()" [style]="{ width: '180px' }" placeholder="Sucursales"
-          [appendTo]="'body'"></p-dropdown>
-        <label>Sucursal</label>
-      </span>
+      @if (selectedCiclo) {
+        <span class="p-float-label">
+          <p-select
+            [options]="listaSucursales"
+            [(ngModel)]="selectedSucursal"
+            optionLabel="nombre"
+            (ngModelChange)="onSucursalChange()"
+            [style]="{ width: '180px' }"
+            placeholder="Sucursales"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Sucursal</label>
+        </span>
+      }
 
-      <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="listaSectores" [(ngModel)]="selectedSector" optionLabel="descripcion"
-           [filter]="true" filterBy="descripcion"
-          [style]="{ width: '180px' }" placeholder="Sector" [appendTo]="'body'">
-          <ng-template let-sector pTemplate="item">
-            <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
-          </ng-template>
-        </p-dropdown>
-        <label>Sector</label>
-      </span>
+      @if (selectedSucursal) {
+        <span class="p-float-label">
+          <p-select
+            [options]="listaSectores"
+            [(ngModel)]="selectedSector"
+            optionLabel="descripcion"
+            [filter]="true"
+            filterBy="descripcion"
+            [style]="{ width: '180px' }"
+            placeholder="Sector"
+            [appendTo]="'body'"
+          >
+            <ng-template let-sector pTemplate="item">
+              <div>({{ sector.codsector }}) - {{ sector.descripcion }}</div>
+            </ng-template>
+          </p-select>
+          <label>Sector</label>
+        </span>
+      }
 
-      <span class="p-float-label" *ngIf="selectedSucursal">
-        <p-dropdown [options]="listaInspectores" [(ngModel)]="selectedInspector"
-          optionLabel="names" [filter]="true" filterBy="names" [showClear]="true"
-          [style]="{ width: '240px' }" placeholder="Inspector" [appendTo]="'body'">
-          <ng-template let-insp pTemplate="item">
-            <div>({{ insp.codinspector }}) - {{ insp.names }}</div>
-          </ng-template>
-          <ng-template pTemplate="selectedItem" let-insp>
-            <div>({{ insp.codinspector }}) - {{ insp.names }}</div>
-          </ng-template>
-        </p-dropdown>
-        <label>Inspector</label>
-      </span>
+      @if (selectedSucursal) {
+        <span class="p-float-label">
+          <p-select
+            [options]="listaInspectores"
+            [(ngModel)]="selectedInspector"
+            optionLabel="names"
+            [filter]="true"
+            filterBy="names"
+            [showClear]="true"
+            [style]="{ width: '240px' }"
+            placeholder="Inspector"
+            [appendTo]="'body'"
+          >
+            <ng-template let-insp pTemplate="item">
+              <div>({{ insp.codinspector }}) - {{ insp.names }}</div>
+            </ng-template>
+            <ng-template pTemplate="selectedItem" let-insp>
+              <div>({{ insp.codinspector }}) - {{ insp.names }}</div>
+            </ng-template>
+          </p-select>
+          <label>Inspector</label>
+        </span>
+      }
 
-      <div class="filtros-btns" *ngIf="selectedSucursal">
-        <p-button (click)="procesar()" icon="pi pi-search" label="BUSCAR" severity="warning"
-          [loading]="cargando"></p-button>
-        <p-button (click)="limpiarResultados()" icon="pi pi-filter-slash" label="Limpiar"
-          [outlined]="true"></p-button>
-      </div>
+      @if (selectedSucursal) {
+        <div class="filtros-btns">
+          <p-button
+            (click)="procesar()"
+            icon="pi pi-search"
+            label="BUSCAR"
+            severity="warn"
+            [loading]="cargando"
+          ></p-button>
+          <p-button
+            (click)="limpiarResultados()"
+            icon="pi pi-filter-slash"
+            label="Limpiar"
+            [outlined]="true"
+          ></p-button>
+        </div>
+      }
     </div>
   </div>
 
   <!-- MAPA -->
   <div class="sl-map-container">
-    <div *ngIf="cargando" class="map-loading-overlay">
-      <i class="pi pi-spin pi-spinner"></i>
-      <span>Cargando seguimiento...</span>
-    </div>
+    @if (cargando) {
+      <div class="map-loading-overlay">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Cargando seguimiento...</span>
+      </div>
+    }
 
     <div #mapContainer id="map" class="map"></div>
 
     <!-- Sidebar de capas -->
-    <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive"
+    <app-capas-sidebar
+      [baseLayers]="baseLayers"
+      [baseActive]="baseActive"
       [commercialLayers]="commercialLayers"
       tituloComerciales="CAPAS DEL SEGUIMIENTO"
-      (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleCommercialLayer($event)">
+      (baseLayerChange)="setBaseLayer($event)"
+      (layerToggle)="toggleCommercialLayer($event)"
+    >
     </app-capas-sidebar>
 
     <!-- Resumen de estadísticas del detalle -->
-    <div class="sl-resumen" *ngIf="totalRegistros > 0">
-      <div class="card-resumen">
-        <span class="numero">{{ totalRegistros }}</span>
-        <span class="titulo">Lecturas</span>
+    @if (totalRegistros > 0) {
+      <div class="sl-resumen">
+        <div class="card-resumen">
+          <span class="numero">{{ totalRegistros }}</span>
+          <span class="titulo">Lecturas</span>
+        </div>
+        <div class="card-resumen ok">
+          <span class="numero">{{ totalTomadas }}</span>
+          <span class="titulo">Con toma</span>
+        </div>
+        <div class="card-resumen error">
+          <span class="numero">{{ totalSinToma }}</span>
+          <span class="titulo">Sin toma</span>
+        </div>
+        <div class="card-resumen warn">
+          <span class="numero">{{ totalLejos }}</span>
+          <span class="titulo">Tomadas lejos</span>
+        </div>
+        @if (totalEnVivo > 0) {
+          <div class="card-resumen vivo">
+            <span class="numero">{{ totalEnVivo }}</span>
+            <span class="titulo">En vivo</span>
+          </div>
+        }
       </div>
-      <div class="card-resumen ok">
-        <span class="numero">{{ totalTomadas }}</span>
-        <span class="titulo">Con toma</span>
-      </div>
-      <div class="card-resumen error">
-        <span class="numero">{{ totalSinToma }}</span>
-        <span class="titulo">Sin toma</span>
-      </div>
-      <div class="card-resumen warn">
-        <span class="numero">{{ totalLejos }}</span>
-        <span class="titulo">Tomadas lejos</span>
-      </div>
-      <div class="card-resumen vivo" *ngIf="totalEnVivo > 0">
-        <span class="numero">{{ totalEnVivo }}</span>
-        <span class="titulo">En vivo</span>
-      </div>
-    </div>
+    }
 
     <!-- Leyenda -->
-    <div class="sl-leyenda" *ngIf="mostrarLeyenda">
-      <div class="leyenda-header">
-        <span><i class="pi pi-map-marker"></i> Leyenda</span>
-        <i class="pi pi-times cerrar" (click)="mostrarLeyenda = false"></i>
-      </div>
-      <div><span class="punto verde"></span> Lectura enviada</div>
-      <div><span class="punto rojo"></span> Lectura pendiente</div>
-      <div><span class="rombo azul"></span> Punto GPS de toma</div>
-      <div><span class="linea gris"></span> Toma cerca del predio</div>
-      <div><span class="linea roja"></span> Toma lejos del predio</div>
-      <div class="leyenda-inspectores" *ngIf="selectedInspector">
-        <div class="li-item">
-          <i class="pi pi-user"></i>
-          {{ nombreInspector(selectedInspector.codinspector) }}
+    @if (mostrarLeyenda) {
+      <div class="sl-leyenda">
+        <div class="leyenda-header">
+          <span><i class="pi pi-map-marker"></i> Leyenda</span>
+          <i class="pi pi-times cerrar" (click)="mostrarLeyenda = false"></i>
         </div>
+        <div><span class="punto verde"></span> Lectura enviada</div>
+        <div><span class="punto rojo"></span> Lectura pendiente</div>
+        <div><span class="rombo azul"></span> Punto GPS de toma</div>
+        <div><span class="linea gris"></span> Toma cerca del predio</div>
+        <div><span class="linea roja"></span> Toma lejos del predio</div>
+        @if (selectedInspector) {
+          <div class="leyenda-inspectores">
+            <div class="li-item">
+              <i class="pi pi-user"></i>
+              {{ nombreInspector(selectedInspector.codinspector) }}
+            </div>
+          </div>
+        }
       </div>
-    </div>
-    <button class="sl-leyenda-toggle" *ngIf="!mostrarLeyenda" (click)="mostrarLeyenda = true">
-      <i class="pi pi-map-marker"></i>
-    </button>
+    }
+    @if (!mostrarLeyenda) {
+      <button class="sl-leyenda-toggle" (click)="mostrarLeyenda = true">
+        <i class="pi pi-map-marker"></i>
+      </button>
+    }
 
     <!-- Buscador por código de cliente -->
-    <div class="sl-search-panel" *ngIf="mostrarSearchPanel">
-      <div class="search-header">
-        <span><i class="pi pi-search"></i> Buscar Cliente</span>
-        <i class="pi pi-times cerrar" (click)="mostrarSearchPanel = false"></i>
+    @if (mostrarSearchPanel) {
+      <div class="sl-search-panel">
+        <div class="search-header">
+          <span><i class="pi pi-search"></i> Buscar Cliente</span>
+          <i class="pi pi-times cerrar" (click)="mostrarSearchPanel = false"></i>
+        </div>
+        <div class="search-body p-inputgroup mt-2">
+          <input
+            type="text"
+            pInputText
+            placeholder="Cód. Cliente..."
+            [(ngModel)]="searchCodCliente"
+            (keyup.enter)="buscarPorCodCliente()"
+          />
+          <button
+            pButton
+            type="button"
+            icon="pi pi-search"
+            (click)="buscarPorCodCliente()"
+            class="p-button-primary"
+          ></button>
+        </div>
       </div>
-      <div class="search-body p-inputgroup mt-2">
-        <input type="text" pInputText placeholder="Cód. Cliente..." [(ngModel)]="searchCodCliente"
-          (keyup.enter)="buscarPorCodCliente()">
-        <button pButton type="button" icon="pi pi-search" (click)="buscarPorCodCliente()"
-          class="p-button-primary"></button>
-      </div>
-    </div>
-    <button class="sl-search-toggle" *ngIf="!mostrarSearchPanel" (click)="abrirBusqueda()">
-      <i class="pi pi-search"></i>
-    </button>
+    }
+    @if (!mostrarSearchPanel) {
+      <button class="sl-search-toggle" (click)="abrirBusqueda()">
+        <i class="pi pi-search"></i>
+      </button>
+    }
 
     <!-- Tabla de resumen por inspector -->
-    <div class="sl-tabla-resumen" *ngIf="resumenInspectores.length > 0 && mostrarResumen">
-      <div class="tr-header">
-        <span><i class="pi pi-users"></i> Resumen por inspector</span>
-        <i class="pi pi-times cerrar" (click)="mostrarResumen = false"></i>
-      </div>
-      <p-table [value]="resumenInspectores" [scrollable]="true" scrollHeight="240px"
-        selectionMode="single" styleClass="p-datatable-sm p-datatable-striped">
-        <ng-template pTemplate="header">
-          <tr>
-            <th pSortableColumn="codinspector">Cód. <p-sortIcon field="codinspector"></p-sortIcon></th>
-            <th pSortableColumn="inspector">Inspector <p-sortIcon field="inspector"></p-sortIcon></th>
-            <th class="num" pSortableColumn="asignados">Asignados <p-sortIcon field="asignados"></p-sortIcon></th>
-            <th class="num" pSortableColumn="enviados">Enviados <p-sortIcon field="enviados"></p-sortIcon></th>
-            <th class="num" pSortableColumn="pendientes">Pendientes <p-sortIcon field="pendientes"></p-sortIcon></th>
-            <th class="num" pSortableColumn="avance">Avance <p-sortIcon field="avance"></p-sortIcon></th>
-          </tr>
-        </ng-template>
-        <ng-template pTemplate="body" let-fila>
-          <tr class="fila-inspector" [class.activa]="fila.codinspector === selectedInspector?.codinspector"
-            (click)="seleccionarInspectorDesdeResumen(fila)"
-            title="Clic para ver el detalle de este inspector">
-            <td>{{ fila.codinspector }}</td>
-            <td>{{ fila.inspector }}</td>
-            <td class="num">{{ fila.asignados }}</td>
-            <td class="num ok">{{ fila.enviados }}</td>
-            <td class="num pend">{{ fila.pendientes }}</td>
-            <td class="num">
-              <div class="avance-wrap">
-                <div class="avance-bar">
-                  <div class="avance-fill" [style.width.%]="fila.avance"
-                    [class.completo]="fila.avance >= 100"></div>
+    @if (resumenInspectores.length > 0 && mostrarResumen) {
+      <div class="sl-tabla-resumen">
+        <div class="tr-header">
+          <span><i class="pi pi-users"></i> Resumen por inspector</span>
+          <i class="pi pi-times cerrar" (click)="mostrarResumen = false"></i>
+        </div>
+        <p-table
+          [value]="resumenInspectores"
+          [scrollable]="true"
+          scrollHeight="240px"
+          selectionMode="single"
+          styleClass="p-datatable-sm p-datatable-striped"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="codinspector">
+                Cód. <p-sortIcon field="codinspector"></p-sortIcon>
+              </th>
+              <th pSortableColumn="inspector">
+                Inspector <p-sortIcon field="inspector"></p-sortIcon>
+              </th>
+              <th class="num" pSortableColumn="asignados">
+                Asignados <p-sortIcon field="asignados"></p-sortIcon>
+              </th>
+              <th class="num" pSortableColumn="enviados">
+                Enviados <p-sortIcon field="enviados"></p-sortIcon>
+              </th>
+              <th class="num" pSortableColumn="pendientes">
+                Pendientes <p-sortIcon field="pendientes"></p-sortIcon>
+              </th>
+              <th class="num" pSortableColumn="avance">
+                Avance <p-sortIcon field="avance"></p-sortIcon>
+              </th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-fila>
+            <tr
+              class="fila-inspector"
+              [class.activa]="fila.codinspector === selectedInspector?.codinspector"
+              (click)="seleccionarInspectorDesdeResumen(fila)"
+              title="Clic para ver el detalle de este inspector"
+            >
+              <td>{{ fila.codinspector }}</td>
+              <td>{{ fila.inspector }}</td>
+              <td class="num">{{ fila.asignados }}</td>
+              <td class="num ok">{{ fila.enviados }}</td>
+              <td class="num pend">{{ fila.pendientes }}</td>
+              <td class="num">
+                <div class="avance-wrap">
+                  <div class="avance-bar">
+                    <div
+                      class="avance-fill"
+                      [style.width.%]="fila.avance"
+                      [class.completo]="fila.avance >= 100"
+                    ></div>
+                  </div>
+                  <span>{{ fila.avance | number: '1.0-1' }}%</span>
                 </div>
-                <span>{{ fila.avance | number:'1.0-1' }}%</span>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-      </p-table>
-    </div>
-    <button class="sl-resumen-toggle" *ngIf="resumenInspectores.length > 0 && !mostrarResumen"
-      (click)="mostrarResumen = true">
-      <i class="pi pi-users"></i>
-    </button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </div>
+    }
+    @if (resumenInspectores.length > 0 && !mostrarResumen) {
+      <button class="sl-resumen-toggle" (click)="mostrarResumen = true">
+        <i class="pi pi-users"></i>
+      </button>
+    }
 
     <!-- Popup de registro seleccionado -->
-    <div class="sl-popup" *ngIf="registroSeleccionado">
-      <div class="sp-header" [class.ok]="registroSeleccionado['_tomada']" [class.error]="!registroSeleccionado['_tomada']">
-        <strong>
-          <i class="pi" [class.pi-check-circle]="registroSeleccionado['_tomada']"
-            [class.pi-times-circle]="!registroSeleccionado['_tomada']"></i>
-          {{ registroSeleccionado['_tomada'] ? 'LECTURA ENVIADA' : 'LECTURA PENDIENTE' }}
-        </strong>
-        <button class="sp-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+    @if (registroSeleccionado) {
+      <div class="sl-popup">
+        <div
+          class="sp-header"
+          [class.ok]="registroSeleccionado['_tomada']"
+          [class.error]="!registroSeleccionado['_tomada']"
+        >
+          <strong>
+            <i
+              class="pi"
+              [class.pi-check-circle]="registroSeleccionado['_tomada']"
+              [class.pi-times-circle]="!registroSeleccionado['_tomada']"
+            ></i>
+            {{ registroSeleccionado['_tomada'] ? 'LECTURA ENVIADA' : 'LECTURA PENDIENTE' }}
+          </strong>
+          <button class="sp-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="sp-body">
+          <div class="sp-row">
+            <span class="sp-label">Suministro</span>
+            <span class="sp-val" style="justify-content: space-between; width: 100%">
+              <span>{{ registroSeleccionado['codcliente'] || '-' }}</span>
+              <button
+                pButton
+                type="button"
+                class="p-button-outlined p-button-sm p-button-warning"
+                title="Ver en Google Street View"
+                (click)="
+                  abrirStreetView(
+                    $any(
+                      registroSeleccionado['lonpredio'] ??
+                        registroSeleccionado['longitud'] ??
+                        registroSeleccionado['lon']
+                    ),
+                    $any(
+                      registroSeleccionado['latpredio'] ??
+                        registroSeleccionado['latitud'] ??
+                        registroSeleccionado['lat']
+                    )
+                  )
+                "
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 0.5rem;
+                  padding: 0.2rem 0.6rem;
+                "
+              >
+                <img
+                  src="assets/images/img-georeferencia/google-street-view-icon.gif"
+                  style="height: 2rem"
+                  alt="Street View"
+                />
+                <span style="font-weight: 900; font-size: 0.85rem">Ver en Maps</span>
+              </button>
+            </span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-label">Inspector</span>
+            <span class="sp-val">{{
+              nombreInspector($any(registroSeleccionado['_codinspector']))
+            }}</span>
+          </div>
+          <div class="sp-row">
+            <span class="sp-label">Estado lectura</span>
+            <span class="sp-val">{{ registroSeleccionado['estadolectura'] || '-' }}</span>
+          </div>
+          <div class="sp-row" [class.alerta]="registroSeleccionado['_lejos']">
+            <span class="sp-label">Distancia predio → toma</span>
+            <span class="sp-val">
+              {{ formatoDistancia($any(registroSeleccionado['_distanciaM'])) }}
+              @if (registroSeleccionado['_lejos']) {
+                <i class="pi pi-exclamation-triangle" title="Toma registrada lejos del predio"></i>
+              }
+            </span>
+          </div>
+          <button
+            pButton
+            type="button"
+            icon="pi pi-map-marker"
+            label="Centrar en mapa"
+            class="p-button-sm p-button-outlined w-full"
+            (click)="centrarEnSeleccion()"
+            style="margin-bottom: 0.5rem"
+          ></button>
+          <button
+            pButton
+            type="button"
+            icon="pi pi-search-plus"
+            label="Ver más información"
+            class="p-button-sm w-full"
+            (click)="verMasInformacion($any(registroSeleccionado['codcliente']))"
+          ></button>
+        </div>
       </div>
-      <div class="sp-body">
-        <div class="sp-row">
-          <span class="sp-label">Suministro</span>
-          <span class="sp-val" style="justify-content: space-between; width: 100%;">
-            <span>{{ registroSeleccionado['codcliente'] || '-' }}</span>
-            <button pButton type="button" class="p-button-outlined p-button-sm p-button-warning"
-              title="Ver en Google Street View"
-              (click)="abrirStreetView($any(registroSeleccionado['lonpredio'] ?? registroSeleccionado['longitud'] ?? registroSeleccionado['lon']), $any(registroSeleccionado['latpredio'] ?? registroSeleccionado['latitud'] ?? registroSeleccionado['lat']))"
-              style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.2rem 0.6rem;">
-              <img src="assets/images/img-georeferencia/google-street-view-icon.gif" style="height: 2rem;" alt="Street View">
-              <span style="font-weight: 900; font-size: 0.85rem;">Ver en Maps</span>
-            </button>
-          </span>
-        </div>
-        <div class="sp-row">
-          <span class="sp-label">Inspector</span>
-          <span class="sp-val">{{ nombreInspector($any(registroSeleccionado['_codinspector'])) }}</span>
-        </div>
-        <div class="sp-row">
-          <span class="sp-label">Estado lectura</span>
-          <span class="sp-val">{{ registroSeleccionado['estadolectura'] || '-' }}</span>
-        </div>
-        <div class="sp-row" [class.alerta]="registroSeleccionado['_lejos']">
-          <span class="sp-label">Distancia predio → toma</span>
-          <span class="sp-val">
-            {{ formatoDistancia($any(registroSeleccionado['_distanciaM'])) }}
-            <i class="pi pi-exclamation-triangle" *ngIf="registroSeleccionado['_lejos']"
-              title="Toma registrada lejos del predio"></i>
-          </span>
-        </div>
-        <button pButton type="button" icon="pi pi-map-marker" label="Centrar en mapa"
-          class="p-button-sm p-button-outlined w-full" (click)="centrarEnSeleccion()" style="margin-bottom: 0.5rem;"></button>
-        <button pButton type="button" icon="pi pi-search-plus" label="Ver más información"
-          class="p-button-sm w-full"
-          (click)="verMasInformacion($any(registroSeleccionado['codcliente']))"></button>
-      </div>
-    </div>
+    }
 
-    <app-paneles-mapa-gis [controlador]="controladorGis"
+    <app-paneles-mapa-gis
+      [controlador]="controladorGis"
       [hayPanelDerecho]="!!registroSeleccionado || mostrarSearchPanel"
-      (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
+      (filaElegida)="ubicarFilaEnMapa($event)"
+    ></app-paneles-mapa-gis>
   </div>
 </div>

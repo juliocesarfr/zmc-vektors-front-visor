@@ -59,7 +59,7 @@ export class PredioBuscado {
     const fuente = this.capa.getSource()!;
     if (fuente.isEmpty()) return;
     const anchoMapa = this.map.getSize()?.[0] ?? 0;
-    this.map.getView().fit(fuente.getExtent(), {
+    this.map.getView().fit(fuente.getExtent()!, {
       duration: 800,
       maxZoom: ZOOM_PREDIO,
       padding:

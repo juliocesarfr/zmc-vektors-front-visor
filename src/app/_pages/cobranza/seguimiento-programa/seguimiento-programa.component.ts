@@ -16,7 +16,7 @@ import { FormsModule } from "@angular/forms";
 import { Observable, forkJoin, of } from "rxjs";
 import { catchError, map, switchMap } from "rxjs/operators";
 
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { ButtonModule } from "primeng/button";
 import { InputNumberModule } from "primeng/inputnumber";
 import { InputTextModule } from "primeng/inputtext";
@@ -113,7 +113,7 @@ const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
     PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     ButtonModule,
     InputNumberModule,
     InputTextModule,
@@ -164,6 +164,7 @@ export class SeguimientoProgramaComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private registroCapas: Record<string, BaseLayer> = {};
@@ -216,10 +217,11 @@ export class SeguimientoProgramaComponent
     },
     { id: "lotes", label: "Lotes (GeoServer)", active: true },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
 
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   constructor(
     private consultaService: ConsulGenericService,
@@ -309,8 +311,8 @@ export class SeguimientoProgramaComponent
       baseZIndex: 10000,
       maximizable: true,
       data: { tipooperacion: this.modo.tipoOperacion },
-    });
-    this.ref.onClose
+    })!;
+    this.ref?.onClose
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((programa) => {
         if (!programa?.nroprecorte) return;
@@ -558,6 +560,7 @@ export class SeguimientoProgramaComponent
       false,
     );
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
 
     this.lotesUsuarioLayer = new VectorLayer({
       source: new VectorSource(),
@@ -593,12 +596,14 @@ export class SeguimientoProgramaComponent
       lotes: this.lotesLayer,
       sectores: this.sectoresLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
     };
 
     this.map = new OlMap({
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.lotesUsuarioLayer,
@@ -619,6 +624,7 @@ export class SeguimientoProgramaComponent
       capasComerciales: () => [
         { rol: "lotes", capa: this.lotesLayer },
         { rol: "calles", capa: this.callesLayer },
+        { rol: "manzanas", capa: this.manzanasLayer },
         { rol: "sectoresComerciales", capa: this.sectoresLayer },
       ],
       capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
@@ -864,11 +870,12 @@ export class SeguimientoProgramaComponent
 
   verMasInformacion(codcliente: string | number | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codigo || this.corteSeleccionado?.codsuc,
-    );
+      // Con "Todas" las sucursales el código de la sucursal sale del propio cliente.
+      this.corteSeleccionado?.codsuc || this.selectedSucursal?.codigo,
+    ).then((referencia) => (this.ref = referencia));
   }
 
   // ============================================================
@@ -883,6 +890,17 @@ export class SeguimientoProgramaComponent
   // ============================================================
   // UTIL
   // ============================================================
+
+  /** Clic en la tarjeta "Sin Coord.": Excel de los clientes cargados que no se pintan en el mapa. */
+  async descargarSinCoordenadas(): Promise<void> {
+    if (this.totalSinCoordenadas === 0) return;
+    const cantidad = await (this.controladorGis?.descargarSinCoordenadas() ?? Promise.resolve(0));
+    if (cantidad === 0) {
+      this.avisar("info", "Aviso", "Todos los registros cargados tienen coordenadas.");
+    } else {
+      this.avisar("success", "Excel descargado", `${cantidad} registros sin coordenadas.`);
+    }
+  }
 
   private avisar(
     severity: "success" | "info" | "warn" | "error",

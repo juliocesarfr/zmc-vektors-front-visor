@@ -7,6 +7,7 @@ import {
   CapaGisId,
   CapasTecnicasGis,
   ConsultaCapaGis,
+  OrtofotoGis,
   GisEpsConfig,
   GisVistaConfig,
 } from "./gis-config.model";
@@ -18,6 +19,7 @@ import {
   ZOOM_POR_DEFECTO,
 } from "./eps-config.data";
 import { setProyeccionMapa } from "./gis-proyeccion";
+import { crearSld } from "../../shared/mapa/estilo-sld";
 
 export interface CapaGisUi {
   id: CapaGisId;
@@ -112,6 +114,10 @@ export class GisConfigService {
     return VISTA_POR_DEFECTO;
   }
 
+  get ortofotos(): OrtofotoGis[] {
+    return this.actual.ortofotos ?? [];
+  }
+
   urlWms(): string {
     const { baseUrl, workspace } = this.actual.geoserver;
     return `${baseUrl}/${workspace}/wms`;
@@ -149,6 +155,13 @@ export class GisConfigService {
 
   private nombreDeclarado(id: CapaGisId): string | undefined {
     return this.actual.capas[id] ?? this.actual.capasTecnicas?.[id];
+  }
+
+  sldCapa(id: CapaGisId): string | undefined {
+    const estilo = this.actual.estilosCapas?.[id];
+    const nombre = this.nombreDeclarado(id);
+    if (!estilo || !nombre) return undefined;
+    return crearSld(nombre.slice(nombre.indexOf(":") + 1), estilo);
   }
 
   tieneCapa(id: CapaGisId): boolean {
@@ -195,6 +208,7 @@ export class GisConfigService {
     lotes: "lotes",
     sectores: "sectoresComerciales",
     calles: "calles",
+    manzanas: "manzanas",
     rutaLectura: "rutaLectura",
     centroideFicha: "centroideFicha",
   };

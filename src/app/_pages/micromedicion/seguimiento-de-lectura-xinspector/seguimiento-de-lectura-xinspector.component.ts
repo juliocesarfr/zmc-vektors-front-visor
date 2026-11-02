@@ -35,7 +35,7 @@ import { MessageService } from "primeng/api";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { volverAlMainGeoreferencia } from "../../../shared/utils/navegacion.utils";
-import { DropdownModule } from "primeng/dropdown";
+import { SelectModule } from "primeng/select";
 import { ButtonModule } from "primeng/button";
 import { ToastModule } from "primeng/toast";
 import { TableModule } from "primeng/table";
@@ -88,7 +88,6 @@ import {
 import { InspectorLectura } from "@host/_models/vektors/InspectorLectura";
 import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLecturaInspector";
 import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
-import { FactArchService } from "@host/_servicios/facturacion/fact-arch.service";
 
 const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
@@ -113,7 +112,7 @@ const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
     PanelesMapaGisComponent,
     CommonModule,
     FormsModule,
-    DropdownModule,
+    SelectModule,
     ButtonModule,
     ToastModule,
     TableModule,
@@ -150,7 +149,6 @@ export class SeguimientoDeLecturaXinspectorComponent
   private readonly enVivo = inject(LecturasEnVivoService);
   private destellos?: DestelloLecturas;
   private readonly zone = inject(NgZone);
-  private readonly factArchService = inject(FactArchService);
   private readonly router = inject(Router);
 
   volverAlMain(): void {
@@ -175,6 +173,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
+  manzanasLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
   private capasVector: VectorLayer<VectorSource>[] = [];
@@ -218,7 +217,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   registroSeleccionado: DetalleTomaLecturaInspector | null = null;
   featureSeleccionado: Feature | null = null;
   baseActive: string | null = "osm";
-  ref: DynamicDialogRef | undefined;
+  ref: DynamicDialogRef | null | undefined;
 
   readonly baseLayers = CAPAS_BASE_UI;
 
@@ -228,6 +227,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     { id: "lineas", label: "Líneas Usuario → Toma", active: true },
     { id: "lotes", label: "Lotes", active: true },
     { id: "sectores", label: "Sectores Comerciales", active: false },
+    { id: "manzanas", label: "Manzanas", active: false },
     { id: "calles", label: "Calles", active: false },
   ];
 
@@ -497,16 +497,13 @@ export class SeguimientoDeLecturaXinspectorComponent
       .pipe(
         tap((response) => {
           this.fechaCiclos = response.data;
-          this.factArchService.recuperar_ultimo_periodo_comercial('001').pipe(takeUntilDestroyed(this.destroyRef)).subscribe(res => {
-            const aniomes = res?.aniomes || '202609';
-            const anio = aniomes.substring(0, 4);
-            const mes = aniomes.substring(4, 6);
-            if (!this.listaYear.find(y => y.anio === anio)) {
-              this.listaYear.unshift({ anio: anio });
-            }
-            this.selectedAnio = anio;
-            this.selectedMes = mes;
-          });
+          const hoy = new Date();
+          const anio = String(hoy.getFullYear());
+          if (!this.listaYear.find(y => y.anio === anio)) {
+            this.listaYear.unshift({ anio: anio });
+          }
+          this.selectedAnio = anio;
+          this.selectedMes = String(hoy.getMonth() + 1).padStart(2, '0');
         }),
         switchMap(() =>
           this.sucursalesService.drop_sucursales_x_ciclo(
@@ -790,6 +787,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       false,
     );
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
+    this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
@@ -838,6 +836,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       lotes: this.lotesLayer,
       sectores: this.sectoresComercialesLayer,
       calles: this.callesLayer,
+      manzanas: this.manzanasLayer,
     };
 
     this.map = new OlMap({
@@ -845,6 +844,7 @@ export class SeguimientoDeLecturaXinspectorComponent
       layers: [
         new LayerGroup({ layers: [this.osmLayer, this.satelitalLayer] }),
         this.sectoresComercialesLayer,
+        this.manzanasLayer,
         this.callesLayer,
         this.lotesLayer,
         this.lineasLayer,
@@ -881,6 +881,7 @@ export class SeguimientoDeLecturaXinspectorComponent
     return [
       { rol: "lotes", capa: this.lotesLayer },
       { rol: "calles", capa: this.callesLayer },
+      { rol: "manzanas", capa: this.manzanasLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
     ];
   }
@@ -991,11 +992,12 @@ export class SeguimientoDeLecturaXinspectorComponent
 
   verMasInformacion(codcliente: string | undefined): void {
     if (!codcliente) return;
-    this.ref = abrirConsultaUsuario(
+    abrirConsultaUsuario(
       this.dialogService,
       codcliente,
-      this.selectedSucursal?.codsuc || this.registroSeleccionado?.codsuc,
-    );
+      // Con "Todas" las sucursales el código de la sucursal sale del propio registro.
+      this.registroSeleccionado?.codsuc || this.selectedSucursal?.codsuc,
+    ).then((referencia) => (this.ref = referencia));
   }
 
   // ============================================================

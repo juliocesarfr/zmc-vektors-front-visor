@@ -4,8 +4,8 @@ import { CommonModule, DatePipe } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 
 import { ButtonModule } from "primeng/button";
-import { CalendarModule } from "primeng/calendar";
-import { DropdownModule } from "primeng/dropdown";
+import { DatePickerModule } from "primeng/datepicker";
+import { SelectModule } from "primeng/select";
 import { InputNumberModule } from "primeng/inputnumber";
 import { PanelModule } from "primeng/panel";
 import { ProgressBarModule } from "primeng/progressbar";
@@ -27,8 +27,8 @@ import { listadoProgramado } from "@host/_models/cobranza/notificacion-cierre";
     CommonModule,
     FormsModule,
     ButtonModule,
-    CalendarModule,
-    DropdownModule,
+    DatePickerModule,
+    SelectModule,
     InputNumberModule,
     PanelModule,
     ProgressBarModule,
