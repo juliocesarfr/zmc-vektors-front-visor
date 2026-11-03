@@ -1,5 +1,5 @@
-@import '../../mapa/mapa-estilos.scss';
-@import '../../mapa/paneles-mapa-oscuros.scss';
+@use '../../mapa/mapa-estilos' as *;
+@use '../../mapa/paneles-mapa-oscuros' as *;
 
 .cd-wrapper {
   display: flex;

@@ -4,7 +4,7 @@ import { Control, FullScreen, ScaleLine, Zoom, ZoomSlider } from "ol/control";
 import CircleGeom from "ol/geom/Circle";
 import Point from "ol/geom/Point";
 import { fromCircle } from "ol/geom/Polygon";
-import Draw from "ol/interaction/Draw";
+import Draw, { createBox } from "ol/interaction/Draw";
 import DoubleClickZoom from "ol/interaction/DoubleClickZoom";
 import VectorLayer from "ol/layer/Vector";
 import { unByKey } from "ol/Observable";
@@ -14,6 +14,12 @@ import { getArea, getLength } from "ol/sphere";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 
 const MARCA_DIBUJO_EN_CURSO = "dibujoEnCurso";
+
+const TIPO_RECTANGULO = "Rectangulo";
+// Rectángulo que, al terminarse, se imprime en PDF y se borra del mapa.
+const TIPO_IMPRESION = "Impresion";
+// Rectángulo que, al terminarse, abre el recorrido 3D en vez de listar los clientes.
+const TIPO_RECTANGULO_3D = "Rectangulo3d";
 
 /** Cada dibujo guarda aquí su rótulo de medida ("Área: …", "Radio: …") para borrarlo con él. */
 export const PROPIEDAD_ROTULO_MEDIDA = "rotuloMedida";
@@ -51,12 +57,18 @@ function liberarClicTrasDibujo(map: OlMap): void {
  * @param alTerminarDibujo se llama con la geometría al terminar cada dibujo
  *        (por ejemplo, para contar los clientes dentro de un radio).
  * @param alLimpiarDibujos se llama al borrar los dibujos con el botón de la papelera.
+ * @param alImprimirArea si llega, el menú trae la impresora: se dibuja con un rectángulo lo que se quiere
+ *        imprimir, se llama con él y el rectángulo se borra para que no quede marcado.
+ * @param alPedirRecorrido3d si llega, el menú trae el botón del recorrido 3D: se dibuja el área
+ *        con un rectángulo y al terminar se llama con él.
  */
 export function agregarHerramientasMapa(
   map: OlMap,
   alTerminarDibujo?: (geometry: any) => void,
   fuentePantallaCompleta?: string | HTMLElement,
   alLimpiarDibujos?: () => void,
+  alImprimirArea?: (area: any) => void,
+  alPedirRecorrido3d?: (area: any) => void,
 ): void {
 
 
@@ -215,15 +227,17 @@ export function agregarHerramientasMapa(
     
     createHelpTooltip();
     
-    const drawType = type;
+    // El rectángulo se dibuja como un círculo (clic en una esquina, clic en la opuesta) y sale como polígono.
+    const esRectangulo = type === TIPO_RECTANGULO || type === TIPO_IMPRESION || type === TIPO_RECTANGULO_3D;
 
     currentDrawInteraction = new Draw({
       source: drawSource,
-      type: drawType as any,
+      type: (esRectangulo ? 'Circle' : type) as any,
+      ...(esRectangulo ? { geometryFunction: createBox() } : {}),
       style: function (feature) {
         let sketchColor = 'rgba(0, 0, 0, 0.5)';
         let sketchFill = 'rgba(255, 255, 255, 0.2)';
-        if (type === 'Polygon') {
+        if (type === 'Polygon' || esRectangulo) {
           sketchColor = '#10b981';
           sketchFill = 'rgba(16, 185, 129, 0.1)';
         } else if (type === 'LineString') {
@@ -269,12 +283,20 @@ export function agregarHerramientasMapa(
 
       if (sketch) {
         const geom = sketch.getGeometry();
-        if (geom.getType() === 'Polygon' || geom.getType() === 'LineString') {
+        if (esRectangulo) {
+          helpMsg = 'Clic en la esquina opuesta para terminar';
+        } else if (geom.getType() === 'Polygon' || geom.getType() === 'LineString') {
           helpMsg = 'Clic para continuar, doble clic para terminar';
         }
       } else {
         if (type === 'Circle') {
           helpMsg = 'Clic para establecer el centro del círculo (luego ingrese el radio)';
+        } else if (type === TIPO_IMPRESION) {
+          helpMsg = 'Clic en una esquina del área a imprimir';
+        } else if (type === TIPO_RECTANGULO_3D) {
+          helpMsg = 'Clic en una esquina del área que quiere recorrer en 3D';
+        } else if (esRectangulo) {
+          helpMsg = 'Clic en una esquina del rectángulo';
         }
       }
 
@@ -449,6 +471,15 @@ export function agregarHerramientasMapa(
          
       } 
 
+      // Lo impreso no queda marcado: el rectángulo (OpenLayers lo agrega al terminar este evento) y su rótulo se quitan.
+      if (type === TIPO_IMPRESION) {
+        const rotuloImpresion = measureTooltip;
+        window.setTimeout(() => {
+          if (drawSource.hasFeature(evt.feature)) drawSource.removeFeature(evt.feature);
+          if (rotuloImpresion) map.removeOverlay(rotuloImpresion);
+        });
+      }
+
       if (measureTooltipElement && measureTooltipElement.innerHTML.trim() !== '') {
         measureTooltipElement.className = 'ol-tooltip ol-tooltip-static';
       } else {
@@ -462,9 +493,9 @@ export function agregarHerramientasMapa(
       measureTooltipElement = null;
       measureTooltip = null;
 
-      if (alTerminarDibujo) {
-        alTerminarDibujo(finalGeometry);
-      }
+      if (type === TIPO_IMPRESION) alImprimirArea?.(finalGeometry);
+      else if (type === TIPO_RECTANGULO_3D) alPedirRecorrido3d?.(finalGeometry);
+      else alTerminarDibujo?.(finalGeometry);
 
       cleanupInteraction();
       liberarClicTrasDibujo(map);
@@ -484,6 +515,12 @@ export function agregarHerramientasMapa(
   btnPoly.innerHTML = '<i class="fa-solid fa-ruler-combined"></i>';
   btnPoly.title = 'Medir Área (Polígono)';
   btnPoly.onclick = () => addDrawInteraction('Polygon');
+
+  const btnRectangulo = document.createElement('button');
+  btnRectangulo.className = 'btn-draw-rect';
+  btnRectangulo.innerHTML = '<i class="fa-regular fa-square"></i>';
+  btnRectangulo.title = 'Seleccionar Área (Rectángulo)';
+  btnRectangulo.onclick = () => addDrawInteraction(TIPO_RECTANGULO);
 
   const btnCircle = document.createElement('button');
   btnCircle.className = 'btn-draw-circle';
@@ -523,6 +560,23 @@ export function agregarHerramientasMapa(
 
   menu.appendChild(btnLine);
   menu.appendChild(btnPoly);
+  menu.appendChild(btnRectangulo);
+  if (alImprimirArea) {
+    const btnImprimir = document.createElement('button');
+    btnImprimir.className = 'btn-draw-print';
+    btnImprimir.innerHTML = '<i class="fa-solid fa-print"></i>';
+    btnImprimir.title = 'Imprimir área (dibuje el rectángulo a imprimir)';
+    btnImprimir.onclick = () => addDrawInteraction(TIPO_IMPRESION);
+    menu.appendChild(btnImprimir);
+  }
+  if (alPedirRecorrido3d) {
+    const btnRecorrido3d = document.createElement('button');
+    btnRecorrido3d.className = 'btn-draw-3d';
+    btnRecorrido3d.innerHTML = '<i class="fa-solid fa-person-walking"></i>';
+    btnRecorrido3d.title = 'Recorrido 3D (dibuje el área a recorrer)';
+    btnRecorrido3d.onclick = () => addDrawInteraction(TIPO_RECTANGULO_3D);
+    menu.appendChild(btnRecorrido3d);
+  }
   menu.appendChild(btnCircle);
   menu.appendChild(btnClear);
 

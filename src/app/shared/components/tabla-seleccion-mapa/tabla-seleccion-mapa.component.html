@@ -64,6 +64,28 @@
           title="Descargar en Excel lo que se ve en la tabla"
         ></button>
         <button
+          pButton
+          type="button"
+          class="p-button-sm p-button-danger ts-pdf"
+          icon="pi pi-file-pdf"
+          [label]="estaGenerandoPdf ? 'Generando…' : 'PDF'"
+          [disabled]="estaGenerandoPdf"
+          (click)="descargarPdf.emit(filasVisibles)"
+          title="Descargar en PDF el plano del área y lo que se ve en la tabla"
+        ></button>
+        @if (puedeVer3d) {
+          <button
+            pButton
+            type="button"
+            class="p-button-sm p-button-help ts-3d"
+            icon="fa-solid fa-mountain-sun"
+            [label]="estaPreparando3d ? 'Preparando…' : '3D'"
+            [disabled]="estaPreparando3d"
+            (click)="ver3d.emit()"
+            title="Ver el relieve del área en 3D"
+          ></button>
+        }
+        <button
           type="button"
           class="ts-icono"
           (click)="estaMinimizada = !estaMinimizada"

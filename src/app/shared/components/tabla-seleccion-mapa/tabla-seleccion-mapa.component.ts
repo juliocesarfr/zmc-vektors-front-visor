@@ -43,10 +43,17 @@ export class TablaSeleccionMapaComponent implements OnChanges {
   @Input() nombreArchivoExcel = "clientes_area_";
   /** Hay un popup abierto a la derecha: la tabla se corre para no tapar ni quedar tapada. */
   @Input() hayPanelDerecho = false;
+  @Input() estaGenerandoPdf = false;
+  /** Solo las EPS que publican curvas de nivel tienen vista 3D. */
+  @Input() puedeVer3d = false;
+  @Input() estaPreparando3d = false;
 
   @Output() filaElegida = new EventEmitter<FilaListado>();
   /** El usuario descartó el listado desde la pastilla: ya no hay nada que recuperar. */
   @Output() descartar = new EventEmitter<void>();
+  /** Lleva las filas que se ven (respeta el filtro); el plano lo arma quien tiene el mapa. */
+  @Output() descargarPdf = new EventEmitter<FilaListado[]>();
+  @Output() ver3d = new EventEmitter<void>();
 
   @ViewChild("tabla") private tabla?: Table;
 

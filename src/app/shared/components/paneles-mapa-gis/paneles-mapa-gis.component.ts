@@ -22,7 +22,12 @@ import { TablaSeleccionMapaComponent } from '../tabla-seleccion-mapa/tabla-selec
           [nombreArchivoExcel]="controlador.nombreArchivoListado"
           [hayPanelDerecho]="hayPanelDerecho || controlador.elementosGis.length > 0"
           (filaElegida)="filaElegida.emit($event)"
+          [estaGenerandoPdf]="controlador.estaGenerandoPdf"
+          [puedeVer3d]="controlador.puedeVer3d"
+          [estaPreparando3d]="controlador.estaPreparando3d"
+          (ver3d)="controlador.verListadoEn3d()"
           (descartar)="controlador.descartarListado()"
+          (descargarPdf)="controlador.descargarPdfListado($event)"
         ></app-tabla-seleccion-mapa>
       }
       @if (controlador.elementosGis.length > 0) {

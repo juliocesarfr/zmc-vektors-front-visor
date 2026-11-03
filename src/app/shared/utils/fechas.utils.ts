@@ -29,3 +29,13 @@ export function formatoFechaCorta(valor: unknown): string {
   if (isNaN(fecha.getTime())) return "-";
   return formatDate(fecha, "dd/MM/yyyy", "en-US");
 }
+
+/** Fecha y hora de ahora para las cabeceras de los reportes: `dd/MM/yyyy HH:mm`. */
+export function fechaHoraActual(ahora = new Date()): string {
+  return formatDate(ahora, "dd/MM/yyyy HH:mm", "en-US");
+}
+
+/** Sufijo para el nombre de un archivo descargado, para que no pise al anterior: `yyyyMMdd_HHmm`. */
+export function marcaDeTiempoArchivo(ahora = new Date()): string {
+  return formatDate(ahora, "yyyyMMdd_HHmm", "en-US");
+}

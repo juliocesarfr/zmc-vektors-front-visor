@@ -1,6 +1,7 @@
 // Paneles que flotan sobre el mapa en el estilo de GIS Loreto: ficha del usuario, buscador de cliente,
 // leyenda, tarjetas de resumen, botones flotantes y aviso de carga.
-// Se importa después de mapa-estilos.scss (usa sus variables) y cada pantalla incluye los que tiene.
+// Cada pantalla incluye los que tiene.
+@use "mapa-variables" as *;
 
 $panel-oscuro: rgba(5, 11, 26, 0.85);
 $borde-panel: rgba(255, 255, 255, 0.15);
