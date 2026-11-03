@@ -1,13 +1,8 @@
 // Distribución común de todas las ventanas del mapa, copiada de GIS Loreto: el panel de capas
 // a la izquierda bajo la barra de la pantalla y todos los controles en una columna a la derecha,
 // en el mismo vidrio oscuro del panel de capas.
-$alto-barra-pantalla: 46px;
-// El pie de Sysco queda encima de los últimos 50 px del mapa.
-$alto-pie-host: 50px;
-$columna-controles: 20px;
-$vidrio-oscuro: linear-gradient(180deg, rgba(2, 74, 118, 0.94) 0%, rgba(3, 38, 92, 0.94) 50%, rgba(2, 8, 56, 0.95) 100%);
-$borde-vidrio: rgba(255, 255, 255, 0.2);
-$acento-mapa: #00e5ff;
+@forward "mapa-variables";
+@use "mapa-variables" as *;
 
 :host {
   // Barra + 12 de aire arriba; el botón Capas, su separación y 16 de aire abajo.
@@ -149,14 +144,25 @@ $acento-mapa: #00e5ff;
     .btn-draw-main i { color: #a5b4fc !important; }
     .btn-draw-line i { color: #4ade80 !important; }
     .btn-draw-poly i { color: #fbbf24 !important; }
+    .btn-draw-rect i { color: #34d399 !important; }
+    .btn-draw-print i { color: #f9a8d4 !important; }
+    .btn-draw-3d i { color: #c084fc !important; }
     .btn-draw-circle i { color: #60a5fa !important; }
     .btn-draw-clear i { color: #f87171 !important; }
   }
 
+  // Se abre en fila a la izquierda del botón: en columna, con seis herramientas, quedaba debajo del buscador y del pie.
   .ol-custom-draw-submenu {
+    position: absolute !important;
+    top: -5px !important;
+    right: calc(100% + 8px) !important;
     display: none !important;
-    flex-direction: column !important;
-    gap: 5px !important;
+    flex-direction: row !important;
+    gap: 6px !important;
+    padding: 5px !important;
+    background: $vidrio-oscuro !important;
+    border: 1px solid $borde-vidrio !important;
+    border-radius: 10px !important;
 
     &.open {
       display: flex !important;
@@ -388,6 +394,171 @@ $acento-mapa: #00e5ff;
   // ============================================================
   // MENÚ DE CLIC DERECHO SOBRE LOS DIBUJOS (shared/mapa/menu-dibujos.ts)
   // ============================================================
+
+  .geo-aviso-mapa {
+    position: absolute;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+
+    i { font-size: 22px; }
+  }
+
+  .geo-ventana-3d {
+    position: absolute;
+    top: $alto-barra-pantalla + 12px;
+    right: 64px;
+    bottom: $alto-pie-host + 16px;
+    left: 16px;
+    z-index: 1000;
+    // OpenLayers deja sin eventos el contenedor de overlays: sin esto el arrastre movía el mapa de abajo.
+    pointer-events: auto;
+
+    // El panel de capas queda encima del mapa a la izquierda: la ventana empieza después de él.
+    @media (min-width: 1100px) {
+      left: 296px;
+    }
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: $vidrio-oscuro;
+    border: 1px solid $borde-vidrio;
+    border-radius: 12px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+    font-size: 13px;
+
+    &:focus { outline: none; }
+  }
+
+  .geo-v3d-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px 8px 14px;
+    border-bottom: 1px solid $borde-vidrio;
+  }
+
+  .geo-v3d-titulo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 14px;
+
+    i { color: $acento-mapa; }
+  }
+
+  .geo-v3d-detalle {
+    flex: 1;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 12px;
+  }
+
+  .geo-v3d-cuerpo {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    // Es el cielo: el terreno se dibuja encima con fondo transparente.
+    background: linear-gradient(180deg, #6fa8dc 0%, #dce9f5 60%);
+  }
+
+  // Con la ventana delante: OpenLayers trae `.ol-viewport canvas { all: unset }`, que pesa más que una clase sola.
+  .geo-ventana-3d .geo-v3d-lienzo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
+
+    &.arrastrando { cursor: grabbing; }
+  }
+
+  .geo-ventana-3d .geo-v3d-minimapa {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    cursor: crosshair;
+  }
+
+  .geo-v3d-cota {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .geo-v3d-ayuda {
+    position: absolute;
+    left: 12px;
+    bottom: 10px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.45);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    pointer-events: none;
+  }
+
+  .geo-v3d-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid $borde-vidrio;
+  }
+
+  .geo-v3d-deslizador {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: 12px;
+
+    input { width: 140px; accent-color: $acento-mapa; }
+    strong { min-width: 44px; color: $acento-mapa; }
+
+    // Los botones quedan a la derecha.
+    & + .geo-v3d-boton { margin-left: auto; }
+  }
+
+  .geo-v3d-boton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid $borde-vidrio;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover { background: rgba(255, 255, 255, 0.18); }
+  }
+
+  .geo-v3d-cerrar {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+  }
 
   .geo-menu-dibujo-overlay {
     z-index: 1100 !important;

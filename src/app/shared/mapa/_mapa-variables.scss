@@ -1,0 +1,8 @@
+// Medidas y colores comunes de las ventanas del mapa: los usan mapa-estilos.scss, paneles-mapa-oscuros.scss y las pantallas.
+$alto-barra-pantalla: 46px;
+// El pie de Sysco queda encima de los últimos 50 px del mapa.
+$alto-pie-host: 50px;
+$columna-controles: 20px;
+$vidrio-oscuro: linear-gradient(180deg, rgba(2, 74, 118, 0.94) 0%, rgba(3, 38, 92, 0.94) 50%, rgba(2, 8, 56, 0.95) 100%);
+$borde-vidrio: rgba(255, 255, 255, 0.2);
+$acento-mapa: #00e5ff;
