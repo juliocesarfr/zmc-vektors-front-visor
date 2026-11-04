@@ -1,4 +1,5 @@
 const { withNativeFederation, shareAll } = require("@angular-architects/native-federation/config");
+require("../../federation-microfrontends-ausentes").tolerarMicrofrontendsAusentes();
 
 module.exports = withNativeFederation({
   name: "mf-georeferencia",
