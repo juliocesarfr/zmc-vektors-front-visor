@@ -11,3 +11,6 @@ export {
   configSinCapas,
 } from "./eps-config.data";
 export * from "./descarga-shape-gis.service";
+export * from "./osm-comercios.service";
+export * from "./clientes-radio.model";
+export * from "./clientes-radio.service";

@@ -7,6 +7,7 @@ export function volverAlMainGeoreferencia(router: Router): void {
  
   const gisIdx = currentUrl.indexOf('/gis');
   if (gisIdx !== -1) {
+    const baseUrl = currentUrl.substring(0, gisIdx);
     router.navigateByUrl(`${baseUrl}/main`);
     return;
   }

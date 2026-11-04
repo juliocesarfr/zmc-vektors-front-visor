@@ -34,10 +34,16 @@ import VectorSource from 'ol/source/Vector';
 import TileWMS from 'ol/source/TileWMS';
 import Feature, { FeatureLike } from 'ol/Feature';
 import Point from 'ol/geom/Point';
+import CircleGeom from 'ol/geom/Circle';
+import { circular } from 'ol/geom/Polygon';
+import type { Coordinate } from 'ol/coordinate';
 import { extend, getCenter } from 'ol/extent';
-import { transform } from 'ol/proj';
+import { transform, getPointResolution } from 'ol/proj';
+import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 
-import { CapaConsultable, ConsultaCapasGisService, GisConfigService } from '../../core/gis';
+import { CapaConsultable, ConsultaCapasGisService, GisConfigService, ClientesRadioService, ElementoGis } from '../../core/gis';
+import { OsmComerciosService, ResumenDeteccionOsm, ComercioOsm, normalizarCoordenadaWgs84 } from '../../core/gis/osm-comercios.service';
+import { DialogoComerciosOsmComponent } from '../../shared/components/dialogo-comercios-osm/dialogo-comercios-osm.component';
 import { WGS84 } from '../../core/gis/gis-proyeccion';
 import { ControladorMapaGis } from '../../shared/mapa/controlador-mapa-gis';
 import { MARCA_CAPA_RESALTADO } from '../../shared/mapa/interaccion-gis';
@@ -101,6 +107,7 @@ const SIN_TOPE_DE_REGISTROS = 99999;
   imports: [
     CapasSidebarComponent,
     PanelesMapaGisComponent,
+    DialogoComerciosOsmComponent,
     CommonModule,
     FormsModule,
     SelectModule,
@@ -131,16 +138,23 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly busquedaAvanzadaService = inject(BusquedaAvanzadaClientesService);
+  private readonly clientesRadioService = inject(ClientesRadioService);
   private readonly excelService = inject(ExcelService);
   private readonly callesService = inject(CallesService);
   private readonly tipodocidentService = inject(TipodocidentService);
+  private readonly osmComerciosService = inject(OsmComerciosService);
 
   readonly baseLayers = CAPAS_BASE_UI;
   baseActive: string | null = 'osm';
 
+  resumenOsm: ResumenDeteccionOsm | null = null;
+  mostrarDialogoOsm = false;
+  modoDeteccionOsm = false;
+  radioDeteccionSeleccionado = 100;
+
   commercialLayers: CapaSwitchUi[] = [
     { id: "usuarios", label: "Usuarios", active: false, simbolo: { forma: "punto", color: COLORES_LECTURA.normal } },
-    { id: "lotes", label: "Lotes", active: false, simbolo: { forma: "area", color: "#cbd5e1" } },
+    { id: "lotes", label: "Lotes", active: true, simbolo: { forma: "area", color: "#cbd5e1" } },
     { id: "caja_agua", label: "Ficha Agua", active: false, simbolo: { forma: "rombo", color: COLOR_FICHA_AGUA } },
     { id: "acometida", label: "Acometida de Agua", active: false, simbolo: { forma: "linea", color: COLOR_FICHA_AGUA } },
     { id: "ficha_alc", label: "Ficha Alcantarillado", active: false, simbolo: { forma: "rombo", color: COLOR_FICHA_ALCANTARILLADO } },
@@ -153,6 +167,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   map?: OlMap;
   lecturasLayer!: VectorLayer<VectorSource>;
+  circuloDeteccionLayer!: VectorLayer<VectorSource>;
   cajaAguaLayer!: VectorLayer<VectorSource>;
   fichaAlcLayer!: VectorLayer<VectorSource>;
   acomAguaLayer!: VectorLayer<VectorSource>;
@@ -169,6 +184,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private capasVector: VectorLayer<VectorSource>[] = [];
   private detenerObservadorMapa?: () => void;
 
+  loteSeleccionadoGis: ElementoGis | null = null;
+  pestanaActivaPopup: 'cliente' | 'lote' = 'cliente';
   tipoPopup: TipoPopup = "lectura";
   featureSeleccionado: Feature | null = null;
   resultadoBusquedaJson: RegistroLectura[] | null = null;
@@ -286,6 +303,33 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       capasComerciales: () => this.capasComercialesConsultables(),
       capasTecnicas: () => this.capasSidebar?.capasTecnicasConsultables() ?? [],
       avisar: (detalle) => this.avisar('info', 'Aviso', detalle),
+      alConsultarElemento: (elementos) => {
+        const elementoLote = elementos.find((e) => e.rol === "lotes");
+        if (elementoLote) {
+          this.loteSeleccionadoGis = elementoLote;
+          this.pestanaActivaPopup = "lote";
+          const codcliente = this.extraerCodigoClienteDeLote(elementoLote);
+          if (codcliente) {
+            if (!this.lecturaSeleccionada || String(this.lecturaSeleccionada.codcliente) !== codcliente) {
+              this.buscarClientePorCodigo(codcliente);
+            }
+          }
+        } else {
+          this.loteSeleccionadoGis = null;
+        }
+      },
+      accionesExtraDibujo: (dibujo) => {
+        if (dibujo instanceof CircleGeom) {
+          return [
+            {
+              etiqueta: "Detectar comercios OSM",
+              icono: "pi pi-search-plus",
+              ejecutar: () => this.ejecutarDeteccionOsmEnCirculo(dibujo),
+            },
+          ];
+        }
+        return [];
+      },
       listado: {
         columnas: COLUMNAS_LISTADO_AREA,
         tituloReporte: "GEORREFERENCIA",
@@ -319,7 +363,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.osmLayer = crearCapaOsm(this.baseActive === "osm");
     this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
-    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), false);
+    this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
     this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("sectoresComerciales"), false);
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
     this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
@@ -339,9 +383,15 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     );
     this.acomAguaLayer = this.crearCapaAcometida(COLOR_FICHA_AGUA);
     this.acomDesagueLayer = this.crearCapaAcometida(COLOR_FICHA_ALCANTARILLADO);
+    this.circuloDeteccionLayer = new VectorLayer({
+      source: new VectorSource(),
+      zIndex: 50,
+    });
+    this.circuloDeteccionLayer.set('noHitDetection', true);
 
     this.capasVector = [
       this.lecturasLayer,
+      this.circuloDeteccionLayer,
       this.cajaAguaLayer,
       this.fichaAlcLayer,
       this.acomAguaLayer,
@@ -375,6 +425,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         this.fichaAlcLayer,
         this.cajaAguaLayer,
         this.lecturasLayer,
+        this.circuloDeteccionLayer,
       ],
       view: new View({
         projection: this.gis.proyeccionMapa,
@@ -423,6 +474,229 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     });
   }
 
+  activarModoDeteccionOsm(): void {
+    this.modoDeteccionOsm = true;
+    this.avisar(
+      "info",
+      "Detección de Comercios",
+      "Haga clic en cualquier punto del mapa para analizar los comercios a su alrededor.",
+    );
+  }
+
+  cancelarModoDeteccionOsm(): void {
+    this.modoDeteccionOsm = false;
+  }
+
+  setRadioDeteccion(radio: number): void {
+    this.radioDeteccionSeleccionado = radio;
+  }
+
+  ejecutarDeteccionDirectaEnPunto(coordenadaMapa: Coordinate, radioMetros: number): void {
+    this.modoDeteccionOsm = false;
+
+    const coordWgs84 = normalizarCoordenadaWgs84(
+      coordenadaMapa,
+      this.gis.proyeccionMapa,
+      this.gis.proyeccionUtm,
+    );
+    const [lon, lat] = coordWgs84;
+
+    console.log("[DETECCIÓN OSM] Coordenada mapa:", coordenadaMapa, "-> WGS84:", coordWgs84, "Radio:", radioMetros);
+
+    // Dibujar el círculo en el mapa con la geometría geodésica exacta
+    const circuloGeom = circular([lon, lat], radioMetros, 72);
+    circuloGeom.transform(WGS84, this.gis.proyeccionMapa);
+
+    const srcCirculo = this.circuloDeteccionLayer?.getSource();
+    if (srcCirculo) {
+      srcCirculo.clear();
+      const featureCirculo = new Feature({ geometry: circuloGeom });
+      featureCirculo.set('esCirculoDeteccion', true);
+      featureCirculo.setStyle(
+        new Style({
+          stroke: new Stroke({ color: "#0284c7", width: 2, lineDash: [8, 8] }),
+          fill: new Fill({ color: "rgba(2, 132, 199, 0.08)" }),
+        }),
+      );
+
+      const featureCentro = new Feature({
+        geometry: new Point(coordenadaMapa),
+      });
+      featureCentro.set('esCirculoDeteccion', true);
+      featureCentro.setStyle(
+        new Style({
+          image: new CircleStyle({
+            radius: 5,
+            fill: new Fill({ color: "#0284c7" }),
+            stroke: new Stroke({ color: "#ffffff", width: 2 }),
+          }),
+          text: new Text({
+            text: `Radio: ${radioMetros} m`,
+            font: "bold 12px Arial",
+            fill: new Fill({ color: "#0369a1" }),
+            stroke: new Stroke({ color: "#ffffff", width: 3 }),
+            offsetY: -15,
+          }),
+        }),
+      );
+
+      srcCirculo.addFeatures([featureCirculo, featureCentro]);
+    }
+
+    this.consultarOverpassYProcesar(lat, lon, radioMetros, coordWgs84);
+  }
+
+  ejecutarDeteccionOsmEnCirculo(circulo: CircleGeom): void {
+    const center = circulo.getCenter();
+    const mapRadius = circulo.getRadius();
+    const proj = this.map?.getView().getProjection();
+    const pointRes = getPointResolution(proj!, 1, center, "m");
+    const radioMetros = Math.max(30, Math.min(300, Math.round(mapRadius * pointRes)));
+
+    const coordWgs84 = normalizarCoordenadaWgs84(
+      center,
+      this.gis.proyeccionMapa,
+      this.gis.proyeccionUtm,
+    );
+    const [lon, lat] = coordWgs84;
+
+    this.consultarOverpassYProcesar(lat, lon, radioMetros, coordWgs84);
+  }
+
+  private consultarOverpassYProcesar(
+    lat: number,
+    lon: number,
+    radioMetros: number,
+    centroWgs84: [number, number],
+  ): void {
+    this.cargando = true;
+    this.mensajeCarga = `Detectando comercios y consultando clientes en radio (${radioMetros} m)...`;
+
+    const codsuc = this.selectedSucursal?.codsuc || "ALL";
+
+    forkJoin({
+      comercios: this.osmComerciosService.consultarComercios(lat, lon, radioMetros),
+      clientesDb: this.clientesRadioService.buscarClientesPorRadio({
+        codsuc,
+        lat,
+        lon,
+        radioMetros,
+      }),
+    })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ comercios, clientesDb }) => {
+          this.cargando = false;
+          if (!comercios || comercios.length === 0) {
+            this.avisar(
+              "info",
+              "OpenStreetMap",
+              `No se encontraron comercios registrados en OpenStreetMap en un radio de ${radioMetros} m. Pruebe seleccionando otra zona comercial o ampliando el radio a 300 m.`,
+            );
+            return;
+          }
+
+          // Combinar clientes encontrados en la DB por radio con los que estén en memoria si fuese necesario
+          let clientesSysco: Record<string, unknown>[] = (clientesDb || []) as unknown as Record<string, unknown>[];
+
+          if (clientesSysco.length === 0) {
+            if (this.resultadoBusquedaJson && this.resultadoBusquedaJson.length > 0) {
+              clientesSysco = this.resultadoBusquedaJson as unknown as Record<string, unknown>[];
+            } else if (this.lecturasLayer) {
+              const features = this.lecturasLayer.getSource()?.getFeatures() || [];
+              if (features.length > 0) {
+                clientesSysco = features.map((f) => f.getProperties() as Record<string, unknown>);
+              } else if (this.resultadosTab && this.resultadosTab.length > 0) {
+                clientesSysco = this.resultadosTab as unknown as Record<string, unknown>[];
+              }
+            }
+          }
+
+          console.log(
+            `[DETECCION-COMERCIOS] Comercios detectados: ${comercios.length}. Clientes DB en radio: ${clientesDb?.length || 0}.`,
+          );
+
+          this.resumenOsm = this.osmComerciosService.cruzarComerciosConClientes(
+            comercios,
+            clientesSysco,
+            this.gis.proyeccionUtm,
+            centroWgs84,
+            radioMetros,
+          );
+          this.mostrarDialogoOsm = true;
+          this.avisar(
+            "success",
+            "Detección completada",
+            `Se detectaron ${comercios.length} comercios: ${this.resumenOsm.coincidentes} formalizados, ${this.resumenOsm.cambioDeUso} cambio de uso y ${this.resumenOsm.noRegistrados} sin cliente.`,
+          );
+        },
+        error: (err) => {
+          this.cargando = false;
+          console.error("Error al detectar comercios OSM:", err);
+          const detalle =
+            err?.message ||
+            "No se pudo consultar el servicio de OpenStreetMap. Verifique su conexión a internet.";
+          this.avisar("error", "Error OSM", detalle);
+        },
+      });
+  }
+
+  centrarComercioOsmEnMapa(comercio: ComercioOsm): void {
+    // Al ubicar o buscar un comercio desde la tabla OSM:
+    this.mostrarDialogoOsm = false;
+
+    if (comercio.clienteCercano?.codcliente) {
+      const codigo = String(comercio.clienteCercano.codcliente).trim();
+      this.searchSuministro = codigo;
+
+      // Realiza exactamente la misma búsqueda que el buscador del main:
+      // Activa capas de búsqueda (usuarios y lotes), consulta al backend, agrega
+      // el punto a la capa de lecturas, agrega las acometidas, encuadra el mapa,
+      // resalta el predio catastral y abre la ficha con fotos, medidor y deuda.
+      this.buscarClientes(
+        { codcliente: codigo },
+        `Buscando suministro ${codigo} (${comercio.nombre})...`,
+        `No se encontró el suministro ${codigo} en el sistema.`,
+        CAPAS_DE_BUSQUEDA,
+      );
+
+      this.avisar(
+        "info",
+        comercio.nombre,
+        `${comercio.rubroLegible} | Suministro identificado: ${codigo}`,
+      );
+    } else {
+      // Comercio sin cliente vinculado en Sysco:
+      // Centramos en la coordenada del comercio y consultamos el predio catastral en GeoServer
+      const coordMapa = transform(comercio.coordenada, WGS84, this.gis.proyeccionMapa);
+      this.map?.getView().animate({ center: coordMapa, zoom: 19, duration: 600 });
+
+      // Asegurar que la capa de lotes esté activa y visible
+      this.activarCapaPorId("lotes");
+
+      // Consultar el predio en GeoServer para que salga la ficha del lote
+      this.controladorGis?.consultarPunto(coordMapa);
+
+      this.avisar(
+        "warn",
+        comercio.nombre,
+        `${comercio.rubroLegible} | Sin cliente registrado. Se consultó el predio catastral en la ubicación.`,
+      );
+    }
+  }
+
+  abrirResumenComerciosOsm(): void {
+    if (this.resumenOsm) {
+      this.mostrarDialogoOsm = true;
+    } else {
+      this.avisar(
+        "info",
+        "Detección de Comercios",
+        "Haga clic en el botón «Detectar Comercios» en la parte superior derecha para iniciar.",
+      );
+    }
+  }
+
   private tipoPopupDeCapa(capa: BaseLayer | null): TipoPopup {
     if (capa === this.cajaAguaLayer || capa === this.acomAguaLayer)
       return "agua";
@@ -433,25 +707,49 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   private initClick(): void {
     this.map?.on("singleclick", (evt) => {
+      if (this.modoDeteccionOsm) {
+        this.ejecutarDeteccionDirectaEnPunto(evt.coordinate, this.radioDeteccionSeleccionado);
+        return;
+      }
       if (estaUsandoHerramientas(this.map!)) return;
+
       let clickedLayer: BaseLayer | null = null;
       const feature = this.map!.forEachFeatureAtPixel(
         evt.pixel,
         (f, layer) => {
+          if (
+            layer === this.circuloDeteccionLayer ||
+            layer?.get("noHitDetection") ||
+            (f as any)?.get("esCirculoDeteccion")
+          ) {
+            return null;
+          }
           clickedLayer = layer;
           return f;
         },
         {
-          hitTolerance: 5,
+          hitTolerance: 6,
           layerFilter: (layer: any) =>
-            !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
+            layer !== this.circuloDeteccionLayer &&
+            !layer.get("noHitDetection") &&
+            !layer.get("isDrawLayer") &&
+            (!layer.get(MARCA_CAPA_RESALTADO) || layer.get("esCapaPredioBuscado")),
         },
       ) as Feature | undefined;
 
       if (feature) {
+        if (feature.get("esPredioBuscado")) {
+          const codcliente = String(feature.get("codcliente") || "");
+          this.controladorGis?.consultarPunto(evt.coordinate);
+          if (codcliente && (!this.lecturaSeleccionada || String(this.lecturaSeleccionada.codcliente) !== codcliente)) {
+            this.buscarClientePorCodigo(codcliente);
+          }
+          this.pestanaActivaPopup = "cliente";
+          return;
+        }
+
         this.seleccionarFeature(feature, this.tipoPopupDeCapa(clickedLayer));
       } else {
-        this.cerrarPopup();
         this.controladorGis?.consultarPunto(evt.coordinate);
       }
     });
@@ -480,8 +778,17 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   toggleLayer(layer: { id: string; active: boolean }): void {
     layer.active = !layer.active;
-    // Solo muestra u oculta lo que ya está en el mapa: los usuarios llegan por una búsqueda, nunca al prender la capa.
     this.registroCapas[layer.id]?.setVisible(layer.active);
+    if (layer.id === "usuarios" && layer.active) {
+      const total = this.lecturasLayer?.getSource()?.getFeatures().length ?? 0;
+      if (total === 0) {
+        this.avisar(
+          "info",
+          "Capa Usuarios activada",
+          "Realice una búsqueda (por suministro, calle o sector) para visualizar clientes en el mapa.",
+        );
+      }
+    }
   }
 
   isCapaUsuariosActiva(): boolean {
@@ -590,6 +897,15 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.avisar("warn", "Sin ubicación", `El cliente ${codigo} no tiene coordenadas registradas: solo se muestra su ficha.`);
     }
     this.controladorGis?.marcarPredio(codigo, coordenada ?? undefined);
+    if (coordenada) {
+      this.consultaCapasGis.consultarPunto(this.capasComercialesConsultables(), coordenada, this.map!.getView())
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((elems) => {
+          const lote = elems.find(e => e.rol === "lotes");
+          if (lote) this.loteSeleccionadoGis = lote;
+        });
+    }
+    this.pestanaActivaPopup = "cliente";
   }
 
   private actualizarCapasComerciales(fitBounds = true): void {
@@ -679,7 +995,9 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.controladorGis?.quitarPredio();
     this.peticionPopup?.unsubscribe();
     this.lecturaSeleccionada = null;
+    this.loteSeleccionadoGis = null;
     this.featureSeleccionado = null;
+    this.controladorGis?.cerrarPopupGis();
     this.datosClientePopup = null;
     this.totalLecturas = 0;
     this.totalSinCoordenadas = 0;
@@ -811,12 +1129,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   toggleBusqueda(): void {
     this.mostrarSearchPanel = !this.mostrarSearchPanel;
     if (this.mostrarSearchPanel) {
-      if (this.lecturaSeleccionada) {
-        this.lecturaSeleccionada = null;
-        this.featureSeleccionado = null;
-        this.datosClientePopup = null;
-        this.imagenesPopup = [];
-      }
+      this.cerrarPopup();
       this.buscadorEstabaAbierto = false;
       this.refrescarCapasVector();
     }
@@ -1055,7 +1368,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.sinUbicacion = false;
     this.cargandoImagenes = false;
     this.lecturaSeleccionada = null;
+    this.loteSeleccionadoGis = null;
+    this.pestanaActivaPopup = 'cliente';
     this.featureSeleccionado = null;
+    this.controladorGis?.cerrarPopupGis();
+    this.controladorGis?.quitarPredio();
     this.refrescarCapasVector();
     this.datosClientePopup = null;
     this.imagenesPopup = [];
@@ -1328,4 +1645,41 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       queryParamsHandling: 'merge'
     });
   }
+
+  extraerCodigoClienteDeLote(elemento: ElementoGis): string | null {
+    if (elemento.rol !== "lotes") return null;
+    for (const atr of elemento.atributos) {
+      const key = (atr.etiqueta || "").toLowerCase().replace(/[\s_\-.]/g, "");
+      if (
+        key.includes("codcliente") ||
+        key.includes("nroinscrip") ||
+        key.includes("suministro") ||
+        key.includes("codsum") ||
+        key.includes("codclie") ||
+        key.includes("cliente") ||
+        key === "codigo" ||
+        key === "inscrip" ||
+        key === "nrosuministro"
+      ) {
+        const val = String(atr.valor ?? "").trim();
+        if (/^\d+$/.test(val) && Number(val) > 0) {
+          return val;
+        }
+      }
+    }
+    return null;
+  }
+
+  buscarClientePorCodigo(codigo: string): void {
+    const cod = String(codigo || "").trim();
+    if (!cod) return;
+    this.searchSuministro = cod;
+    this.buscarClientes(
+      { codcliente: cod },
+      `Buscando suministro ${cod}...`,
+      `No se encontró el suministro ${cod} en el sistema.`,
+      CAPAS_DE_BUSQUEDA,
+    );
+  }
+
 }

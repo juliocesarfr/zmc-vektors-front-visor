@@ -1,5 +1,5 @@
 <p-toast></p-toast>
-<div class="main-geo">
+<div class="main-geo" [class.cursor-crosshair]="modoDeteccionOsm">
   <div #mapa class="main-geo-mapa"></div>
 
   @if (cargando) {
@@ -47,6 +47,56 @@
         <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
       </button>
     </div>
+  </div>
+
+  <!-- Control flotante de detección comercial OSM (ubicado junto a los controles de zoom) -->
+  <div class="osm-flotante-widget" [class.panel-activo]="modoDeteccionOsm" [class.con-popup-abierto]="!!lecturaSeleccionada || !!loteSeleccionadoGis">
+    @if (!modoDeteccionOsm) {
+      <div class="osm-flotante-botones">
+        <button
+          type="button"
+          class="btn-flotante-osm"
+          (click)="activarModoDeteccionOsm()"
+          title="Detectar comercios en radio con OpenStreetMap y cruzar con suministros"
+        >
+          <i class="pi pi-shop"></i>
+          <span class="btn-osm-label">Detectar Comercios</span>
+        </button>
+
+        @if (resumenOsm) {
+          <button
+            type="button"
+            class="btn-flotante-resultados"
+            (click)="mostrarDialogoOsm = true"
+            title="Ver tabla de comercios detectados"
+          >
+            <i class="pi pi-table"></i>
+            <span>Comercios OSM</span>
+            <span class="badge-osm-flotante">{{ resumenOsm.totalOsm }}</span>
+          </button>
+        }
+      </div>
+    } @else {
+      <div class="osm-flotante-config animate-fade-in">
+        <div class="osm-config-header">
+          <i class="pi pi-compass"></i>
+          <span>Detección Comercial</span>
+        </div>
+        <div class="osm-config-instruccion">
+          <i class="pi pi-map-marker pin-animado"></i>
+          <span>Clic en el mapa para ubicar centro</span>
+        </div>
+        <div class="osm-config-radios">
+          <span class="label-radio">Radio:</span>
+          <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 50" (click)="setRadioDeteccion(50)">50 m</button>
+          <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 100" (click)="setRadioDeteccion(100)">100 m</button>
+          <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 300" (click)="setRadioDeteccion(300)">300 m</button>
+        </div>
+        <button type="button" class="btn-cancelar-flotante" (click)="cancelarModoDeteccionOsm()">
+          <i class="pi pi-times"></i> Cancelar
+        </button>
+      </div>
+    }
   </div>
 
   <div class="cd-filtros-panel" id="filtrosMain" [class.visible]="filtrosVisible">
@@ -376,11 +426,31 @@
     <i [class]="mostrarSearchPanel ? 'pi pi-times' : 'pi pi-search'"></i>
   </button>
 
-  @if (lecturaSeleccionada) {
-    <aside class="user-popup" aria-label="Información del usuario">
+  @if (lecturaSeleccionada || loteSeleccionadoGis) {
+    <aside class="user-popup" aria-label="Información del usuario y predio">
       <div class="up-barra">
-        <i class="pi pi-user up-barra-icono"></i>
-        <span class="up-barra-titulo">Usuario</span>
+        <div class="up-pestanas-selector">
+          @if (lecturaSeleccionada) {
+            <button
+              type="button"
+              class="up-tab-btn"
+              [class.activo]="pestanaActivaPopup === 'cliente'"
+              (click)="pestanaActivaPopup = 'cliente'"
+            >
+              <i class="pi pi-user"></i> Cliente
+            </button>
+          }
+          @if (loteSeleccionadoGis) {
+            <button
+              type="button"
+              class="up-tab-btn"
+              [class.activo]="pestanaActivaPopup === 'lote'"
+              (click)="pestanaActivaPopup = 'lote'"
+            >
+              <i class="pi pi-map"></i> Predio / Lote
+            </button>
+          }
+        </div>
         <button
           type="button"
           class="up-close"
@@ -391,6 +461,8 @@
           <i class="pi pi-times"></i>
         </button>
       </div>
+
+      @if ((pestanaActivaPopup === 'cliente' && lecturaSeleccionada) || (!loteSeleccionadoGis && lecturaSeleccionada)) {
       <div class="up-body">
         @if (sinUbicacion) {
           <div class="up-sin-ubicacion" role="status">
@@ -655,6 +727,60 @@
           <i class="pi pi-search-plus"></i> Ver más información
         </button>
       </div>
+      }
+
+      @if ((pestanaActivaPopup === 'lote' && loteSeleccionadoGis) || (!lecturaSeleccionada && loteSeleccionadoGis)) {
+        <div class="up-body up-lote-body">
+          <section class="up-section up-titular">
+            <div class="up-header">
+              <div class="up-avatar lote"><i class="pi pi-map"></i></div>
+              <div class="up-header-info">
+                <span class="up-label">PREDIO / LOTE CATASTRAL</span>
+                <strong class="up-name">{{ loteSeleccionadoGis.titulo || 'Lote Identificado' }}</strong>
+              </div>
+            </div>
+            @if (lecturaSeleccionada) {
+              <div class="up-grid grid-2" style="margin-top: 8px;">
+                <div class="up-cell resaltada">
+                  <span class="uc-label">Suministro</span>
+                  <span class="uc-val">{{ lecturaSeleccionada.codcliente }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Titular</span>
+                  <span class="uc-val" style="font-size: 11px;">{{ lecturaSeleccionada.propietario || '-' }}</span>
+                </div>
+              </div>
+            }
+          </section>
+
+          <section class="up-section">
+            <div class="up-section-title loc">
+              <span class="marca"></span>Atributos Catastrales del Lote
+            </div>
+            @if (loteSeleccionadoGis.atributos?.length) {
+              <div class="up-grid grid-2">
+                @for (atr of loteSeleccionadoGis.atributos; track atr.etiqueta) {
+                  <div class="up-cell" [class.full]="(atr.valor && atr.valor.length > 25) || false">
+                    <span class="uc-label">{{ atr.etiqueta }}</span>
+                    <span class="uc-val">{{ atr.valor || '-' }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="up-vacio" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+                Este lote no tiene datos catastrales registrados en GeoServer.
+              </div>
+            }
+          </section>
+
+          @if (lecturaSeleccionada) {
+            <div class="up-switch-banner" (click)="pestanaActivaPopup = 'cliente'">
+              <i class="pi pi-arrow-left"></i>
+              <span>Ver Ficha Completa del Cliente ({{ lecturaSeleccionada.codcliente }})</span>
+            </div>
+          }
+        </div>
+      }
     </aside>
   }
 
@@ -670,7 +796,14 @@
 
   <app-paneles-mapa-gis
     [controlador]="controladorGis"
-    [hayPanelDerecho]="!!lecturaSeleccionada || mostrarSearchPanel"
+    [hayPanelDerecho]="!!lecturaSeleccionada || !!loteSeleccionadoGis || mostrarSearchPanel"
     (filaElegida)="ubicarFilaEnMapa($event)"
   ></app-paneles-mapa-gis>
+
+  <app-dialogo-comercios-osm
+    [visible]="mostrarDialogoOsm"
+    [resumen]="resumenOsm"
+    (cerrar)="mostrarDialogoOsm = false"
+    (seleccionarComercio)="centrarComercioOsmEnMapa($event)"
+  ></app-dialogo-comercios-osm>
 </div>

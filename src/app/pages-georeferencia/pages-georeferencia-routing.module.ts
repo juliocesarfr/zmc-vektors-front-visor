@@ -107,6 +107,13 @@ const routes: Routes = conConfigGis([
         (m) => m.FacturacionClientesAltosConsumidoresComponent,
       ),
   },
+  {
+    path: "facturacion/clientes_seguimiento_comercial",
+    loadComponent: () =>
+      import("../_pages/facturacion/facturacion-clientes-seguimiento-comercial/facturacion-clientes-seguimiento-comercial.component").then(
+        (m) => m.FacturacionClientesSeguimientoComercialComponent,
+      ),
+  },
   { path: "", redirectTo: "main", pathMatch: "full" },
 ]);
 

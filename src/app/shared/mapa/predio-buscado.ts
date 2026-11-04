@@ -36,7 +36,6 @@ export class PredioBuscado {
           fill: new Fill({ color: "#ffffff" }),
           backgroundFill: new Fill({ color: "#b45309" }),
           padding: [3, 6, 3, 6],
-          // Por encima de la etiqueta del punto del cliente, que cae en el mismo lugar.
           offsetY: -40,
           overflow: true,
         }),
@@ -46,13 +45,18 @@ export class PredioBuscado {
 
   constructor(private readonly map: OlMap) {
     this.capa.set(MARCA_CAPA_RESALTADO, true);
+    this.capa.set("esCapaPredioBuscado", true);
     this.map.addLayer(this.capa);
+  }
+
+  get capaVector(): VectorLayer<VectorSource> {
+    return this.capa;
   }
 
   mostrar(geometria: Geometry, codcliente: string): void {
     const fuente = this.capa.getSource()!;
     fuente.clear();
-    fuente.addFeature(new Feature({ geometry: geometria, codcliente }));
+    fuente.addFeature(new Feature({ geometry: geometria, codcliente, esPredioBuscado: true }));
   }
 
   encuadrar(): void {

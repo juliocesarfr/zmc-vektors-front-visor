@@ -7,6 +7,8 @@ import type { Extent } from "ol/extent";
 import { of, type Subscription } from "rxjs";
 import { switchMap } from "rxjs/operators";
 import type { ExcelService } from "@host/_servicios/reportes/excel.service";
+import type VectorLayer from "ol/layer/Vector";
+import type VectorSource from "ol/source/Vector";
 
 import type {
   CapaConsultable,
@@ -67,8 +69,12 @@ export interface OpcionesControladorMapaGis {
   /** Capas técnicas del panel de capas: además de consultarse, cambian el cursor al pasar encima. */
   capasTecnicas: () => CapaConsultable[];
   avisar: (detalle: string) => void;
+  /** Notificación opcional cuando una consulta GIS responde con elementos en un punto */
+  alConsultarElemento?: (elementos: ElementoGis[], coordenada?: Coordinate) => void;
   /** Sin listado la pantalla no tiene herramientas de dibujo. */
   listado?: ListadoMapaGis;
+  /** Acciones adicionales en el menú contextual del dibujo (clic derecho sobre polígono o círculo). */
+  accionesExtraDibujo?: (dibujo: Geometry) => AccionDibujo[];
 }
 
 /**
@@ -121,12 +127,19 @@ export class ControladorMapaGis {
       capasConsultables: () => [...opciones.capasTecnicas(), ...opciones.capasComerciales()],
       capasConCursor: opciones.capasTecnicas,
       etiquetaCapa: (rol) => gis.etiquetaCapa(rol),
-      alResponder: (elementos) => (this.elementosGis = elementos),
+      alResponder: (elementos) => {
+        this.elementosGis = elementos;
+        opciones.alConsultarElemento?.(elementos);
+      },
       hayDibujoConListadoEn: (pixel) =>
         esAreaDibujada(this.menuDibujos?.dibujoEn(pixel)?.getGeometry()),
     });
     this.predio = new PredioBuscado(map);
     this.calle = new CalleBuscada(map);
+  }
+
+  get capaPredio(): VectorLayer<VectorSource> {
+    return this.predio.capaVector;
   }
 
   get columnasListado(): ColumnaListado[] {
@@ -303,8 +316,10 @@ export class ControladorMapaGis {
   // La regla solo mide: su menú queda con "Borrar este dibujo", que agrega el propio menú.
   private accionesDeDibujo(dibujo: Geometry | undefined): AccionDibujo[] {
     if (!esAreaDibujada(dibujo)) return [];
+    const extras = this.opciones.accionesExtraDibujo ? this.opciones.accionesExtraDibujo(dibujo) : [];
     if (!this.hayRegistros()) {
       return [
+        ...extras,
         {
           etiqueta: "Cargue los datos para ver los clientes",
           icono: "pi pi-info-circle",
@@ -314,6 +329,7 @@ export class ControladorMapaGis {
     }
     const total = this.clientesEnArea(dibujo).length;
     return [
+      ...extras,
       {
         etiqueta: `Ver clientes (${total})`,
         icono: "pi pi-table",
