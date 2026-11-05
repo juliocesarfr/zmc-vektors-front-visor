@@ -1,6 +1,8 @@
 @import '../../../shared/mapa/mapa-estilos.scss';
 @import '../../../shared/mapa/paneles-mapa-oscuros.scss';
 
+@include ficha-usuario-oscura;
+
 :host {
   display: flex;
   flex-direction: column;

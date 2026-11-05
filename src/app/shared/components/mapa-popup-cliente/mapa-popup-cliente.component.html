@@ -297,6 +297,38 @@
           </div>
         </div>
       }
+      <!-- FACTURACIÓN Y CONSUMO (Seguimiento Comercial / General) -->
+      @if (
+        clienteSeleccionado.nvma === undefined &&
+        (clienteSeleccionado.impmesagu !== undefined ||
+          clienteSeleccionado.impmesalc !== undefined ||
+          clienteSeleccionado.consumofac !== undefined ||
+          clienteSeleccionado.nrodoc !== undefined)
+      ) {
+        <div class="up-section">
+          <div class="up-section-title facturacion">
+            <i class="pi pi-dollar" style="color: #ff8a7f; margin-right: 5px"></i> FACTURACIÓN Y CONSUMO
+          </div>
+          <div class="up-grid grid-2">
+            <div class="up-cell">
+              <span class="uc-label">Imp. Agua</span>
+              <span class="uc-val deuda">S/ {{ clienteSeleccionado.impmesagu ?? '-' }}</span>
+            </div>
+            <div class="up-cell">
+              <span class="uc-label">Imp. Alcant.</span>
+              <span class="uc-val deuda">S/ {{ clienteSeleccionado.impmesalc ?? '-' }}</span>
+            </div>
+            <div class="up-cell">
+              <span class="uc-label">Consumo Fac.</span>
+              <span class="uc-val">{{ clienteSeleccionado.consumofac ?? '-' }} m³</span>
+            </div>
+            <div class="up-cell">
+              <span class="uc-label">Nro. Doc</span>
+              <span class="uc-val grande">{{ clienteSeleccionado.nrodoc || '-' }}</span>
+            </div>
+          </div>
+        </div>
+      }
       <!-- DATOS VMA -->
       @if (
         clienteSeleccionado.nvma !== undefined ||

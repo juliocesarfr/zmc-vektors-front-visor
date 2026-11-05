@@ -26,7 +26,6 @@ import VectorSource from "ol/source/Vector";
 import { Feature } from "ol";
 
 import { MapaVisorComponent } from "../../../shared/components/mapa-visor/mapa-visor.component";
-import { MapaPopupClienteComponent } from "../../../shared/components/mapa-popup-cliente/mapa-popup-cliente.component";
 import { MapEstilosFactory, RADIOS_LECTURA } from "../../../shared/mapa/mapa-estilos";
 import { ListadoMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
 import { ColumnaListado } from "../../../shared/utils/listado-excel";
@@ -38,23 +37,31 @@ import { LISTA_MESES } from "../../../shared/constantes/lecturas";
 import { abrirGoogleStreetView } from "../../../shared/mapa/street-view";
 
 const COLUMNAS_TABLA_SEGUIMIENTO_COMERCIAL: ColumnaListado[] = [
-  { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
-  { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
-  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "codsuc", titulo: "SUC", anchoExcel: 8 },
+  { campo: "sucursal", titulo: "Sucursal", anchoExcel: 20 },
+  { campo: "codsector", titulo: "SEC", anchoExcel: 8 },
   { campo: "sector", titulo: "Sector", anchoExcel: 18 },
-  { campo: "nummed", titulo: "Medidor", anchoExcel: 15 },
-  { campo: "nomtar", titulo: "Categoría", anchoExcel: 18 },
-  { campo: "desestadoservicio", titulo: "Estado del servicio", anchoExcel: 16 },
-  { campo: "situacionmed", titulo: "Situación med.", anchoExcel: 16 },
-  { campo: "consumo", titulo: "Consumo", anchoExcel: 10 },
-  { campo: "consumofac", titulo: "Consumo Fac.", anchoExcel: 12 },
-  { campo: "lecturapromedio", titulo: "Promedio", anchoExcel: 10 },
-  { campo: "impmesagu", titulo: "Imp. Agua", anchoExcel: 12 },
-  { campo: "impmesalc", titulo: "Imp. Alc.", anchoExcel: 12 },
-  { campo: "nrodoc", titulo: "Nro. Doc", anchoExcel: 12 },
-  { campo: "desdiametro", titulo: "Diámetro", anchoExcel: 14 },
-  { campo: "horasabastec", titulo: "Horas abast.", anchoExcel: 14 },
-  { campo: "actividad", titulo: "Actividad", anchoExcel: 25 },
+  { campo: "codrutadistribucion", titulo: "codrutadistribucion", anchoExcel: 16 },
+  { campo: "nroordenrutadist", titulo: "nroordenrutadist", anchoExcel: 16 },
+  { campo: "codcliente", titulo: "Código", anchoExcel: 12 },
+  { campo: "propietario", titulo: "Propietario", anchoExcel: 35 },
+  { campo: "direccion", titulo: "Dirección", anchoExcel: 35 },
+  { campo: "desestadoservicio", titulo: "EST.serv.", anchoExcel: 16 },
+  { campo: "tiposervicio", titulo: "TIPO SERV.", anchoExcel: 14 },
+  { campo: "nomtar", titulo: "CATEGORÍA", anchoExcel: 18 },
+  { campo: "tipopromedio", titulo: "TP", anchoExcel: 10 },
+  { campo: "nummed", titulo: "NROMED", anchoExcel: 15 },
+  { campo: "volumesp", titulo: "ASIGNACIÓN", anchoExcel: 14 },
+  { campo: "lecturapromedio", titulo: "Lect.Prom", anchoExcel: 12 },
+  { campo: "consumo", titulo: "consumo", anchoExcel: 10 },
+  { campo: "consumofac", titulo: "consumofac", anchoExcel: 12 },
+  { campo: "impmesagu", titulo: "imp.agua", anchoExcel: 12 },
+  { campo: "impmesalc", titulo: "imp.desague", anchoExcel: 12 },
+  { campo: "nrodoc", titulo: "nrodoc", anchoExcel: 12 },
+  { campo: "actividad", titulo: "actividad", anchoExcel: 25 },
+  { campo: "desdiametro", titulo: "DIÁMETRO", anchoExcel: 14 },
+  { campo: "situacionmed", titulo: "Situación Med", anchoExcel: 16 },
+  { campo: "horasabastec", titulo: "Horas Abastec.", anchoExcel: 14 },
 ];
 
 @Component({
@@ -67,7 +74,6 @@ const COLUMNAS_TABLA_SEGUIMIENTO_COMERCIAL: ColumnaListado[] = [
     ToastModule,
     SelectModule,
     MapaVisorComponent,
-    MapaPopupClienteComponent,
   ],
   templateUrl: "./facturacion-clientes-seguimiento-comercial.component.html",
   styleUrl: "./facturacion-clientes-seguimiento-comercial.component.scss",

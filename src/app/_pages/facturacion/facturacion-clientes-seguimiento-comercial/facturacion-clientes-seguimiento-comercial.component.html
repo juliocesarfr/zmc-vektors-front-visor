@@ -1,7 +1,7 @@
 <p-toast [appendTo]="'body'"></p-toast>
 
 <app-mapa-visor
-  title="Facturación Seguimiento Comercial"
+  title="Facturación Clientes Principales"
   [cargando]="cargando"
   [customVectorLayers]="capasVector"
   (featureClick)="onFeatureClick($event)"
@@ -269,12 +269,249 @@
   </ng-container>
 
   <ng-container map-popup>
-    <app-mapa-popup-cliente
-      [clienteSeleccionado]="clienteSeleccionado"
-      (onCerrar)="cerrarPopup()"
-      (onVerStreetView)="abrirStreetView()"
-    >
-    </app-mapa-popup-cliente>
+    @if (clienteSeleccionado) {
+      <div class="user-popup" (click)="$event.stopPropagation()">
+        <!-- Encabezado con Avatar y Titular -->
+        <div class="up-header">
+          <div class="up-header-left">
+            <div class="up-avatar">
+              <img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario" />
+            </div>
+            <div class="up-header-info">
+              <span class="up-label">TITULAR DEL PREDIO</span>
+              <strong class="up-name">{{ clienteSeleccionado.propietario || 'SIN REGISTRO' }}</strong>
+            </div>
+          </div>
+          <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+        </div>
+
+        <!-- Barra de Código y Medidor -->
+        <div class="up-suministro">
+          <div class="up-sum-item primary">
+            <i class="pi pi-bolt"></i>
+            <span class="up-sum-label">CÓDIGO</span>
+            <span class="up-sum-value">{{ clienteSeleccionado.codcliente || '-' }}</span>
+          </div>
+          <div class="up-sum-item">
+            <i class="pi pi-compass"></i>
+            <span class="up-sum-label">NROMED</span>
+            <span class="up-sum-value">{{ clienteSeleccionado.nummed || clienteSeleccionado.nromed || '-' }}</span>
+          </div>
+        </div>
+
+        <div class="up-body">
+          <!-- UBICACIÓN Y PREDIO -->
+          <div class="up-section">
+            <div
+              class="up-section-title loc"
+              style="display: flex; justify-content: space-between; align-items: center"
+            >
+              <div>
+                <img
+                  src="assets/images/img-georeferencia/ubication-icon.gif"
+                  class="gif-icon"
+                  alt="Ubicación"
+                />
+                UBICACIÓN Y PREDIO
+              </div>
+              <button
+                pButton
+                type="button"
+                class="p-button-outlined p-button-sm p-button-warning"
+                title="Ver en Google Street View"
+                (click)="abrirStreetView()"
+                style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem"
+              >
+                <img
+                  src="assets/images/img-georeferencia/google-street-view-icon.gif"
+                  style="height: 2.2rem"
+                  alt="Street View"
+                />
+                <span style="font-weight: 800">Ver en Maps</span>
+              </button>
+            </div>
+
+            <div class="up-grid grid-3">
+              <div class="up-cell">
+                <span class="uc-label">SECT</span>
+                <span class="uc-val">{{ clienteSeleccionado.codsector || '-' }} {{ clienteSeleccionado.sector || '' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">MZA</span>
+                <span class="uc-val">{{ clienteSeleccionado.mza || clienteSeleccionado.manzana || clienteSeleccionado.codmza || '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">LOTE/SUB.</span>
+                <span class="uc-val">{{ clienteSeleccionado.lote || clienteSeleccionado.nrolote || '-' }}{{ clienteSeleccionado.sublote || clienteSeleccionado.nrosublote ? ' / ' + (clienteSeleccionado.sublote || clienteSeleccionado.nrosublote) : '' }}</span>
+              </div>
+              <div class="up-cell full">
+                <span class="uc-label">DIRECCIÓN</span>
+                <span class="uc-val">{{ clienteSeleccionado.direccion || '-' }}</span>
+              </div>
+              <div class="up-cell span-2">
+                <span class="uc-label">CATEGORÍA</span>
+                <span class="uc-val">{{ clienteSeleccionado.catetar ? clienteSeleccionado.catetar + ' - ' : '' }}{{ clienteSeleccionado.nomtar || clienteSeleccionado.desctarifa || '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">ACTIVIDAD</span>
+                <span class="uc-val">{{ clienteSeleccionado.actividad || '-' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- SERVICIO -->
+          <div class="up-section">
+            <div class="up-section-title medidor">
+              <img
+                src="assets/images/img-georeferencia/medidor-icon.gif"
+                class="gif-icon"
+                alt="Medidor"
+              />
+              SERVICIO
+            </div>
+
+            <div class="up-lecturas-row">
+              <div class="up-lec-badge prev">
+                <span class="ulb-label">LECTURA ANT.</span>
+                <span class="ulb-val">{{ clienteSeleccionado.lecturaanterior ?? '-' }}</span>
+              </div>
+              <i class="pi pi-arrow-right up-lec-arrow"></i>
+              <div class="up-lec-badge curr">
+                <span class="ulb-label">LECTURA ACT.</span>
+                <span class="ulb-val">{{ clienteSeleccionado.lecturaultima ?? '-' }}</span>
+              </div>
+            </div>
+
+            <div class="up-lecturas-row" style="margin-top: 6px;">
+              <div class="up-lec-badge prom">
+                <span class="ulb-label">PROM. CONSUMO</span>
+                <span class="ulb-val">{{ clienteSeleccionado.lecturapromedio ?? '-' }}</span>
+              </div>
+              <div class="up-lec-badge cons">
+                <span class="ulb-label">ÚLTIMO CONSUMO</span>
+                <span class="ulb-val">{{ clienteSeleccionado.consumo ?? '-' }}</span>
+              </div>
+            </div>
+
+            <div class="up-grid" style="margin-top: 8px;">
+              <div class="up-cell">
+                <span class="uc-label">Sucursal</span>
+                <span class="uc-val">{{ clienteSeleccionado.codsuc || '-' }}{{ clienteSeleccionado.sucursal ? ' - ' + clienteSeleccionado.sucursal : '' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Ruta / Orden Dist.</span>
+                <span class="uc-val">{{ clienteSeleccionado.codrutadistribucion || '-' }}{{ clienteSeleccionado.nroordenrutadist ? ' / ' + clienteSeleccionado.nroordenrutadist : '' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Est. Servicio</span>
+                <span class="uc-val badge-est">
+                  {{ clienteSeleccionado.desestadoservicio || clienteSeleccionado.estadoservicio || '-' }}
+                </span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Tipo Servicio</span>
+                <span class="uc-val badge-est">{{ clienteSeleccionado.tiposervicio || '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Situación Med.</span>
+                <span class="uc-val">{{ clienteSeleccionado.situacionmed || '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Tipo Promedio (TP)</span>
+                <span class="uc-val">
+                  {{
+                    clienteSeleccionado.tipopromedio === '0'
+                      ? '0 - Medido'
+                      : clienteSeleccionado.tipopromedio === '1'
+                        ? '1 - Asignado'
+                        : clienteSeleccionado.tipopromedio === '2'
+                          ? '2 - Promediado'
+                          : clienteSeleccionado.tipopromedio || '-'
+                  }}
+                </span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Diámetro</span>
+                <span class="uc-val">{{ clienteSeleccionado.desdiametro || clienteSeleccionado.coddiametro || '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Asignación</span>
+                <span class="uc-val">{{ clienteSeleccionado.volumesp != null ? clienteSeleccionado.volumesp + ' m³' : '-' }}</span>
+              </div>
+              <div class="up-cell full">
+                <span class="uc-label">Horas Abastecimiento</span>
+                <span class="uc-val">{{ clienteSeleccionado.horasabastec || '-' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FACTURACIÓN -->
+          <div class="up-section">
+            <div class="up-section-title facturacion">
+              <i class="pi pi-dollar" style="color: #ff8a7f; margin-right: 4px;"></i>
+              FACTURACIÓN
+            </div>
+
+            <div class="up-grid">
+              <div class="up-cell">
+                <span class="uc-label">Consumo Facturado</span>
+                <span class="uc-val">{{ clienteSeleccionado.consumofac != null ? clienteSeleccionado.consumofac + ' m³' : '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Nro. Documento</span>
+                <span class="uc-val grande">{{ clienteSeleccionado.nrodoc || '-' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Imp. Agua</span>
+                <span class="uc-val deuda">
+                  {{ clienteSeleccionado.impmesagu != null ? ('S/ ' + (clienteSeleccionado.impmesagu | number: '1.2-2')) : '-' }}
+                </span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Imp. Desagüe</span>
+                <span class="uc-val deuda">
+                  {{ clienteSeleccionado.impmesalc != null ? ('S/ ' + (clienteSeleccionado.impmesalc | number: '1.2-2')) : '-' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- HISTORIAL DE CONSUMOS (6 MESES) -->
+          @if (clienteSeleccionado.consumo_1 !== undefined && clienteSeleccionado.consumo_1 !== null) {
+            <div class="up-section">
+              <div class="up-section-title medidor">
+                <i class="pi pi-chart-bar" style="margin-right: 5px"></i> HISTORIAL CONSUMOS
+              </div>
+              <div class="up-grid grid-3" style="text-align: center">
+                <div class="up-cell resaltada">
+                  <span class="uc-label">Actual</span>
+                  <span class="uc-val">{{ clienteSeleccionado.consumo_6 ?? '-' }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Mes -1</span>
+                  <span class="uc-val">{{ clienteSeleccionado.consumo_5 ?? '-' }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Mes -2</span>
+                  <span class="uc-val">{{ clienteSeleccionado.consumo_4 ?? '-' }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Mes -3</span>
+                  <span class="uc-val">{{ clienteSeleccionado.consumo_3 ?? '-' }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Mes -4</span>
+                  <span class="uc-val">{{ clienteSeleccionado.consumo_2 ?? '-' }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Mes -5</span>
+                  <span class="uc-val">{{ clienteSeleccionado.consumo_1 ?? '-' }}</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
   </ng-container>
 </app-mapa-visor>
-
