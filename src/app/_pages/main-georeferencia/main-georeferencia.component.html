@@ -426,11 +426,11 @@
     <i [class]="mostrarSearchPanel ? 'pi pi-times' : 'pi pi-search'"></i>
   </button>
 
-  @if (lecturaSeleccionada || loteSeleccionadoGis) {
+  @if (lecturaSeleccionada) {
     <aside class="user-popup" aria-label="Información del usuario y predio">
       <div class="up-barra">
-        <div class="up-pestanas-selector">
-          @if (lecturaSeleccionada) {
+        @if (loteSeleccionadoGis) {
+          <div class="up-pestanas-selector">
             <button
               type="button"
               class="up-tab-btn"
@@ -439,8 +439,6 @@
             >
               <i class="pi pi-user"></i> Cliente
             </button>
-          }
-          @if (loteSeleccionadoGis) {
             <button
               type="button"
               class="up-tab-btn"
@@ -449,8 +447,11 @@
             >
               <i class="pi pi-map"></i> Predio / Lote
             </button>
-          }
-        </div>
+          </div>
+        } @else {
+          <i class="pi pi-user up-barra-icono"></i>
+          <span class="up-barra-titulo">Usuario</span>
+        }
         <button
           type="button"
           class="up-close"
@@ -462,7 +463,7 @@
         </button>
       </div>
 
-      @if ((pestanaActivaPopup === 'cliente' && lecturaSeleccionada) || (!loteSeleccionadoGis && lecturaSeleccionada)) {
+      @if (pestanaActivaPopup === 'cliente' || !loteSeleccionadoGis) {
       <div class="up-body">
         @if (sinUbicacion) {
           <div class="up-sin-ubicacion" role="status">
@@ -729,7 +730,7 @@
       </div>
       }
 
-      @if ((pestanaActivaPopup === 'lote' && loteSeleccionadoGis) || (!lecturaSeleccionada && loteSeleccionadoGis)) {
+      @if (pestanaActivaPopup === 'lote' && loteSeleccionadoGis) {
         <div class="up-body up-lote-body">
           <section class="up-section up-titular">
             <div class="up-header">

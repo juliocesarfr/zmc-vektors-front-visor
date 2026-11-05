@@ -783,11 +783,6 @@ $alto-barra: 46px;
   &.con-popup-abierto {
     right: 460px;
   }
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  font-family: "Segoe UI", Arial, sans-serif;
-  transition: all 0.22s ease;
 
   .osm-flotante-botones {
     display: flex;
