@@ -267,7 +267,7 @@ export class FacturacionClientesSeguimientoComercialComponent implements OnInit 
       });
   }
 
-  onSucursalChange(): void {
+    onSucursalChange(): void {
     this.sucursalCambiada.next();
     this.selectedSector = null;
     this.selectedTarifa = null;
@@ -276,44 +276,65 @@ export class FacturacionClientesSeguimientoComercialComponent implements OnInit 
 
     if (!this.selectedSucursal) return;
 
+    const sucursalCode =
+      this.selectedSucursal.codsuc ||
+      this.selectedSucursal.codigo ||
+      (typeof this.selectedSucursal === "string" ? this.selectedSucursal : null);
+
+    if (!sucursalCode) return;
+
     this.tarifasService
-      .drop(this.selectedSucursal.codsuc)
+      .drop(sucursalCode)
       .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (data) => {
+        next: (data: any) => {
+          const rawList = Array.isArray(data) ? data : (data?.data || data?.response || []);
+          const uniqueData = rawList.filter(
+            (item: any, index: number, self: any[]) =>
+              index === self.findIndex((t) => (t.nomtar || t.descripcion) === (item.nomtar || item.descripcion)),
+          );
           this.listaTarifas = [
-            { catetar: "ALL", nomtar: "TODOS" },
-            ...(data || []),
+            { catetar: "ALL", nomtar: "TODOS", codigo: "ALL" },
+            ...uniqueData.map((t: any) => ({
+              ...t,
+              catetar: t.catetar || t.codigo,
+              nomtar: t.nomtar || t.descripcion,
+            })),
           ];
           this.selectedTarifa = "ALL";
         },
-        error: (err) => console.error("Error al cargar tarifas:", err),
+        error: (err) => {
+          console.error("Error al cargar tarifas:", err);
+          this.listaTarifas = [{ catetar: "ALL", nomtar: "TODOS", codigo: "ALL" }];
+          this.selectedTarifa = "ALL";
+        },
       });
 
     const codCiclo =
-      this.selectedCiclo.codigo ||
-      this.selectedCiclo.idcodigogeneral ||
-      this.selectedCiclo.codciclo;
+      this.selectedCiclo?.codigo ||
+      this.selectedCiclo?.idcodigogeneral ||
+      this.selectedCiclo?.codciclo;
 
-    this.sectoresCicloService
-      .drop_sectores_x_ciclo(this.selectedSucursal.codsuc, codCiclo)
-      .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (data) => {
-          this.listaSectores = [
-            { codsector: "ALL", descripcion: "TODOS" },
-            ...(data || []),
-          ];
-          this.selectedSector = this.listaSectores[0];
-        },
-        error: (err) => {
-          console.error("Error al cargar sectores:", err);
-          this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
-          this.selectedSector = this.listaSectores[0];
-        },
-      });
+    if (codCiclo) {
+      this.sectoresCicloService
+        .drop_sectores_x_ciclo(sucursalCode, codCiclo)
+        .pipe(takeUntil(this.sucursalCambiada), takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (data) => {
+            this.listaSectores = [
+              { codsector: "ALL", descripcion: "TODOS" },
+              ...(data || []),
+            ];
+            this.selectedSector = this.listaSectores[0];
+          },
+          error: (err) => {
+            console.error("Error al cargar sectores:", err);
+            this.listaSectores = [{ codsector: "ALL", descripcion: "TODOS" }];
+            this.selectedSector = this.listaSectores[0];
+          },
+        });
+    }
   }
-
   getDescEstadoServicio(): string {
     return (
       this.listaEstadoServicio?.find(
