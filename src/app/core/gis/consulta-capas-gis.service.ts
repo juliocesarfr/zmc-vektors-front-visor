@@ -9,6 +9,7 @@ import type TileLayer from "ol/layer/Tile";
 import type TileWMS from "ol/source/TileWMS";
 import type Geometry from "ol/geom/Geometry";
 import type { Coordinate } from "ol/coordinate";
+import type { Extent } from "ol/extent";
 import type { ProjectionLike } from "ol/proj";
 
 import { CapaGisId } from "./gis-config.model";
@@ -23,6 +24,12 @@ export interface CapaConsultable {
 export interface AtributoGis {
   etiqueta: string;
   valor: string;
+}
+
+/** Curva de nivel con su cota en metros. */
+export interface CurvaNivel {
+  elevacion: number;
+  geometria: Geometry;
 }
 
 export interface ElementoGis {
@@ -61,6 +68,11 @@ const PRIORIDAD_POLIGONO = 2;
 const MARGEN_PUNTO_PREDIO_GRADOS = 0.00002;
 const MARGEN_PUNTO_PREDIO_METROS = 2;
 const MAXIMO_LOTES_EN_PUNTO = 5;
+
+// Un área de varios kilómetros traería decenas de megas de curvas: con este tope el relieve sigue bien formado.
+const MAXIMO_CURVAS_EN_AREA = 4000;
+// Cada EPS nombra distinto el campo de la cota; se toma el primero de estos que traiga un número.
+const CAMPOS_ELEVACION = ["elevation", "elevacion", "elev", "cota", "altura", "contour", "z"];
 
 // Un punto encima de una línea o de un lote es casi siempre lo que el usuario quiso tocar.
 const PRIORIDAD_GEOMETRIA: Record<string, number> = {
@@ -247,6 +259,34 @@ export class ConsultaCapasGisService {
     );
   }
 
+  /**
+   * Curvas de nivel que cruzan la extensión. Se descartan las de cota 0 o sin cota:
+   * vienen así de los planos importados y hundirían el terreno.
+   */
+  buscarCurvasDeNivel(extension: Extent, proyeccionMapa: string): Observable<CurvaNivel[]> {
+    const url = this.gis.urlGetFeature("curvasNivel", undefined, {
+      srsName: proyeccionMapa,
+      maxFeatures: String(MAXIMO_CURVAS_EN_AREA),
+      bbox: [...extension, proyeccionMapa].join(","),
+    });
+    if (!url) return of([]);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) =>
+        (respuesta.features ?? [])
+          .map((curva) => ({
+            elevacion: this.elevacionDe(curva?.properties),
+            geometria: this.leerGeometria(curva?.geometry, respuesta.crs?.properties?.name, proyeccionMapa),
+          }))
+          .filter((curva): curva is CurvaNivel => curva.elevacion > 0 && !!curva.geometria),
+      ),
+      catchError((error) => {
+        console.warn("[GIS] No se pudo traer las curvas de nivel.", error);
+        return of([]);
+      }),
+    );
+  }
+
   /** Tramos de la calle con ese nombre en la capa de calles. Vacío si la EPS no declara el campo del nombre. */
   buscarCalle(nombre: string, proyeccionMapa: string): Observable<Geometry[]> {
     const { campoTitulo } = this.gis.consultaCapa("calles");
@@ -309,6 +349,17 @@ export class ConsultaCapasGisService {
     } catch {
       return undefined;
     }
+  }
+
+  private elevacionDe(propiedades: Record<string, unknown> | undefined): number {
+    if (!propiedades) return 0;
+    const campos = Object.keys(propiedades);
+    for (const nombre of CAMPOS_ELEVACION) {
+      const campo = campos.find((clave) => clave.toLowerCase() === nombre);
+      const valor = campo === undefined ? NaN : Number(propiedades[campo]);
+      if (Number.isFinite(valor)) return valor;
+    }
+    return 0;
   }
 
   // La tolerancia sirve para atinarle a un punto o a una línea; en un polígono traería al lote vecino.

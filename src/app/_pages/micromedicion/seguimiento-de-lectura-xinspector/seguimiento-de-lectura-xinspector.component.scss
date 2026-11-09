@@ -1,5 +1,5 @@
-@import '../../../shared/mapa/mapa-estilos.scss';
-@import '../../../shared/mapa/paneles-mapa-oscuros.scss';
+@use '../../../shared/mapa/mapa-estilos' as *;
+@use '../../../shared/mapa/paneles-mapa-oscuros' as *;
 
 :host {
   display: flex;

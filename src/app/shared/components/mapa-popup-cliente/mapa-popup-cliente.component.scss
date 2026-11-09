@@ -1,4 +1,4 @@
-@import '../../mapa/paneles-mapa-oscuros.scss';
+@use '../../mapa/paneles-mapa-oscuros' as *;
 
 @include ficha-usuario-oscura;
 

@@ -37,7 +37,8 @@ export function crearCapaOsm(visible = true): TileLayer<OSM> {
 }
 
 export function crearCapaSatelital(visible = false): TileLayer<XYZ> {
-  return new TileLayer({ source: new XYZ({ url: URL_GOOGLE_SATELITAL }), visible });
+  // Sin `crossOrigin` el lienzo queda bloqueado y el mapa no se puede pasar a PDF.
+  return new TileLayer({ source: new XYZ({ url: URL_GOOGLE_SATELITAL, crossOrigin: "anonymous" }), visible });
 }
 
 /**
