@@ -769,19 +769,134 @@ $alto-barra: 46px;
   }
 }
 
-// Widget flotante de Detección Comercial OSM (ubicado junto a los controles de zoom a la derecha)
+// Cards de resumen de Detección Comercial OSM (estilo Seguimiento de Lecturas en paleta oscura Sysco)
+.cd-resumen-osm {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Segoe UI", Arial, sans-serif;
+  animation: fadeInSlide 0.25s ease-out;
+
+  .card-resumen {
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    padding: 8px 18px;
+    text-align: center;
+    border-top: 3.5px solid #00e5ff;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    min-width: 95px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+    }
+
+    &.total {
+      border-top-color: #00e5ff;
+      .numero { color: #00e5ff; }
+      .titulo { color: rgba(255, 255, 255, 0.8); }
+    }
+
+    &.error {
+      border-top-color: #f43f5e;
+      .numero { color: #fb7185; }
+      .titulo { color: #fda4af; }
+    }
+
+    &.warn {
+      border-top-color: #f59e0b;
+      .numero { color: #fbbf24; }
+      .titulo { color: #fde68a; }
+    }
+
+    &.ok {
+      border-top-color: #10b981;
+      .numero { color: #34d399; }
+      .titulo { color: #a7f3d0; }
+    }
+
+    .numero {
+      display: block;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 3px;
+    }
+
+    .titulo {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+  }
+
+  .btn-cerrar-resumen-osm {
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    width: 28px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #ef4444;
+      border-color: #ef4444;
+    }
+
+    i {
+      font-size: 12px;
+    }
+  }
+}
+
+// Widget flotante de Detección Comercial OSM:
+// - Por defecto: al costado derecho del zoom (top: 58px; right: 68px).
+// - Con resumen activo: centrado al medio debajo de las cards (top: 130px; left: 50%).
 .osm-flotante-widget {
   position: absolute;
-  top: 108px;
+  top: 58px;
   right: 68px;
+  left: auto;
+  transform: none;
   z-index: 100;
   display: flex;
   align-items: center;
   font-family: "Segoe UI", Arial, sans-serif;
   transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  &.con-popup-abierto {
+  &.con-popup-abierto:not(.con-resumen) {
     right: 460px;
+  }
+
+  &.con-resumen {
+    top: 130px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    justify-content: center;
   }
 
   .osm-flotante-botones {
@@ -855,6 +970,16 @@ $alto-barra: 46px;
       font-weight: 800;
       border-radius: 10px;
       padding: 1px 6px;
+    }
+
+    &.activo {
+      background: rgba(0, 229, 255, 0.22);
+      border-color: #00e5ff;
+      color: #ffffff;
+
+      i {
+        color: #00e5ff;
+      }
     }
   }
 
@@ -1087,5 +1212,126 @@ $alto-barra: 46px;
         transform: translateX(-3px);
       }
     }
+  }
+
+  // Banner y alertas de usuario sin medidor en tema oscuro
+  .up-banner-sin-medidor {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.16);
+    border: 1.5px solid rgba(239, 68, 68, 0.6);
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.2);
+
+    .up-bsm-contenido {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .up-bsm-icono {
+        font-size: 18px;
+        color: #ef4444;
+        flex-shrink: 0;
+      }
+
+      .up-bsm-texto {
+        display: flex;
+        flex-direction: column;
+
+        .up-bsm-titulo {
+          font-size: 11.5px;
+          font-weight: 800;
+          letter-spacing: 0.4px;
+          color: #fca5a5;
+        }
+
+        .up-bsm-desc {
+          font-size: 10px;
+          font-weight: 600;
+          color: #f87171;
+        }
+      }
+    }
+
+    .up-bsm-chip {
+      font-size: 9.5px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #dc2626;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+  }
+
+  .up-titular-header-fila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+
+    .tag-sin-medidor-alerta {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+
+      i {
+        font-size: 8.5px;
+      }
+    }
+  }
+
+  .up-avatar.avatar-sin-medidor {
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.18) !important;
+  }
+
+  .up-cell.suministro-sin-medidor {
+    border-color: rgba(239, 68, 68, 0.6) !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+
+    .uc-label {
+      color: #fca5a5 !important;
+    }
+
+    .uc-val {
+      color: #ffffff !important;
+    }
+  }
+
+  .up-section-title.medidor.sin-medidor {
+    color: #fca5a5 !important;
+
+    .marca {
+      background: #ef4444 !important;
+    }
+
+    .up-titulo-valor.badge-rojo-sin-medidor {
+      background: rgba(239, 68, 68, 0.25) !important;
+      color: #fca5a5 !important;
+      border: 1px solid rgba(239, 68, 68, 0.6) !important;
+      padding: 2px 8px !important;
+      border-radius: 6px !important;
+      font-weight: 800 !important;
+    }
+  }
+
+  .up-section.seccion-sin-medidor {
+    border-left: 3px solid #ef4444;
+    background: rgba(239, 68, 68, 0.05);
   }
 }

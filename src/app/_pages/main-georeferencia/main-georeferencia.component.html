@@ -3,10 +3,10 @@
   <div #mapa class="main-geo-mapa"></div>
 
   @if (cargando) {
-    <div class="map-loading-indicator" role="status">
-      <i class="pi pi-spin pi-spinner"></i>
-      <span>{{ mensajeCarga }}</span>
-    </div>
+  <div class="map-loading-indicator" role="status">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>{{ mensajeCarga }}</span>
+  </div>
   }
 
   <div class="cd-toolbar">
@@ -19,29 +19,23 @@
 
     <div class="cd-toolbar-actions">
       @if (!filtrosVisible) {
-        <div class="cd-filtros-summary">
-          @if (selectedSucursal) {
-            <span class="filtro-chip sucursal">
-              <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
-            </span>
-          }
-          @if (totalLecturas > 0) {
-            <span class="filtro-chip usuarios">
-              <i class="pi pi-users"></i> {{ totalLecturas }}
-              {{ isBusquedaActiva ? 'encontrados' : 'usuarios' }}
-            </span>
-          }
-        </div>
+      <div class="cd-filtros-summary">
+        @if (selectedSucursal) {
+        <span class="filtro-chip sucursal">
+          <i class="pi pi-building"></i> {{ selectedSucursal?.nombre }}
+        </span>
+        }
+        @if (totalLecturas > 0) {
+        <span class="filtro-chip usuarios">
+          <i class="pi pi-users"></i> {{ totalLecturas }}
+          {{ isBusquedaActiva ? 'encontrados' : 'usuarios' }}
+        </span>
+        }
+      </div>
       }
 
-      <button
-        type="button"
-        class="cd-toggle-filtros"
-        (click)="filtrosVisible = !filtrosVisible"
-        [class.active]="filtrosVisible"
-        [attr.aria-expanded]="filtrosVisible"
-        aria-controls="filtrosMain"
-      >
+      <button type="button" class="cd-toggle-filtros" (click)="filtrosVisible = !filtrosVisible"
+        [class.active]="filtrosVisible" [attr.aria-expanded]="filtrosVisible" aria-controls="filtrosMain">
         <i class="pi" [class.pi-sliders-h]="!filtrosVisible" [class.pi-times]="filtrosVisible"></i>
         <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
         <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
@@ -49,461 +43,369 @@
     </div>
   </div>
 
-  <!-- Control flotante de detección comercial OSM (ubicado junto a los controles de zoom) -->
-  <div class="osm-flotante-widget" [class.panel-activo]="modoDeteccionOsm" [class.con-popup-abierto]="!!lecturaSeleccionada || !!loteSeleccionadoGis">
-    @if (!modoDeteccionOsm) {
-      <div class="osm-flotante-botones">
-        <button
-          type="button"
-          class="btn-flotante-osm"
-          (click)="activarModoDeteccionOsm()"
-          title="Detectar comercios en radio con OpenStreetMap y cruzar con suministros"
-        >
-          <i class="pi pi-shop"></i>
-          <span class="btn-osm-label">Detectar Comercios</span>
-        </button>
+  <!-- Resumen de Detección Comercial en formato Cards (estilo Seguimiento de Lecturas) -->
+  @if (resumenOsm) {
+  <div class="sl-resumen cd-resumen-osm" role="region" aria-label="Resumen de comercios detectados">
+    <div class="card-resumen total" (click)="abrirTablaComercios('TODOS')" title="Ver todos los comercios en la tabla">
+      <span class="numero">{{ resumenOsm.totalOsm }}</span>
+      <span class="titulo">Detectados</span>
+    </div>
 
-        @if (resumenOsm) {
-          <button
-            type="button"
-            class="btn-flotante-resultados"
-            (click)="mostrarDialogoOsm = true"
-            title="Ver tabla de comercios detectados"
-          >
-            <i class="pi pi-table"></i>
-            <span>Comercios OSM</span>
-            <span class="badge-osm-flotante">{{ resumenOsm.totalOsm }}</span>
-          </button>
-        }
-      </div>
+    <div class="card-resumen error" (click)="abrirTablaComercios('NO_REGISTRADO')"
+      title="Ver comercios sin cliente registrado en la tabla">
+      <span class="numero">{{ resumenOsm.noRegistrados }}</span>
+      <span class="titulo">Sin cliente</span>
+    </div>
+
+    <div class="card-resumen warn" (click)="abrirTablaComercios('CAMBIO_DE_USO')"
+      title="Ver comercios en tarifa doméstica en la tabla">
+      <span class="numero">{{ resumenOsm.cambioDeUso }}</span>
+      <span class="titulo">En Tarifa doméstica</span>
+    </div>
+
+    <div class="card-resumen ok" (click)="abrirTablaComercios('COINCIDENTE')"
+      title="Ver comercios regularizados en la tabla">
+      <span class="numero">{{ resumenOsm.coincidentes }}</span>
+      <span class="titulo">Regularizados</span>
+    </div>
+
+    <button type="button" class="btn-cerrar-resumen-osm" (click)="limpiarDeteccionOsm()"
+      title="Limpiar análisis de comercios del mapa" aria-label="Cerrar análisis">
+      <i class="pi pi-times"></i>
+    </button>
+  </div>
+  }
+
+  <!-- Control flotante de detección comercial OSM (por defecto junto al zoom; al medio con resumen) -->
+  <div class="osm-flotante-widget" [class.con-resumen]="!!resumenOsm" [class.panel-activo]="modoDeteccionOsm"
+    [class.con-popup-abierto]="!!lecturaSeleccionada || !!loteSeleccionadoGis">
+    @if (!modoDeteccionOsm) {
+    <div class="osm-flotante-botones">
+      <button type="button" class="btn-flotante-osm" (click)="activarModoDeteccionOsm()"
+        title="Detectar comercios en radio con OpenStreetMap y cruzar con suministros">
+        <i class="pi pi-shop"></i>
+        <span class="btn-osm-label">Detectar Comercios</span>
+      </button>
+
+      @if (resumenOsm) {
+      <button type="button" class="btn-flotante-resultados" [class.activo]="mostrarDialogoOsm"
+        (click)="toggleTablaComercios()"
+        [title]="mostrarDialogoOsm ? 'Ocultar tabla de comercios' : 'Ver tabla de comercios detectados'">
+        <i class="pi" [class.pi-table]="!mostrarDialogoOsm" [class.pi-eye-slash]="mostrarDialogoOsm"></i>
+        <span>{{ mostrarDialogoOsm ? 'Ocultar Tabla' : 'Ver Tabla' }}</span>
+        <span class="badge-osm-flotante">{{ resumenOsm.totalOsm }}</span>
+      </button>
+      }
+    </div>
     } @else {
-      <div class="osm-flotante-config animate-fade-in">
-        <div class="osm-config-header">
-          <i class="pi pi-compass"></i>
-          <span>Detección Comercial</span>
-        </div>
-        <div class="osm-config-instruccion">
-          <i class="pi pi-map-marker pin-animado"></i>
-          <span>Clic en el mapa para ubicar centro</span>
-        </div>
-        <div class="osm-config-radios">
-          <span class="label-radio">Radio:</span>
-          <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 50" (click)="setRadioDeteccion(50)">50 m</button>
-          <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 100" (click)="setRadioDeteccion(100)">100 m</button>
-          <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 300" (click)="setRadioDeteccion(300)">300 m</button>
-        </div>
-        <button type="button" class="btn-cancelar-flotante" (click)="cancelarModoDeteccionOsm()">
-          <i class="pi pi-times"></i> Cancelar
-        </button>
+    <div class="osm-flotante-config animate-fade-in">
+      <div class="osm-config-header">
+        <i class="pi pi-compass"></i>
+        <span>Detección Comercial</span>
       </div>
+      <div class="osm-config-instruccion">
+        <i class="pi pi-map-marker pin-animado"></i>
+        <span>Clic en el mapa para ubicar centro</span>
+      </div>
+      <div class="osm-config-radios">
+        <span class="label-radio">Radio:</span>
+        <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 50"
+          (click)="setRadioDeteccion(50)">50 m</button>
+        <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 100"
+          (click)="setRadioDeteccion(100)">100 m</button>
+        <button type="button" class="btn-radio-chip" [class.active]="radioDeteccionSeleccionado === 300"
+          (click)="setRadioDeteccion(300)">300 m</button>
+      </div>
+      <button type="button" class="btn-cancelar-flotante" (click)="cancelarModoDeteccionOsm()">
+        <i class="pi pi-times"></i> Cancelar
+      </button>
+    </div>
     }
   </div>
 
   <div class="cd-filtros-panel" id="filtrosMain" [class.visible]="filtrosVisible">
     <div class="cd-filtros">
       <span class="p-float-label">
-        <p-select
-          inputId="sucursalMain"
-          [options]="listaSucursales"
-          [(ngModel)]="selectedSucursal"
-          optionLabel="nombre"
-          [style]="{ width: '200px' }"
-          placeholder="Sucursal"
-          [appendTo]="'body'"
-          (onChange)="onSucursalChange()"
-        ></p-select>
+        <p-select inputId="sucursalMain" [options]="listaSucursales" [(ngModel)]="selectedSucursal" optionLabel="nombre"
+          [style]="{ width: '200px' }" placeholder="Sucursal" [appendTo]="'body'"
+          (onChange)="onSucursalChange()"></p-select>
         <label for="sucursalMain">Sucursal</label>
       </span>
     </div>
   </div>
 
   @if (mostrarSearchPanel) {
-    <div class="cd-search-panel light-tabs-panel">
-      <div class="search-tabs-header">
-        <div class="search-tabs-top-bar">
-          <span class="search-tabs-title"><i class="pi pi-compass"></i> BÚSQUEDA DE CLIENTES</span>
-          <div class="tabs-header-actions">
-            @if (isBusquedaActiva || resultadosTab.length > 0) {
-              <span class="limpiar-link" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
-                <i class="pi pi-filter-slash"></i> Limpiar
-              </span>
-            }
-            <button
-              type="button"
-              class="btn-cerrar-busqueda"
-              (click)="cerrarBusqueda()"
-              title="Cerrar"
-              aria-label="Cerrar búsqueda"
-            >
-              <i class="pi pi-times"></i>
-            </button>
-          </div>
-        </div>
-        <div class="search-tabs-nav" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            class="tab-item"
-            [class.active]="tabActivaBuscador === 'usuario'"
-            [attr.aria-selected]="tabActivaBuscador === 'usuario'"
-            (click)="setTabBuscador('usuario')"
-          >
-            Usuario
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="tab-item"
-            [class.active]="tabActivaBuscador === 'calles'"
-            [attr.aria-selected]="tabActivaBuscador === 'calles'"
-            (click)="setTabBuscador('calles')"
-          >
-            Calles
-          </button>
-          <button
-            type="button"
-            role="tab"
-            class="tab-item"
-            [class.active]="tabActivaBuscador === 'manzana'"
-            [attr.aria-selected]="tabActivaBuscador === 'manzana'"
-            (click)="setTabBuscador('manzana')"
-          >
-            Manzana
+  <div class="cd-search-panel light-tabs-panel">
+    <div class="search-tabs-header">
+      <div class="search-tabs-top-bar">
+        <span class="search-tabs-title"><i class="pi pi-compass"></i> BÚSQUEDA DE CLIENTES</span>
+        <div class="tabs-header-actions">
+          @if (isBusquedaActiva || resultadosTab.length > 0) {
+          <span class="limpiar-link" (click)="reiniciarBusqueda()" title="Limpiar búsqueda">
+            <i class="pi pi-filter-slash"></i> Limpiar
+          </span>
+          }
+          <button type="button" class="btn-cerrar-busqueda" (click)="cerrarBusqueda()" title="Cerrar"
+            aria-label="Cerrar búsqueda">
+            <i class="pi pi-times"></i>
           </button>
         </div>
       </div>
-      <div class="search-tab-body">
-        @if (tabActivaBuscador === 'usuario') {
-          <div class="search-rows-container">
-            <div class="search-row">
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Nro. Suministro</legend>
-                <div class="input-content">
-                  <i class="pi pi-hashtag icon-cyan"></i>
-                  <input
-                    type="text"
-                    [(ngModel)]="searchSuministro"
-                    placeholder="Ej: 12345"
-                    (keyup.enter)="buscarPorOpcion(1)"
-                  />
-                  @if (searchSuministro) {
-                    <i
-                      class="pi pi-times-circle clear-text-btn"
-                      (click)="searchSuministro = ''"
-                    ></i>
-                  }
-                </div>
-              </fieldset>
-              <button
-                type="button"
-                class="btn-cyan-pill"
-                (click)="buscarPorOpcion(1)"
-                [disabled]="cargando"
-              >
-                BUSCAR
-              </button>
-            </div>
-            <div class="search-row">
-              <fieldset class="search-fieldset tipo-documento">
-                <legend class="search-legend">Tipo de documento</legend>
-                <p-select
-                  [options]="tiposDocumento"
-                  [(ngModel)]="tipoDocumentoElegido"
-                  optionValue="tipodocident"
-                  optionLabel="descripcion"
-                  placeholder="Elegir"
-                  [showClear]="true"
-                  appendTo="body"
-                  styleClass="selector-oscuro"
-                ></p-select>
-              </fieldset>
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Nro. de documento</legend>
-                <div class="input-content">
-                  <i class="pi pi-id-card icon-cyan"></i>
-                  <input
-                    type="text"
-                    [(ngModel)]="searchDniRuc"
-                    [disabled]="!tipoDocumentoElegido"
-                    [placeholder]="tipoDocumentoElegido ? 'Ej: 12345678' : 'Elija el tipo primero'"
-                    (keyup.enter)="buscarPorOpcion(2)"
-                  />
-                  @if (searchDniRuc) {
-                    <i class="pi pi-times-circle clear-text-btn" (click)="searchDniRuc = ''"></i>
-                  }
-                </div>
-              </fieldset>
-              <button
-                type="button"
-                class="btn-cyan-pill"
-                (click)="buscarPorOpcion(2)"
-                [disabled]="cargando || !tipoDocumentoElegido"
-              >
-                BUSCAR
-              </button>
-            </div>
-            <div class="search-row">
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Apellidos y nombres</legend>
-                <div class="input-content">
-                  <i class="pi pi-user icon-cyan"></i>
-                  <input
-                    type="text"
-                    [(ngModel)]="searchNombre"
-                    placeholder="Ej: Juan Perez"
-                    (keyup.enter)="buscarPorOpcion(3)"
-                  />
-                  @if (searchNombre) {
-                    <i class="pi pi-times-circle clear-text-btn" (click)="searchNombre = ''"></i>
-                  }
-                </div>
-              </fieldset>
-              <button
-                type="button"
-                class="btn-cyan-pill"
-                (click)="buscarPorOpcion(3)"
-                [disabled]="cargando"
-              >
-                BUSCAR
-              </button>
-            </div>
-          </div>
-        }
-        @if (tabActivaBuscador === 'calles') {
-          <div class="search-rows-container">
-            <div class="search-row">
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Calle</legend>
-                <p-autoComplete
-                  [(ngModel)]="calleElegida"
-                  [suggestions]="callesSugeridas"
-                  (completeMethod)="sugerirCalles($event)"
-                  [forceSelection]="true"
-                  [dropdown]="true"
-                  [virtualScroll]="true"
-                  [virtualScrollItemSize]="34"
-                  optionLabel="descripcioncalle"
-                  placeholder="Escriba y elija la calle"
-                  appendTo="body"
-                  styleClass="selector-oscuro"
-                  (onSelect)="buscarPorCalle()"
-                >
-                  <ng-template let-calle pTemplate="item">
-                    <span>{{ calle.destipocalle }} {{ calle.descripcioncalle }}</span>
-                  </ng-template>
-                </p-autoComplete>
-              </fieldset>
-              <button
-                type="button"
-                class="btn-cyan-pill"
-                (click)="buscarPorCalle()"
-                [disabled]="cargando || !calleElegida"
-              >
-                BUSCAR
-              </button>
-            </div>
-          </div>
-        }
-        @if (tabActivaBuscador === 'manzana') {
-          <div class="search-rows-container">
-            <div class="search-row">
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Sector</legend>
-                <div class="input-content">
-                  <input
-                    type="text"
-                    [(ngModel)]="searchSector"
-                    placeholder="Ej: 001"
-                    (keyup.enter)="buscarPorManzana()"
-                  />
-                </div>
-              </fieldset>
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Manzana</legend>
-                <div class="input-content">
-                  <input
-                    type="text"
-                    [(ngModel)]="searchManzana"
-                    placeholder="Ej: 002"
-                    (keyup.enter)="buscarPorManzana()"
-                  />
-                </div>
-              </fieldset>
-              <fieldset class="search-fieldset">
-                <legend class="search-legend">Lote</legend>
-                <div class="input-content">
-                  <input
-                    type="text"
-                    [(ngModel)]="searchLote"
-                    placeholder="Ej: 003"
-                    (keyup.enter)="buscarPorManzana()"
-                  />
-                </div>
-              </fieldset>
-              <button
-                type="button"
-                class="btn-cyan-pill"
-                (click)="buscarPorManzana()"
-                [disabled]="cargando"
-              >
-                BUSCAR
-              </button>
-            </div>
-          </div>
-        }
-        @if (resultadosTab.length > 1) {
-          <div class="tabla-resultados">
-            <div class="tabla-resultados-barra">
-              <span
-                >{{ resultadosFiltrados.length }} de {{ resultadosTab.length }} clientes · elija uno
-                para verlo en el mapa</span
-              >
-              <button
-                type="button"
-                class="btn-agregar-mapa"
-                (click)="agregarTodoAlMapa()"
-                [disabled]="resultadosFiltrados.length === 0"
-                title="Pone en el mapa todos los clientes de la tabla"
-              >
-                <i class="pi pi-map"></i> Agregar todo al mapa
-              </button>
-              <div class="calle-filter-input">
-                <i class="pi pi-search"></i>
-                <input
-                  type="text"
-                  [(ngModel)]="filtroResultados"
-                  placeholder="Filtrar código, titular, dirección..."
-                />
-                @if (filtroResultados) {
-                  <i class="pi pi-times" (click)="filtroResultados = ''"></i>
-                }
-              </div>
-            </div>
-            <div class="tabla-resultados-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th>Titular</th>
-                    <th>Dirección</th>
-                    <th>Mz / Lt</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (registro of resultadosFiltrados; track registro) {
-                    <tr
-                      tabindex="0"
-                      (click)="elegirResultado(registro)"
-                      (keyup.enter)="elegirResultado(registro)"
-                      [title]="'Ver ' + registro.codcliente + ' en el mapa'"
-                    >
-                      <td class="codigo">{{ registro.codcliente }}</td>
-                      <td>{{ registro.propietario || '-' }}</td>
-                      <td>
-                        {{ registro.descripcioncorta }} {{ registro.descripcioncalle }}
-                        {{ registro.nrocalle }}
-                      </td>
-                      <td class="mz-lt">
-                        {{ registro.codmza || '-' }} / {{ registro.nrolote || '-' }}
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-        }
+      <div class="search-tabs-nav" role="tablist">
+        <button type="button" role="tab" class="tab-item" [class.active]="tabActivaBuscador === 'usuario'"
+          [attr.aria-selected]="tabActivaBuscador === 'usuario'" (click)="setTabBuscador('usuario')">
+          Usuario
+        </button>
+        <button type="button" role="tab" class="tab-item" [class.active]="tabActivaBuscador === 'calles'"
+          [attr.aria-selected]="tabActivaBuscador === 'calles'" (click)="setTabBuscador('calles')">
+          Calles
+        </button>
+        <button type="button" role="tab" class="tab-item" [class.active]="tabActivaBuscador === 'manzana'"
+          [attr.aria-selected]="tabActivaBuscador === 'manzana'" (click)="setTabBuscador('manzana')">
+          Manzana
+        </button>
       </div>
     </div>
+    <div class="search-tab-body">
+      @if (tabActivaBuscador === 'usuario') {
+      <div class="search-rows-container">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Nro. Suministro</legend>
+            <div class="input-content">
+              <i class="pi pi-hashtag icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchSuministro" placeholder="Ej: 12345"
+                (keyup.enter)="buscarPorOpcion(1)" />
+              @if (searchSuministro) {
+              <i class="pi pi-times-circle clear-text-btn" (click)="searchSuministro = ''"></i>
+              }
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(1)" [disabled]="cargando">
+            BUSCAR
+          </button>
+        </div>
+        <div class="search-row">
+          <fieldset class="search-fieldset tipo-documento">
+            <legend class="search-legend">Tipo de documento</legend>
+            <p-select [options]="tiposDocumento" [(ngModel)]="tipoDocumentoElegido" optionValue="tipodocident"
+              optionLabel="descripcion" placeholder="Elegir" [showClear]="true" appendTo="body"
+              styleClass="selector-oscuro"></p-select>
+          </fieldset>
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Nro. de documento</legend>
+            <div class="input-content">
+              <i class="pi pi-id-card icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchDniRuc" [disabled]="!tipoDocumentoElegido"
+                [placeholder]="tipoDocumentoElegido ? 'Ej: 12345678' : 'Elija el tipo primero'"
+                (keyup.enter)="buscarPorOpcion(2)" />
+              @if (searchDniRuc) {
+              <i class="pi pi-times-circle clear-text-btn" (click)="searchDniRuc = ''"></i>
+              }
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(2)"
+            [disabled]="cargando || !tipoDocumentoElegido">
+            BUSCAR
+          </button>
+        </div>
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Apellidos y nombres</legend>
+            <div class="input-content">
+              <i class="pi pi-user icon-cyan"></i>
+              <input type="text" [(ngModel)]="searchNombre" placeholder="Ej: Juan Perez"
+                (keyup.enter)="buscarPorOpcion(3)" />
+              @if (searchNombre) {
+              <i class="pi pi-times-circle clear-text-btn" (click)="searchNombre = ''"></i>
+              }
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorOpcion(3)" [disabled]="cargando">
+            BUSCAR
+          </button>
+        </div>
+      </div>
+      }
+      @if (tabActivaBuscador === 'calles') {
+      <div class="search-rows-container">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Calle</legend>
+            <p-autoComplete [(ngModel)]="calleElegida" [suggestions]="callesSugeridas"
+              (completeMethod)="sugerirCalles($event)" [forceSelection]="true" [dropdown]="true" [virtualScroll]="true"
+              [virtualScrollItemSize]="34" optionLabel="descripcioncalle" placeholder="Escriba y elija la calle"
+              appendTo="body" styleClass="selector-oscuro" (onSelect)="buscarPorCalle()">
+              <ng-template let-calle pTemplate="item">
+                <span>{{ calle.destipocalle }} {{ calle.descripcioncalle }}</span>
+              </ng-template>
+            </p-autoComplete>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorCalle()" [disabled]="cargando || !calleElegida">
+            BUSCAR
+          </button>
+        </div>
+      </div>
+      }
+      @if (tabActivaBuscador === 'manzana') {
+      <div class="search-rows-container">
+        <div class="search-row">
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Sector</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchSector" placeholder="Ej: 001" (keyup.enter)="buscarPorManzana()" />
+            </div>
+          </fieldset>
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Manzana</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchManzana" placeholder="Ej: 002" (keyup.enter)="buscarPorManzana()" />
+            </div>
+          </fieldset>
+          <fieldset class="search-fieldset">
+            <legend class="search-legend">Lote</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchLote" placeholder="Ej: 003" (keyup.enter)="buscarPorManzana()" />
+            </div>
+          </fieldset>
+          <button type="button" class="btn-cyan-pill" (click)="buscarPorManzana()" [disabled]="cargando">
+            BUSCAR
+          </button>
+        </div>
+      </div>
+      }
+      @if (resultadosTab.length > 1) {
+      <div class="tabla-resultados">
+        <div class="tabla-resultados-barra">
+          <span>{{ resultadosFiltrados.length }} de {{ resultadosTab.length }} clientes · elija uno
+            para verlo en el mapa</span>
+          <button type="button" class="btn-agregar-mapa" (click)="agregarTodoAlMapa()"
+            [disabled]="resultadosFiltrados.length === 0" title="Pone en el mapa todos los clientes de la tabla">
+            <i class="pi pi-map"></i> Agregar todo al mapa
+          </button>
+          <div class="calle-filter-input">
+            <i class="pi pi-search"></i>
+            <input type="text" [(ngModel)]="filtroResultados" placeholder="Filtrar código, titular, dirección..." />
+            @if (filtroResultados) {
+            <i class="pi pi-times" (click)="filtroResultados = ''"></i>
+            }
+          </div>
+        </div>
+        <div class="tabla-resultados-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Titular</th>
+                <th>Dirección</th>
+                <th>Mz / Lt</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (registro of resultadosFiltrados; track registro) {
+              <tr tabindex="0" (click)="elegirResultado(registro)" (keyup.enter)="elegirResultado(registro)"
+                [title]="'Ver ' + registro.codcliente + ' en el mapa'">
+                <td class="codigo">{{ registro.codcliente }}</td>
+                <td>{{ registro.propietario || '-' }}</td>
+                <td>
+                  {{ registro.descripcioncorta }} {{ registro.descripcioncalle }}
+                  {{ registro.nrocalle }}
+                </td>
+                <td class="mz-lt">
+                  {{ registro.codmza || '-' }} / {{ registro.nrolote || '-' }}
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
   }
 
-  <button
-    class="cd-search-toggle"
-    [class.is-active]="mostrarSearchPanel"
-    (click)="toggleBusqueda()"
-    [title]="mostrarSearchPanel ? 'Cerrar Buscador' : 'Búsqueda de Cliente y Filtros'"
-  >
+  <button class="cd-search-toggle" [class.is-active]="mostrarSearchPanel" (click)="toggleBusqueda()"
+    [title]="mostrarSearchPanel ? 'Cerrar Buscador' : 'Búsqueda de Cliente y Filtros'">
     <i [class]="mostrarSearchPanel ? 'pi pi-times' : 'pi pi-search'"></i>
   </button>
 
   @if (lecturaSeleccionada) {
-    <aside class="user-popup" aria-label="Información del usuario y predio">
-      <div class="up-barra">
-        @if (loteSeleccionadoGis) {
-          <div class="up-pestanas-selector">
-            <button
-              type="button"
-              class="up-tab-btn"
-              [class.activo]="pestanaActivaPopup === 'cliente'"
-              (click)="pestanaActivaPopup = 'cliente'"
-            >
-              <i class="pi pi-user"></i> Cliente
-            </button>
-            <button
-              type="button"
-              class="up-tab-btn"
-              [class.activo]="pestanaActivaPopup === 'lote'"
-              (click)="pestanaActivaPopup = 'lote'"
-            >
-              <i class="pi pi-map"></i> Predio / Lote
-            </button>
-          </div>
-        } @else {
-          <i class="pi pi-user up-barra-icono"></i>
-          <span class="up-barra-titulo">Usuario</span>
-        }
-        <button
-          type="button"
-          class="up-close"
-          (click)="cerrarPopup()"
-          title="Cerrar"
-          aria-label="Cerrar ficha"
-        >
-          <i class="pi pi-times"></i>
+  <aside class="user-popup" aria-label="Información del usuario y predio">
+    <div class="up-barra">
+      @if (loteSeleccionadoGis) {
+      <div class="up-pestanas-selector">
+        <button type="button" class="up-tab-btn" [class.activo]="pestanaActivaPopup === 'cliente'"
+          (click)="pestanaActivaPopup = 'cliente'">
+          <i class="pi pi-user"></i> Cliente
+        </button>
+        <button type="button" class="up-tab-btn" [class.activo]="pestanaActivaPopup === 'lote'"
+          (click)="pestanaActivaPopup = 'lote'">
+          <i class="pi pi-map"></i> Predio / Lote
         </button>
       </div>
+      } @else {
+      <i class="pi pi-user up-barra-icono"></i>
+      <span class="up-barra-titulo">Usuario</span>
+      }
+      <button type="button" class="up-close" (click)="cerrarPopup()" title="Cerrar" aria-label="Cerrar ficha">
+        <i class="pi pi-times"></i>
+      </button>
+    </div>
 
-      @if (pestanaActivaPopup === 'cliente' || !loteSeleccionadoGis) {
-      <div class="up-body">
-        @if (sinUbicacion) {
-          <div class="up-sin-ubicacion" role="status">
-            <i class="pi pi-map-marker"></i>
-            <span
-              ><strong>Sin ubicación en el mapa.</strong> Este cliente no tiene coordenadas
-              registradas; el mapa no lo puede señalar.</span
-            >
+    @if (pestanaActivaPopup === 'cliente' || !loteSeleccionadoGis) {
+    <div class="up-body">
+      @if (esClienteSinMedidor()) {
+      <div class="up-banner-sin-medidor" role="alert">
+        <div class="up-bsm-contenido">
+          <i class="pi pi-exclamation-triangle up-bsm-icono"></i>
+          <div class="up-bsm-texto">
+            <span class="up-bsm-titulo">USUARIO SIN MEDIDOR</span>
+            <span class="up-bsm-desc">Este predio no cuenta con equipo de micromedición instalado</span>
           </div>
-        }
-        <section class="up-section up-titular">
-          <div class="up-header">
-            <div class="up-avatar"><i class="pi pi-user"></i></div>
-            <div class="up-header-info">
+        </div>
+        <span class="up-bsm-chip">NO MEDIDO</span>
+      </div>
+      }
+      @if (sinUbicacion) {
+      <div class="up-sin-ubicacion" role="status">
+        <i class="pi pi-map-marker"></i>
+        <span><strong>Sin ubicación en el mapa.</strong> Este cliente no tiene coordenadas
+          registradas; el mapa no lo puede señalar.</span>
+      </div>
+      }
+      <section class="up-section up-titular" [class.sin-medidor-card]="esClienteSinMedidor()">
+        <div class="up-header">
+          <div class="up-avatar" [class.avatar-sin-medidor]="esClienteSinMedidor()">
+            <i [class]="esClienteSinMedidor() ? 'pi pi-exclamation-circle' : 'pi pi-user'"></i>
+          </div>
+          <div class="up-header-info">
+            <div class="up-titular-header-fila">
               <span class="up-label">Titular</span>
-              <strong class="up-name" [title]="lecturaSeleccionada.propietario || 'SIN REGISTRO'">{{
-                lecturaSeleccionada.propietario || 'SIN REGISTRO'
+              @if (esClienteSinMedidor()) {
+              <span class="tag-sin-medidor-alerta"><i class="pi pi-ban"></i> Sin Medidor</span>
+              }
+            </div>
+            <strong class="up-name" [title]="lecturaSeleccionada.propietario || 'SIN REGISTRO'">{{
+              lecturaSeleccionada.propietario || 'SIN REGISTRO'
               }}</strong>
-            </div>
           </div>
-          <div class="up-grid grid-2">
-            <div class="up-cell resaltada">
-              <span class="uc-label">Suministro</span
-              ><span class="uc-val">{{ lecturaSeleccionada.codcliente || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">DNI</span
-              ><span class="uc-val">{{ datosClientePopup?.nrodocident || '-' }}</span>
-            </div>
+        </div>
+        <div class="up-grid grid-2">
+          <div class="up-cell resaltada" [class.suministro-sin-medidor]="esClienteSinMedidor()">
+            <span class="uc-label">Suministro</span><span class="uc-val">{{ lecturaSeleccionada.codcliente || '-'
+              }}</span>
           </div>
-        </section>
-        <section class="up-section">
-          <div class="up-section-title loc">
-            <span class="marca"></span>Detalles de la conexión
-            @if (!sinUbicacion) {
-              <button
-                type="button"
-                class="up-accion"
-                title="Ver en Google Street View"
-                (click)="
+          <div class="up-cell">
+            <span class="uc-label">DNI</span><span class="uc-val">{{ datosClientePopup?.nrodocident || '-' }}</span>
+          </div>
+        </div>
+      </section>
+      <section class="up-section">
+        <div class="up-section-title loc">
+          <span class="marca"></span>Detalles de la conexión
+          @if (!sinUbicacion) {
+          <button type="button" class="up-accion" title="Ver en Google Street View" (click)="
                   abrirStreetView(
                     lecturaSeleccionada?.lon ??
                       lecturaSeleccionada?.longitud ??
@@ -514,297 +416,260 @@
                       datosClientePopup?.lat ??
                       datosClientePopup?._predio?.latpredio
                   )
-                "
-              >
-                <i class="pi pi-map"></i> Street View
-              </button>
-            }
+                ">
+            <i class="pi pi-map"></i> Street View
+          </button>
+          }
+        </div>
+        <div class="up-grid grid-3">
+          <div class="up-cell">
+            <span class="uc-label">Sect</span><span class="uc-val">{{ lecturaSeleccionada.codsector || '-' }}</span>
           </div>
-          <div class="up-grid grid-3">
-            <div class="up-cell">
-              <span class="uc-label">Sect</span
-              ><span class="uc-val">{{ lecturaSeleccionada.codsector || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Mza</span
-              ><span class="uc-val">{{ lecturaSeleccionada.codmza || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Lote</span
-              ><span class="uc-val">{{ lecturaSeleccionada.nrolote || '-' }}</span>
-            </div>
-            <div class="up-cell full">
-              <span class="uc-label">Dirección</span
-              ><span class="uc-val">{{
-                (lecturaSeleccionada.descripcioncorta || '') +
-                  ' ' +
-                  (lecturaSeleccionada.descripcioncalle || '') +
-                  ' ' +
-                  (lecturaSeleccionada.nrocalle || '')
-              }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Piso</span
-              ><span class="uc-val">{{ datosClientePopup?.unidaddom ?? '1' }}</span>
-            </div>
-            <div class="up-cell span-2">
-              <span class="uc-label">Tipo de servicio</span>
-              <span class="uc-val">{{
-                datosClientePopup?.servicio ||
-                  lecturaSeleccionada.servicio ||
-                  (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA')
-              }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Tarifa / Inmueble</span>
-              <span class="uc-val"
-                >{{ lecturaSeleccionada.tarifas || '-' }} /
-                {{ datosClientePopup?._predio?.tipopredio || '-' }}</span
-              >
-            </div>
-            <div class="up-cell span-2">
-              <span class="uc-label">Almacenaje</span
-              ><span class="uc-val">{{
-                datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO'
-              }}</span>
-            </div>
-            <div class="up-cell full">
-              <span class="uc-label">Actividad económica</span
-              ><span class="uc-val">{{ lecturaSeleccionada.tipoactividad || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Diam. agua</span
-              ><span class="uc-val">{{ lecturaSeleccionada.desdiametro_a || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Diam. desagüe</span
-              ><span class="uc-val">{{ lecturaSeleccionada.desdiametro_d || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Est. VMA</span
-              ><span class="uc-val">{{
-                lecturaSeleccionada.estadovma == '1' ? 'ACTIVO' : 'INACTIVO'
-              }}</span>
-            </div>
-            <div class="up-cell full">
-              <span class="uc-label">Unidades de uso</span
-              ><span class="uc-val"
-                >Doméstico: {{ lecturaSeleccionada.unidaddom || '0' }} | Comercial:
-                {{ lecturaSeleccionada.unidadcom || '0' }} | Industrial:
-                {{ lecturaSeleccionada.unidadind || '0' }}</span
-              >
-            </div>
-            <div class="up-cell full">
-              <span class="uc-label">Fecha de contrato</span
-              ><span class="uc-val">{{ lecturaSeleccionada.fechacontrato || '-' }}</span>
-            </div>
+          <div class="up-cell">
+            <span class="uc-label">Mza</span><span class="uc-val">{{ lecturaSeleccionada.codmza || '-' }}</span>
           </div>
-        </section>
-        <section class="up-section">
-          <div class="up-section-title medidor">
-            <span class="marca"></span>Medidor
-            <span class="up-titulo-valor">{{
-              datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR'
+          <div class="up-cell">
+            <span class="uc-label">Lote</span><span class="uc-val">{{ lecturaSeleccionada.nrolote || '-' }}</span>
+          </div>
+          <div class="up-cell full">
+            <span class="uc-label">Dirección</span><span class="uc-val">{{
+              (lecturaSeleccionada.descripcioncorta || '') +
+              ' ' +
+              (lecturaSeleccionada.descripcioncalle || '') +
+              ' ' +
+              (lecturaSeleccionada.nrocalle || '')
+              }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Piso</span><span class="uc-val">{{ datosClientePopup?.unidaddom ?? '1' }}</span>
+          </div>
+          <div class="up-cell span-2">
+            <span class="uc-label">Tipo de servicio</span>
+            <span class="uc-val">{{
+              datosClientePopup?.servicio ||
+              lecturaSeleccionada.servicio ||
+              (datosClientePopup?._conexionAgua ? 'AGUA Y ALCANTARILLADO' : 'AGUA')
+              }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Tarifa / Inmueble</span>
+            <span class="uc-val">{{ lecturaSeleccionada.tarifas || '-' }} /
+              {{ datosClientePopup?._predio?.tipopredio || '-' }}</span>
+          </div>
+          <div class="up-cell span-2">
+            <span class="uc-label">Almacenaje</span><span class="uc-val">{{
+              datosClientePopup?._predio?.codalmacenaje || 'SIN ALMACENAMIENTO'
+              }}</span>
+          </div>
+          <div class="up-cell full">
+            <span class="uc-label">Actividad económica</span><span class="uc-val">{{ lecturaSeleccionada.tipoactividad
+              || '-' }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Diam. agua</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_a || '-'
+              }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Diam. desagüe</span><span class="uc-val">{{ lecturaSeleccionada.desdiametro_d || '-'
+              }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Est. VMA</span><span class="uc-val">{{
+              lecturaSeleccionada.estadovma == '1' ? 'ACTIVO' : 'INACTIVO'
+              }}</span>
+          </div>
+          <div class="up-cell full">
+            <span class="uc-label">Unidades de uso</span><span class="uc-val">Doméstico: {{
+              lecturaSeleccionada.unidaddom || '0' }} | Comercial:
+              {{ lecturaSeleccionada.unidadcom || '0' }} | Industrial:
+              {{ lecturaSeleccionada.unidadind || '0' }}</span>
+          </div>
+          <div class="up-cell full">
+            <span class="uc-label">Fecha de contrato</span><span class="uc-val">{{ lecturaSeleccionada.fechacontrato ||
+              '-' }}</span>
+          </div>
+        </div>
+      </section>
+      <section class="up-section" [class.seccion-sin-medidor]="esClienteSinMedidor()">
+        <div class="up-section-title medidor" [class.sin-medidor]="esClienteSinMedidor()">
+          <span class="marca"></span>Medidor
+          <span class="up-titulo-valor" [class.badge-rojo-sin-medidor]="esClienteSinMedidor()">{{
+            datosClientePopup?._medidor?.nromed || lecturaSeleccionada.nromed || 'SIN MEDIDOR'
             }}</span>
+        </div>
+        <div class="up-lecturas-row">
+          <div class="up-lec-badge prev">
+            <span class="ulb-label">Lect. ant.</span>
+            <span class="ulb-val">{{
+              lecturaSeleccionada.lecturaanterior ??
+              datosClientePopup?._medidor?.lecturaanterior ??
+              '-'
+              }}</span>
           </div>
-          <div class="up-lecturas-row">
-            <div class="up-lec-badge prev">
-              <span class="ulb-label">Lect. ant.</span>
-              <span class="ulb-val">{{
-                lecturaSeleccionada.lecturaanterior ??
-                  datosClientePopup?._medidor?.lecturaanterior ??
-                  '-'
+          <i class="pi pi-arrow-right up-lec-arrow"></i>
+          <div class="up-lec-badge curr">
+            <span class="ulb-label">Lect. act.</span>
+            <span class="ulb-val">{{
+              lecturaSeleccionada.lecturaultima ??
+              lecturaSeleccionada.lectura ??
+              lecturaSeleccionada.lecturaactual ??
+              '-'
               }}</span>
-            </div>
-            <i class="pi pi-arrow-right up-lec-arrow"></i>
-            <div class="up-lec-badge curr">
-              <span class="ulb-label">Lect. act.</span>
-              <span class="ulb-val">{{
-                lecturaSeleccionada.lecturaultima ??
-                  lecturaSeleccionada.lectura ??
-                  lecturaSeleccionada.lecturaactual ??
-                  '-'
-              }}</span>
-            </div>
           </div>
-          <div class="up-grid grid-2">
-            <div class="up-cell">
-              <span class="uc-label">Est. lect.</span
-              ><span class="uc-val badge-est">{{
-                lecturaSeleccionada.estadolectura ??
-                  datosClientePopup?._medidor?.estadolectura ??
-                  '-'
+        </div>
+        <div class="up-grid grid-2">
+          <div class="up-cell">
+            <span class="uc-label">Est. lect.</span><span class="uc-val badge-est">{{
+              lecturaSeleccionada.estadolectura ??
+              datosClientePopup?._medidor?.estadolectura ??
+              '-'
               }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Est. med.</span
-              ><span class="uc-val badge-est">{{ lecturaSeleccionada.estadomedidor || '-' }}</span>
-            </div>
-            <div class="up-cell full">
-              <span class="uc-label">{{ getEtiquetaMovimientoMedidor() }}</span>
-              <span class="uc-val">{{ getFechaMovimientoMedidor() }}</span>
-            </div>
-            @if (
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Est. med.</span><span class="uc-val badge-est">{{ lecturaSeleccionada.estadomedidor
+              || '-' }}</span>
+          </div>
+          <div class="up-cell full">
+            <span class="uc-label">{{ getEtiquetaMovimientoMedidor() }}</span>
+            <span class="uc-val">{{ getFechaMovimientoMedidor() }}</span>
+          </div>
+          @if (
+          lecturaSeleccionada.obslectura ||
+          datosClientePopup?._medidor?.obslectura ||
+          datosClientePopup?._medidor?.observacion
+          ) {
+          <div class="up-cell full">
+            <span class="uc-label">Obs.</span>
+            <span class="uc-val obs">{{
               lecturaSeleccionada.obslectura ||
               datosClientePopup?._medidor?.obslectura ||
               datosClientePopup?._medidor?.observacion
-            ) {
-              <div class="up-cell full">
-                <span class="uc-label">Obs.</span>
-                <span class="uc-val obs">{{
-                  lecturaSeleccionada.obslectura ||
-                    datosClientePopup?._medidor?.obslectura ||
-                    datosClientePopup?._medidor?.observacion
-                }}</span>
-              </div>
-            }
+              }}</span>
           </div>
-        </section>
-        <section class="up-section">
-          <div class="up-section-title contacto">
-            <span class="marca"></span>Contacto e información
-          </div>
-          <div class="up-grid grid-2">
-            <div class="up-cell">
-              <span class="uc-label">Teléfono</span
-              ><span class="uc-val">{{ lecturaSeleccionada.telefono || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Email</span
-              ><span class="uc-val minusculas">{{ lecturaSeleccionada.email || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Inquilino</span
-              ><span class="uc-val">{{ lecturaSeleccionada.inquilino || '-' }}</span>
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">RUC</span
-              ><span class="uc-val">{{ lecturaSeleccionada.ruc || '-' }}</span>
-            </div>
-          </div>
-        </section>
-        <section class="up-section">
-          <div class="up-section-title facturacion">
-            <span class="marca"></span>Facturación y deuda
-          </div>
-          <div class="up-grid grid-3">
-            <div class="up-cell">
-              <span class="uc-label">Meses deuda</span
-              ><span class="uc-val deuda">{{ lecturaSeleccionada.mesesdeuda || '0' }}</span>
-            </div>
-            <div class="up-cell span-2">
-              <span class="uc-label">Total a pagar</span
-              ><span class="uc-val deuda grande"
-                >S/ {{ (lecturaSeleccionada.impmestotal | number: '1.2-2') || '0.00' }}</span
-              >
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Intereses</span
-              ><span class="uc-val"
-                >S/ {{ (lecturaSeleccionada.impintereses | number: '1.2-2') || '0.00' }}</span
-              >
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Cuota refin.</span
-              ><span class="uc-val"
-                >S/ {{ (lecturaSeleccionada.impsaldorefin | number: '1.2-2') || '0.00' }}</span
-              >
-            </div>
-            <div class="up-cell">
-              <span class="uc-label">Deuda total</span
-              ><span class="uc-val"
-                >S/ {{ (lecturaSeleccionada.impdeudatotal | number: '1.2-2') || '0.00' }}</span
-              >
-            </div>
-          </div>
-        </section>
-        <button
-          type="button"
-          class="btn-ver-mas"
-          (click)="
-            verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)
-          "
-        >
-          <i class="pi pi-search-plus"></i> Ver más información
-        </button>
-      </div>
-      }
-
-      @if (pestanaActivaPopup === 'lote' && loteSeleccionadoGis) {
-        <div class="up-body up-lote-body">
-          <section class="up-section up-titular">
-            <div class="up-header">
-              <div class="up-avatar lote"><i class="pi pi-map"></i></div>
-              <div class="up-header-info">
-                <span class="up-label">PREDIO / LOTE CATASTRAL</span>
-                <strong class="up-name">{{ loteSeleccionadoGis.titulo || 'Lote Identificado' }}</strong>
-              </div>
-            </div>
-            @if (lecturaSeleccionada) {
-              <div class="up-grid grid-2" style="margin-top: 8px;">
-                <div class="up-cell resaltada">
-                  <span class="uc-label">Suministro</span>
-                  <span class="uc-val">{{ lecturaSeleccionada.codcliente }}</span>
-                </div>
-                <div class="up-cell">
-                  <span class="uc-label">Titular</span>
-                  <span class="uc-val" style="font-size: 11px;">{{ lecturaSeleccionada.propietario || '-' }}</span>
-                </div>
-              </div>
-            }
-          </section>
-
-          <section class="up-section">
-            <div class="up-section-title loc">
-              <span class="marca"></span>Atributos Catastrales del Lote
-            </div>
-            @if (loteSeleccionadoGis.atributos?.length) {
-              <div class="up-grid grid-2">
-                @for (atr of loteSeleccionadoGis.atributos; track atr.etiqueta) {
-                  <div class="up-cell" [class.full]="(atr.valor && atr.valor.length > 25) || false">
-                    <span class="uc-label">{{ atr.etiqueta }}</span>
-                    <span class="uc-val">{{ atr.valor || '-' }}</span>
-                  </div>
-                }
-              </div>
-            } @else {
-              <div class="up-vacio" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
-                Este lote no tiene datos catastrales registrados en GeoServer.
-              </div>
-            }
-          </section>
-
-          @if (lecturaSeleccionada) {
-            <div class="up-switch-banner" (click)="pestanaActivaPopup = 'cliente'">
-              <i class="pi pi-arrow-left"></i>
-              <span>Ver Ficha Completa del Cliente ({{ lecturaSeleccionada.codcliente }})</span>
-            </div>
           }
         </div>
+      </section>
+      <section class="up-section">
+        <div class="up-section-title contacto">
+          <span class="marca"></span>Contacto e información
+        </div>
+        <div class="up-grid grid-2">
+          <div class="up-cell">
+            <span class="uc-label">Teléfono</span><span class="uc-val">{{ lecturaSeleccionada.telefono || '-' }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Email</span><span class="uc-val minusculas">{{ lecturaSeleccionada.email || '-'
+              }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Inquilino</span><span class="uc-val">{{ lecturaSeleccionada.inquilino || '-'
+              }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">RUC</span><span class="uc-val">{{ lecturaSeleccionada.ruc || '-' }}</span>
+          </div>
+        </div>
+      </section>
+      <section class="up-section">
+        <div class="up-section-title facturacion">
+          <span class="marca"></span>Facturación y deuda
+        </div>
+        <div class="up-grid grid-3">
+          <div class="up-cell">
+            <span class="uc-label">Meses deuda</span><span class="uc-val deuda">{{ lecturaSeleccionada.mesesdeuda || '0'
+              }}</span>
+          </div>
+          <div class="up-cell span-2">
+            <span class="uc-label">Total a pagar</span><span class="uc-val deuda grande">S/ {{
+              (lecturaSeleccionada.impmestotal | number: '1.2-2') || '0.00' }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Intereses</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impintereses |
+              number: '1.2-2') || '0.00' }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Cuota refin.</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impsaldorefin |
+              number: '1.2-2') || '0.00' }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Deuda total</span><span class="uc-val">S/ {{ (lecturaSeleccionada.impdeudatotal |
+              number: '1.2-2') || '0.00' }}</span>
+          </div>
+        </div>
+      </section>
+      <button type="button" class="btn-ver-mas" (click)="
+            verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)
+          ">
+        <i class="pi pi-search-plus"></i> Ver más información
+      </button>
+    </div>
+    }
+
+    @if (pestanaActivaPopup === 'lote' && loteSeleccionadoGis) {
+    <div class="up-body up-lote-body">
+      <section class="up-section up-titular">
+        <div class="up-header">
+          <div class="up-avatar lote"><i class="pi pi-map"></i></div>
+          <div class="up-header-info">
+            <span class="up-label">PREDIO / LOTE CATASTRAL</span>
+            <strong class="up-name">{{ loteSeleccionadoGis.titulo || 'Lote Identificado' }}</strong>
+          </div>
+        </div>
+        @if (lecturaSeleccionada) {
+        <div class="up-grid grid-2" style="margin-top: 8px;">
+          <div class="up-cell resaltada">
+            <span class="uc-label">Suministro</span>
+            <span class="uc-val">{{ lecturaSeleccionada.codcliente }}</span>
+          </div>
+          <div class="up-cell">
+            <span class="uc-label">Titular</span>
+            <span class="uc-val" style="font-size: 11px;">{{ lecturaSeleccionada.propietario || '-' }}</span>
+          </div>
+        </div>
+        }
+      </section>
+
+      <section class="up-section">
+        <div class="up-section-title loc">
+          <span class="marca"></span>Atributos Catastrales del Lote
+        </div>
+        @if (loteSeleccionadoGis.atributos?.length) {
+        <div class="up-grid grid-2">
+          @for (atr of loteSeleccionadoGis.atributos; track atr.etiqueta) {
+          <div class="up-cell" [class.full]="(atr.valor && atr.valor.length > 25) || false">
+            <span class="uc-label">{{ atr.etiqueta }}</span>
+            <span class="uc-val">{{ atr.valor || '-' }}</span>
+          </div>
+          }
+        </div>
+        } @else {
+        <div class="up-vacio" style="padding: 16px; text-align: center; color: #94a3b8; font-size: 12px;">
+          Este lote no tiene datos catastrales registrados en GeoServer.
+        </div>
+        }
+      </section>
+
+      @if (lecturaSeleccionada) {
+      <div class="up-switch-banner" (click)="pestanaActivaPopup = 'cliente'">
+        <i class="pi pi-arrow-left"></i>
+        <span>Ver Ficha Completa del Cliente ({{ lecturaSeleccionada.codcliente }})</span>
+      </div>
       }
-    </aside>
+    </div>
+    }
+  </aside>
   }
 
-  <app-capas-sidebar
-    [baseLayers]="baseLayers"
-    [baseActive]="baseActive"
-    [abierto]="false"
-    [commercialLayers]="commercialLayers"
-    (baseLayerChange)="setBaseLayer($event)"
-    (layerToggle)="toggleLayer($event)"
-  >
+  <app-capas-sidebar [baseLayers]="baseLayers" [baseActive]="baseActive" [abierto]="false"
+    [commercialLayers]="commercialLayers" (baseLayerChange)="setBaseLayer($event)" (layerToggle)="toggleLayer($event)">
   </app-capas-sidebar>
 
-  <app-paneles-mapa-gis
-    [controlador]="controladorGis"
+  <app-paneles-mapa-gis [controlador]="controladorGis"
     [hayPanelDerecho]="!!lecturaSeleccionada || !!loteSeleccionadoGis || mostrarSearchPanel"
-    (filaElegida)="ubicarFilaEnMapa($event)"
-  ></app-paneles-mapa-gis>
+    (filaElegida)="ubicarFilaEnMapa($event)"></app-paneles-mapa-gis>
 
-  <app-dialogo-comercios-osm
-    [visible]="mostrarDialogoOsm"
-    [resumen]="resumenOsm"
+  <app-dialogo-comercios-osm [visible]="mostrarDialogoOsm" [resumen]="resumenOsm"
+    [filtroInicial]="filtroEstadoComercios" [hayPopupAbierto]="!!lecturaSeleccionada || !!loteSeleccionadoGis"
     (cerrar)="mostrarDialogoOsm = false"
-    (seleccionarComercio)="centrarComercioOsmEnMapa($event)"
-  ></app-dialogo-comercios-osm>
+    (seleccionarComercio)="centrarComercioOsmEnMapa($event)"></app-dialogo-comercios-osm>
 </div>

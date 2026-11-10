@@ -8,6 +8,7 @@ import type Geometry from "ol/geom/Geometry";
 import { MARCA_CAPA_RESALTADO } from "./interaccion-gis";
 
 const COLOR_PREDIO = "#f59e0b";
+const COLOR_PREDIO_SIN_MEDIDOR = "#ef4444";
 
 export const ZOOM_PREDIO = 21;
 
@@ -25,22 +26,31 @@ export class PredioBuscado {
   private readonly capa = new VectorLayer({
     source: new VectorSource(),
     zIndex: 999,
-    style: (predio) => [
-      new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.95)", width: 8 }) }),
-      new Style({
-        stroke: new Stroke({ color: COLOR_PREDIO, width: 4 }),
-        fill: new Fill({ color: "rgba(245, 158, 11, 0.3)" }),
-        text: new Text({
-          text: `Predio ${predio.get("codcliente")}`,
-          font: "bold 12px Arial",
-          fill: new Fill({ color: "#ffffff" }),
-          backgroundFill: new Fill({ color: "#b45309" }),
-          padding: [3, 6, 3, 6],
-          offsetY: -40,
-          overflow: true,
+    style: (predio) => {
+      const sinMedidor = predio.get("sinMedidor") === true;
+      const colorBorde = sinMedidor ? COLOR_PREDIO_SIN_MEDIDOR : COLOR_PREDIO;
+      const colorRelleno = sinMedidor ? "rgba(239, 68, 68, 0.35)" : "rgba(245, 158, 11, 0.3)";
+      const bgEtiqueta = sinMedidor ? "#dc2626" : "#b45309";
+      const codcliente = predio.get("codcliente");
+      const texto = sinMedidor ? `Predio ${codcliente} (SIN MEDIDOR)` : `Predio ${codcliente}`;
+
+      return [
+        new Style({ stroke: new Stroke({ color: "rgba(255, 255, 255, 0.95)", width: 8 }) }),
+        new Style({
+          stroke: new Stroke({ color: colorBorde, width: 4 }),
+          fill: new Fill({ color: colorRelleno }),
+          text: new Text({
+            text: texto,
+            font: "bold 12px Arial",
+            fill: new Fill({ color: "#ffffff" }),
+            backgroundFill: new Fill({ color: bgEtiqueta }),
+            padding: [4, 8, 4, 8],
+            offsetY: -40,
+            overflow: true,
+          }),
         }),
-      }),
-    ],
+      ];
+    },
   });
 
   constructor(private readonly map: OlMap) {
@@ -53,10 +63,19 @@ export class PredioBuscado {
     return this.capa;
   }
 
-  mostrar(geometria: Geometry, codcliente: string): void {
+  mostrar(geometria: Geometry, codcliente: string, sinMedidor = false): void {
     const fuente = this.capa.getSource()!;
     fuente.clear();
-    fuente.addFeature(new Feature({ geometry: geometria, codcliente, esPredioBuscado: true }));
+    fuente.addFeature(new Feature({ geometry: geometria, codcliente, sinMedidor, esPredioBuscado: true }));
+  }
+
+  actualizarSinMedidor(sinMedidor: boolean): void {
+    const fuente = this.capa.getSource();
+    if (!fuente) return;
+    fuente.getFeatures().forEach((f) => {
+      f.set("sinMedidor", sinMedidor);
+    });
+    this.capa.changed();
   }
 
   encuadrar(): void {

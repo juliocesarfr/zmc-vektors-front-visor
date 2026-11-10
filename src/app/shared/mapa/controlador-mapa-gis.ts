@@ -200,7 +200,7 @@ export class ControladorMapaGis {
    * Pinta el lote del cliente buscado y lo encuadra de cerca, en la parte del mapa que queda libre.
    * Si la EPS no guarda el código de cliente en sus lotes, se usa el lote donde cae `puntoCliente`.
    */
-  marcarPredio(codcliente: string, puntoCliente?: Coordinate): void {
+  marcarPredio(codcliente: string, puntoCliente?: Coordinate, sinMedidor = false): void {
     this.quitarPredio();
     const { consulta, gis } = this.opciones;
     this.busquedaPredio = consulta
@@ -214,9 +214,13 @@ export class ControladorMapaGis {
       )
       .subscribe((geometria) => {
         if (!geometria) return;
-        this.predio.mostrar(geometria, codcliente);
+        this.predio.mostrar(geometria, codcliente, sinMedidor);
         this.predio.encuadrar();
       });
+  }
+
+  actualizarPredioSinMedidor(sinMedidor: boolean): void {
+    this.predio.actualizarSinMedidor(sinMedidor);
   }
 
   /**

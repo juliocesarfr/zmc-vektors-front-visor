@@ -12,6 +12,7 @@ export interface OpcionesPunto {
   color: string;
   zoom: number;
   seleccionado: boolean;
+  sinMedidor?: boolean;
   etiqueta?: string;
   radioSeleccionado: number;
   radiosPorZoom: { z14: number; z16: number; z18: number; max: number };
@@ -31,7 +32,7 @@ export class MapEstilosFactory {
   }
 
   punto(opts: OpcionesPunto): Style {
-    const { forma, color, zoom, seleccionado, etiqueta, radioSeleccionado, radiosPorZoom, offsetYTexto, minZoomEtiqueta } = opts;
+    const { forma, color, zoom, seleccionado, sinMedidor, etiqueta, radioSeleccionado, radiosPorZoom, offsetYTexto, minZoomEtiqueta } = opts;
     const mostrarTexto = !!etiqueta && (seleccionado || zoom >= (minZoomEtiqueta ?? 17.5));
 
     let radio: number;
@@ -47,8 +48,12 @@ export class MapEstilosFactory {
       radio = radiosPorZoom.max;
     }
 
-    const colorBorde = seleccionado ? "#000000" : zoom < 16 ? "#333333" : "#ffffff";
-    const anchoBorde = seleccionado ? 2.5 : zoom < 16 ? 0.8 : 1.5;
+    let colorBorde = seleccionado ? "#000000" : zoom < 16 ? "#333333" : "#ffffff";
+    let anchoBorde = seleccionado ? 2.5 : zoom < 16 ? 0.8 : 1.5;
+    if (seleccionado && sinMedidor) {
+      colorBorde = "#dc2626"; // Borde rojo vibrante de alerta para sin medidor
+      anchoBorde = 3.5;
+    }
 
     const clave = `${forma}_${color}_${radio}_${colorBorde}_${anchoBorde}`;
     if (!mostrarTexto) {
@@ -60,25 +65,28 @@ export class MapEstilosFactory {
       forma === "circulo"
         ? new CircleStyle({
           radius: radio,
-          fill: new Fill({ color }),
+          fill: new Fill({ color: seleccionado && sinMedidor ? "#ef4444" : color }),
           stroke: new Stroke({ color: colorBorde, width: anchoBorde }),
         })
         : new RegularShape({
-          fill: new Fill({ color }),
+          fill: new Fill({ color: seleccionado && sinMedidor ? "#ef4444" : color }),
           stroke: new Stroke({ color: colorBorde, width: anchoBorde }),
           points: 4,
           radius: radio,
           angle: Math.PI / 4,
         });
 
+    const esAlertaSm = seleccionado && sinMedidor;
     const style = new Style({
       image,
       ...(mostrarTexto && {
         text: new Text({
-          text: String(etiqueta),
+          text: String(etiqueta) + (esAlertaSm ? " (S/M)" : ""),
           font: "bold 11px Arial",
-          fill: new Fill({ color: "#000000" }),
-          stroke: new Stroke({ color: "#ffffff", width: 2 }),
+          fill: new Fill({ color: esAlertaSm ? "#ffffff" : "#000000" }),
+          backgroundFill: esAlertaSm ? new Fill({ color: "#dc2626" }) : undefined,
+          padding: esAlertaSm ? [2, 6, 2, 6] : undefined,
+          stroke: esAlertaSm ? undefined : new Stroke({ color: "#ffffff", width: 2 }),
           offsetY: offsetYTexto,
         }),
       }),

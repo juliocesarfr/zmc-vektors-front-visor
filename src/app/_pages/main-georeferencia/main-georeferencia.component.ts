@@ -42,7 +42,7 @@ import { transform, getPointResolution } from 'ol/proj';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 
 import { CapaConsultable, ConsultaCapasGisService, GisConfigService, ClientesRadioService, ElementoGis } from '../../core/gis';
-import { OsmComerciosService, ResumenDeteccionOsm, ComercioOsm, normalizarCoordenadaWgs84 } from '../../core/gis/osm-comercios.service';
+import { OsmComerciosService, ResumenDeteccionOsm, ComercioOsm, EstadoCruceComercial, normalizarCoordenadaWgs84 } from '../../core/gis/osm-comercios.service';
 import { DialogoComerciosOsmComponent } from '../../shared/components/dialogo-comercios-osm/dialogo-comercios-osm.component';
 import { WGS84 } from '../../core/gis/gis-proyeccion';
 import { ControladorMapaGis } from '../../shared/mapa/controlador-mapa-gis';
@@ -149,6 +149,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   resumenOsm: ResumenDeteccionOsm | null = null;
   mostrarDialogoOsm = false;
+  filtroEstadoComercios: "TODOS" | EstadoCruceComercial = "TODOS";
   modoDeteccionOsm = false;
   radioDeteccionSeleccionado = 100;
 
@@ -449,11 +450,17 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       style: (punto) => {
         const color = colorDe(punto);
         if (!color) return null as any;
+        const esSeleccionado = punto === this.featureSeleccionado;
+        const sinMedidor = this.esClienteSinMedidor(
+          punto.getProperties(),
+          esSeleccionado ? this.datosClientePopup : undefined,
+        );
         return this.estilos.punto({
           forma: opciones.forma,
           color: color,
           zoom: this.map?.getView().getZoom() ?? 14,
-          seleccionado: punto === this.featureSeleccionado,
+          seleccionado: esSeleccionado,
+          sinMedidor: esSeleccionado && sinMedidor,
           etiqueta: punto.get("codcliente") || punto.get("nroSuministro"),
           ...opciones.radios,
         });
@@ -485,6 +492,21 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   cancelarModoDeteccionOsm(): void {
     this.modoDeteccionOsm = false;
+  }
+
+  abrirTablaComercios(filtro: "TODOS" | EstadoCruceComercial = "TODOS"): void {
+    this.filtroEstadoComercios = filtro;
+    this.mostrarDialogoOsm = true;
+  }
+
+  toggleTablaComercios(): void {
+    this.mostrarDialogoOsm = !this.mostrarDialogoOsm;
+  }
+
+  limpiarDeteccionOsm(): void {
+    this.resumenOsm = null;
+    this.mostrarDialogoOsm = false;
+    this.circuloDeteccionLayer?.getSource()?.clear();
   }
 
   setRadioDeteccion(radio: number): void {
@@ -623,6 +645,9 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
             centroWgs84,
             radioMetros,
           );
+          // La tabla ya no se abre inmediatamente encima del mapa.
+          // En su lugar, se muestran las cantidades como cards flotantes en el mapa (estilo control digitación)
+          // y el usuario abre la tabla aparte haciendo clic en "Ver Tabla" o en cualquiera de las cards.
           this.mostrarDialogoOsm = true;
           this.avisar(
             "success",
@@ -642,7 +667,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   centrarComercioOsmEnMapa(comercio: ComercioOsm): void {
-    // Al ubicar o buscar un comercio desde la tabla OSM:
+    // Ocultar la tabla flotante para que el usuario pueda ver el predio y mapa despejados
     this.mostrarDialogoOsm = false;
 
     if (comercio.clienteCercano?.codcliente) {
@@ -763,6 +788,12 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.refrescarCapasVector();
     this.lecturaSeleccionada = feature.getProperties() as RegistroLectura;
     this.cargarDatosPopup(this.lecturaSeleccionada);
+
+    const codigo = this.codigoDe(this.lecturaSeleccionada);
+    const geom = feature.getGeometry();
+    const coordenada = geom instanceof Point ? geom.getCoordinates() : undefined;
+    const sinMedidor = this.esClienteSinMedidor(this.lecturaSeleccionada);
+    this.controladorGis?.marcarPredio(codigo, coordenada, sinMedidor);
 
     if (this.mostrarSearchPanel) {
       this.buscadorEstabaAbierto = true;
@@ -896,7 +927,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.map?.getView().animate({ center: this.gis.vista.centro, zoom: this.gis.vista.zoom - 3, duration: 600 });
       this.avisar("warn", "Sin ubicación", `El cliente ${codigo} no tiene coordenadas registradas: solo se muestra su ficha.`);
     }
-    this.controladorGis?.marcarPredio(codigo, coordenada ?? undefined);
+    const sinMedidor = this.esClienteSinMedidor(registro);
+    this.controladorGis?.marcarPredio(codigo, coordenada ?? undefined, sinMedidor);
     if (coordenada) {
       this.consultaCapasGis.consultarPunto(this.capasComercialesConsultables(), coordenada, this.map!.getView())
         .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1526,11 +1558,55 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
                     fechareg: e?.fechareg,
                   }))
               : [];
+
+          const sinMedidor = this.esClienteSinMedidor(this.lecturaSeleccionada, this.datosClientePopup);
+          this.controladorGis?.actualizarPredioSinMedidor(sinMedidor);
+          this.refrescarCapasVector();
         },
         error: () => {
           this.cargandoImagenes = false;
         },
       });
+  }
+
+  esClienteSinMedidor(registro?: any, datosPopup?: any): boolean {
+    const r = registro || this.lecturaSeleccionada;
+    const dp = datosPopup || this.datosClientePopup;
+    if (!r && !dp) return false;
+
+    const medidorVal = (
+      dp?._medidor?.nromed ||
+      dp?._medidor?.nromedidor ||
+      dp?.nromed ||
+      dp?.nromedidor ||
+      r?.nromed ||
+      r?.nromedidor ||
+      ""
+    )
+      .toString()
+      .trim()
+      .toUpperCase();
+
+    if (
+      !medidorVal ||
+      medidorVal === "SIN MEDIDOR" ||
+      medidorVal === "-" ||
+      medidorVal === "0" ||
+      medidorVal === "S/M" ||
+      medidorVal === "SN"
+    ) {
+      return true;
+    }
+
+    const estado = (r?.estadomedidor || dp?._medidor?.estadomedidor || "")
+      .toString()
+      .trim()
+      .toUpperCase();
+    if (estado === "SIN MEDIDOR" || estado === "S/M") {
+      return true;
+    }
+
+    return false;
   }
 
   abrirStreetView(x?: unknown, y?: unknown): void {
