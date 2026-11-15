@@ -133,6 +133,9 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
   private readonly carService = inject(CarService);
   private readonly sedeOperacionalService = inject(SedeOperacionalService);
   private readonly sucursalesService = inject(SucursalesService);
+  /** Sede y sucursal del usuario que inició sesión: son las que salen elegidas por defecto. */
+  private readonly codsedeSesion = (sessionStorage.getItem("codsede") ?? "").trim();
+  private readonly codsucSesion = (sessionStorage.getItem("codsuc") ?? "").trim();
   private readonly excelService = inject(ExcelService);
   private readonly messageService = inject(MessageService);
   private readonly dialogService = inject(DialogService);
@@ -258,8 +261,15 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
           { codsede: TODOS, nombre: "TODAS LAS SEDES" },
           ...(sedes || []).map((sede) => ({ codsede: String(sede.codsede).trim(), nombre: sede.nombre })),
         ];
+        this.selectedSede = this.sedePorDefecto();
         this.onSedeChange();
       });
+  }
+
+  /** La sede del usuario si está en la lista; si no, todas. */
+  private sedePorDefecto(): string {
+    const estaEnLaLista = this.listaSedes.some((sede) => sede.codsede === this.codsedeSesion);
+    return this.codsedeSesion && estaEnLaLista ? this.codsedeSesion : TODOS;
   }
 
   onSedeChange(): void {
@@ -273,7 +283,8 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
       .subscribe((sucursales: any[]) => {
         const propias = sucursales.map((sucursal) => ({ codsuc: String(sucursal.codsuc).trim(), nombre: sucursal.nombre }));
         this.listaSucursales = [{ codsuc: TODOS, nombre: "TODAS" }, ...propias];
-        this.selectedSucursal = propias[0]?.codsuc ?? TODOS;
+        const esDeLaSede = propias.some((sucursal) => sucursal.codsuc === this.codsucSesion);
+        this.selectedSucursal = esDeLaSede ? this.codsucSesion : propias[0]?.codsuc ?? TODOS;
       });
     this.armarListaCars();
   }
@@ -372,7 +383,7 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   limpiar(): void {
-    this.selectedSede = TODOS;
+    this.selectedSede = this.sedePorDefecto();
     this.fechaInicial = this.primerDiaDelMes();
     this.fechaFinal = this.ultimoDiaDelMes();
     this.onSedeChange();

@@ -155,6 +155,8 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly sedeCambiada = new Subject<void>();
+  /** Sede del usuario que inició sesión: es la que sale elegida por defecto. */
+  private readonly codsedeSesion = (sessionStorage.getItem("codsede") ?? "").trim();
   private readonly gis = inject(GisConfigService);
   private readonly consultaCapasGis = inject(ConsultaCapasGisService);
   private readonly descargaShapeGis = inject(DescargaShapeGisService);
@@ -260,6 +262,7 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
         next: ({ sedes, tiposReclamo }) => {
           this.listaSedes = [{ codigo: TODOS, descripcion: "TODOS" }, ...(sedes || [])];
           this.tiposReclamoConConceptos = tiposReclamo || [];
+          this.selectedSede = this.sedePorDefecto();
           this.onSedeChange();
         },
         error: (err) => {
@@ -269,13 +272,19 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
       });
   }
 
+  /** La sede del usuario si está en la lista; si no, "TODOS". */
+  private sedePorDefecto(): string {
+    const estaEnLaLista = this.listaSedes.some((sede) => String(sede.codigo).trim() === this.codsedeSesion);
+    return this.codsedeSesion && estaEnLaLista ? this.codsedeSesion : TODOS;
+  }
+
   /** Las oficinas son de una sede: con "TODOS" se usan las de la sede del usuario, como en el reporte. */
   onSedeChange(): void {
     this.sedeCambiada.next();
     this.selectedOficina = TODOS;
     this.listaOficinas = [{ codoficina: TODOS, descripcion: "TODOS" }];
 
-    const codigoSede = this.selectedSede === TODOS ? sessionStorage.getItem("codsede") : this.selectedSede;
+    const codigoSede = this.selectedSede === TODOS ? this.codsedeSesion : this.selectedSede;
     if (!codigoSede) return;
 
     this.oficinasService
@@ -395,7 +404,7 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
   }
 
   limpiar(): void {
-    this.selectedSede = TODOS;
+    this.selectedSede = this.sedePorDefecto();
     this.onSedeChange();
     this.selectedTipoReclamo = TODOS;
     this.onTipoReclamoChange();
