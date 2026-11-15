@@ -23,6 +23,7 @@ import { InputTextModule } from "primeng/inputtext";
 import { ToastModule } from "primeng/toast";
 import { TagModule } from "primeng/tag";
 import { TooltipModule } from "primeng/tooltip";
+import { CheckboxModule } from "primeng/checkbox";
 import { MessageService } from "primeng/api";
 import {
   DialogService,
@@ -91,6 +92,8 @@ import {
 } from "./seguimiento-programa.reglas";
 import { RegistroCorte } from "@host/_models/vektors/Cobranza/RegistroCorte";
 
+const COLOR_SIN_ESTADO = "#64748b";
+
 const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -120,6 +123,7 @@ const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
     ToastModule,
     TagModule,
     TooltipModule,
+    CheckboxModule,
   ],
   templateUrl: "./seguimiento-programa.component.html",
   styleUrl: "./seguimiento-programa.component.scss",
@@ -173,6 +177,8 @@ export class SeguimientoProgramaComponent
   /** Ítem del drop genérico SUC: `codigo` y `descripcion`. */
   selectedSucursal: any = null;
   nroPrecorte: number | null = null;
+  /** Marcado: se carga la cola de reaperturas del supervisor en vez de un programa. */
+  esColaSupervisor = false;
 
   private registrosOriginal: RegistroCorte[] = [];
   registros: RegistroCorte[] = [];
@@ -181,6 +187,7 @@ export class SeguimientoProgramaComponent
 
   total = 0;
   ejecutados = 0;
+  impedimentos = 0;
   pagados = 0;
   pendientes = 0;
   rendimiento = 0;
@@ -294,7 +301,7 @@ export class SeguimientoProgramaComponent
       this.avisar("warn", "Aviso", "Seleccione una sucursal");
       return;
     }
-    if (!this.nroPrecorte) {
+    if (!this.esColaSupervisor && !this.nroPrecorte) {
       this.avisar("warn", "Aviso", "Ingrese el N° de precorte");
       return;
     }
@@ -325,11 +332,17 @@ export class SeguimientoProgramaComponent
       });
   }
 
+  /** Al cambiar entre programa y cola del supervisor se descarta lo cargado: son listas distintas. */
+  cambiarColaSupervisor(): void {
+    this.limpiar();
+  }
+
   private ejecutarBusqueda(): void {
     const filtro: FiltrarProgramaPrecorte = {
       codsuc: this.selectedSucursal.codigo,
-      nroprecorte: this.nroPrecorte!,
+      nroprecorte: this.esColaSupervisor ? 0 : this.nroPrecorte!,
       tipooperacion: this.modo.tipoOperacion,
+      supervisor: this.esColaSupervisor ? 1 : 0,
     };
 
     this.cargando = true;
@@ -350,7 +363,13 @@ export class SeguimientoProgramaComponent
           this.calcularInspectores();
           this.plotear(true);
           if (!data.length) {
-            this.avisar("info", "Aviso", "El precorte no tiene registros");
+            this.avisar(
+              "info",
+              "Aviso",
+              this.esColaSupervisor
+                ? "No hay clientes en la cola de reaperturas"
+                : "El precorte no tiene registros",
+            );
           }
         },
         error: () => {
@@ -397,7 +416,7 @@ export class SeguimientoProgramaComponent
     this.filtroInspector = null;
     this.filtroEstado = null;
     this.limpiarCapasVector();
-    this.total = this.ejecutados = this.pagados = this.pendientes = 0;
+    this.total = this.ejecutados = this.impedimentos = this.pagados = this.pendientes = 0;
     this.rendimiento = 0;
     this.totalSinCoordenadas = 0;
     this.inspectores = [];
@@ -418,15 +437,20 @@ export class SeguimientoProgramaComponent
   // ESTADO / COLOR
   // ============================================================
 
-  etiquetaEstado(r: RegistroCorte): string {
-    const e = estadoDelCorte(r);
-    if (e === "ejecutado") return this.modo.etiquetaEjecutado;
-    if (e === "pagado") return "PAGADO";
+  private estadoDe(registro: RegistroCorte): EstadoCorte {
+    return estadoDelCorte(registro, this.modo.hayEstadoImpedimento);
+  }
+
+  etiquetaEstado(registro: RegistroCorte): string {
+    const estado = this.estadoDe(registro);
+    if (estado === "ejecutado") return this.modo.etiquetaEjecutado;
+    if (estado === "impedimento") return "IMPEDIMENTO";
+    if (estado === "pagado") return "PAGADO";
     return "PENDIENTE";
   }
 
-  colorEstado(r: RegistroCorte): string {
-    return this.modo.colores[estadoDelCorte(r)];
+  colorEstado(registro: RegistroCorte): string {
+    return this.modo.colores[this.estadoDe(registro)] ?? COLOR_SIN_ESTADO;
   }
 
   fechaEjecucion(r: RegistroCorte): string | undefined {
@@ -448,7 +472,7 @@ export class SeguimientoProgramaComponent
     let sinCoord = 0;
 
     for (const r of this.registros ?? []) {
-      const estado = estadoDelCorte(r);
+      const estado = this.estadoDe(r);
 
       const fp =
         crearFeaturePunto(r, ORIGENES_COORDENADA.usuario) ??
@@ -504,16 +528,20 @@ export class SeguimientoProgramaComponent
   // ============================================================
 
   private calcularResumen(): void {
-    const totales = totalesPorEstado(this.registros ?? []);
+    const totales = totalesPorEstado(this.registros ?? [], this.modo.hayEstadoImpedimento);
     this.total = totales.total;
     this.ejecutados = totales.ejecutados;
+    this.impedimentos = totales.impedimentos;
     this.pagados = totales.pagados;
     this.pendientes = totales.pendientes;
     this.rendimiento = totales.rendimiento;
   }
 
   private calcularInspectores(): void {
-    this.inspectores = resumenPorInspector(this.registrosOriginal ?? []);
+    // La cola del supervisor no tiene inspector asignado.
+    this.inspectores = this.esColaSupervisor
+      ? []
+      : resumenPorInspector(this.registrosOriginal ?? [], this.modo.hayEstadoImpedimento);
   }
 
   private aplicarFiltros(): void {
@@ -522,7 +550,7 @@ export class SeguimientoProgramaComponent
       base = base.filter((r) => codigoInspectorDe(r) === this.filtroInspector);
     }
     if (this.filtroEstado) {
-      base = base.filter((r) => estadoDelCorte(r) === this.filtroEstado);
+      base = base.filter((registro) => this.estadoDe(registro) === this.filtroEstado);
     }
     this.registros = base;
     this.cerrarPopup();
@@ -638,7 +666,7 @@ export class SeguimientoProgramaComponent
         aFila: (registro) => this.aFilaTabla(registro as RegistroCorte),
         subcabecera: () => [
           `Sucursal: ${this.selectedSucursal?.descripcion ?? "-"}`,
-          `Programa: ${this.nroPrecorte ?? "-"}`,
+          this.esColaSupervisor ? "Cola de reaperturas" : `Programa: ${this.nroPrecorte ?? "-"}`,
         ],
         excelService: this.excelService,
       },
@@ -687,7 +715,7 @@ export class SeguimientoProgramaComponent
     const estado = feature.get("_estado") as EstadoCorte;
     const sel =
       feature.get("_codcliente") === this.corteSeleccionado?.codcliente;
-    const color = this.modo.colores[estado] ?? "#64748b";
+    const color = this.modo.colores[estado] ?? COLOR_SIN_ESTADO;
     return new Style({
       fill: new Fill({ color: colorConTransparencia(color, sel ? 0.5 : 0.28) }),
       stroke: new Stroke({ color, width: sel ? 3 : 1.5 }),
@@ -806,7 +834,7 @@ export class SeguimientoProgramaComponent
     const q = String(this.searchCodCliente || "").trim();
     if (!q) return;
 
-    if (!this.nroPrecorte) {
+    if (!this.esColaSupervisor && !this.nroPrecorte) {
       this.avisar("warn", "Aviso", "No hay un programa seleccionado");
       return;
     }
@@ -814,7 +842,8 @@ export class SeguimientoProgramaComponent
     this.cobranzaService.buscarPreCortePorCliente({
       codsuc: this.selectedSucursal?.codigo || "002",
       codcliente: Number(q),
-      nroPrecorte: this.nroPrecorte ? Number(this.nroPrecorte) : 0
+      nroPrecorte: this.nroPrecorte ? Number(this.nroPrecorte) : 0,
+      supervisor: this.esColaSupervisor ? 1 : 0,
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (res) => {
         if (res?.success && res.data) {
@@ -834,11 +863,23 @@ export class SeguimientoProgramaComponent
               this.map.getView().animate({ center: coord, zoom: 20, duration: 700 });
               this.avisar("success", "Aviso", "Ubicación encontrada en el servidor");
             } else {
-              this.avisar("warn", "Aviso", "El suministro está en el programa pero no tiene coordenadas");
+              this.avisar(
+                "warn",
+                "Aviso",
+                this.esColaSupervisor
+                  ? "El suministro está en la cola de reaperturas pero no tiene coordenadas"
+                  : "El suministro está en el programa pero no tiene coordenadas",
+              );
             }
           }
         } else {
-          this.avisar("error", "Aviso", res?.mensaje || "No se encontró el código en este programa");
+          this.avisar(
+            "error",
+            "Aviso",
+            this.esColaSupervisor
+              ? "No se encontró el código en la cola de reaperturas"
+              : res?.mensaje || "No se encontró el código en este programa",
+          );
         }
       },
       error: () => this.avisar("error", "Error", "Ocurrió un error en la búsqueda")

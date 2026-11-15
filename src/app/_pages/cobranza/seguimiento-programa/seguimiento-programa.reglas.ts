@@ -12,12 +12,16 @@ import { EstadoCorte } from "./modos-seguimiento";
 /** Código de estado del SP para una operación ya ejecutada (cortado o reaperturado). */
 const CODESTADO_EJECUTADO = "003";
 
+/** Código de estado del SP cuando no se pudo ejecutar la operación (001 es pendiente). */
+const CODESTADO_IMPEDIMENTO = "002";
+
 /** Resumen por inspector; se calcula en el front a partir de los registros del programa. */
 export interface ResumenInspectorCorte {
   codinspector: string;
   inspector: string;
   total: number;
   ejecutados: number;
+  impedimentos: number;
   pagados: number;
   pendientes: number;
   rendimiento: number;
@@ -26,6 +30,7 @@ export interface ResumenInspectorCorte {
 export interface TotalesPorEstado {
   total: number;
   ejecutados: number;
+  impedimentos: number;
   pagados: number;
   pendientes: number;
   rendimiento: number;
@@ -39,9 +44,14 @@ export function tienePago(registro: RegistroCorte): boolean {
   return texto !== "" && texto !== "null";
 }
 
-/** Ejecutado si el SP lo marca así; si no, pagado si tiene fecha de pago; si no, pendiente. */
-export function estadoDelCorte(registro: RegistroCorte): EstadoCorte {
-  if (String(registro?.codestado ?? "").trim() === CODESTADO_EJECUTADO) return "ejecutado";
+/**
+ * Ejecutado si el SP lo marca así; impedimento si el SP lo marca así y la operación
+ * lo distingue (solo cortes); si no, pagado si tiene fecha de pago; si no, pendiente.
+ */
+export function estadoDelCorte(registro: RegistroCorte, hayEstadoImpedimento = false): EstadoCorte {
+  const codestado = String(registro?.codestado ?? "").trim();
+  if (codestado === CODESTADO_EJECUTADO) return "ejecutado";
+  if (hayEstadoImpedimento && codestado === CODESTADO_IMPEDIMENTO) return "impedimento";
   if (tienePago(registro)) return "pagado";
   return "pendiente";
 }
@@ -51,12 +61,14 @@ function rendimiento(ejecutados: number, total: number): number {
   return total ? Number(((ejecutados / total) * 100).toFixed(1)) : 0;
 }
 
-export function totalesPorEstado(registros: RegistroCorte[]): TotalesPorEstado {
-  const contar = (estado: EstadoCorte) => registros.filter((r) => estadoDelCorte(r) === estado).length;
+export function totalesPorEstado(registros: RegistroCorte[], hayEstadoImpedimento = false): TotalesPorEstado {
+  const contar = (estado: EstadoCorte) =>
+    registros.filter((registro) => estadoDelCorte(registro, hayEstadoImpedimento) === estado).length;
   const ejecutados = contar("ejecutado");
   return {
     total: registros.length,
     ejecutados,
+    impedimentos: contar("impedimento"),
     pagados: contar("pagado"),
     pendientes: contar("pendiente"),
     rendimiento: rendimiento(ejecutados, registros.length),
@@ -103,7 +115,10 @@ export function codigoInspectorDe(registro: RegistroCorte): string {
 }
 
 /** Resumen por inspector, de quien tiene más registros a quien tiene menos. */
-export function resumenPorInspector(registros: RegistroCorte[]): ResumenInspectorCorte[] {
+export function resumenPorInspector(
+  registros: RegistroCorte[],
+  hayEstadoImpedimento = false,
+): ResumenInspectorCorte[] {
   const porInspector = new Map<string, ResumenInspectorCorte>();
   for (const registro of registros) {
     const codigo = codigoInspectorDe(registro);
@@ -114,6 +129,7 @@ export function resumenPorInspector(registros: RegistroCorte[]): ResumenInspecto
         inspector: registro.inspector || "Sin inspector",
         total: 0,
         ejecutados: 0,
+        impedimentos: 0,
         pagados: 0,
         pendientes: 0,
         rendimiento: 0,
@@ -121,8 +137,9 @@ export function resumenPorInspector(registros: RegistroCorte[]): ResumenInspecto
       porInspector.set(codigo, fila);
     }
     fila.total++;
-    const estado = estadoDelCorte(registro);
+    const estado = estadoDelCorte(registro, hayEstadoImpedimento);
     if (estado === "ejecutado") fila.ejecutados++;
+    else if (estado === "impedimento") fila.impedimentos++;
     else if (estado === "pagado") fila.pagados++;
     else fila.pendientes++;
   }

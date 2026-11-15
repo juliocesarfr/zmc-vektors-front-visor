@@ -266,6 +266,19 @@
     gap: 8px;
     margin-left: 4px;
   }
+
+  .cd-cola-supervisor {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    label {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  }
 }
 
 .cd-map-container {
@@ -553,6 +566,8 @@
     right: 8px;
     left: 8px;
     display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
     justify-content: center;
 
     .card-resumen {
@@ -736,8 +751,14 @@
           color: #ffffff;
         }
 
-        // Cortados.
+        // Ejecutados (mismo naranja que el mapa).
         &.exec {
+          background: rgba(255, 95, 21, 0.18);
+          color: #ff8a50;
+        }
+
+        // Impedimentos (solo cortes).
+        &.imped {
           background: rgba(248, 113, 113, 0.16);
           color: #f87171;
         }

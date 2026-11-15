@@ -16,7 +16,11 @@
               <i class="pi pi-building"></i> {{ selectedSucursal?.descripcion }}
             </span>
           }
-          @if (nroPrecorte) {
+          @if (esColaSupervisor) {
+            <span class="filtro-chip anio">
+              <i class="pi pi-eye"></i> Cola de reaperturas
+            </span>
+          } @else if (nroPrecorte) {
             <span class="filtro-chip anio">
               <i class="pi pi-hashtag"></i> N° Programa {{ nroPrecorte }}
             </span>
@@ -31,7 +35,7 @@
             [class.pi-sliders-h]="!filtrosVisible"
             [class.pi-times]="filtrosVisible"
           ></i>
-          @if (!nroPrecorte && !filtrosVisible) {
+          @if (!nroPrecorte && !esColaSupervisor && !filtrosVisible) {
             <span class="pulse-dot"></span>
           }
         </span>
@@ -74,18 +78,41 @@
             [style]="{ width: '140px' }"
             inputStyleClass="w-full"
             [showButtons]="false"
+            [disabled]="esColaSupervisor"
             placeholder="N° Programa"
           ></p-inputNumber>
-          <label>N° Programa</label>
+          <label>
+            N° Programa
+            @if (esColaSupervisor) {
+              <i class="pi pi-lock" style="color: rgb(35, 74, 199)"></i>
+            }
+          </label>
         </span>
         <p-button
           (click)="abrirBuscarPrograma()"
           icon="pi pi-list"
           [outlined]="true"
           severity="info"
+          [disabled]="esColaSupervisor"
           pTooltip="Buscar N° de programa"
           tooltipPosition="bottom"
         ></p-button>
+
+        @if (modo.hayColaSupervisor) {
+          <span
+            class="cd-cola-supervisor"
+            pTooltip="Clientes que pagaron la reapertura y siguen cortados, tengan o no programa"
+            tooltipPosition="bottom"
+          >
+            <p-checkbox
+              inputId="colaSupervisor"
+              [(ngModel)]="esColaSupervisor"
+              [binary]="true"
+              (onChange)="cambiarColaSupervisor()"
+            ></p-checkbox>
+            <label for="colaSupervisor">Supervisor</label>
+          </span>
+        }
 
         <div class="filtros-btns">
           <p-button
@@ -145,6 +172,18 @@
           <span class="numero">{{ ejecutados }}</span>
           <span class="titulo">{{ modo.etiquetaEjecutado }}</span>
         </div>
+        @if (modo.hayEstadoImpedimento) {
+          <div
+            class="card-resumen imped"
+            [class.filtro-on]="filtroEstado === 'impedimento'"
+            [style.border-top-color]="modo.colores['impedimento']"
+            (click)="filtrarPorEstado('impedimento')"
+            style="cursor: pointer"
+          >
+            <span class="numero">{{ impedimentos }}</span>
+            <span class="titulo">Imped.</span>
+          </div>
+        }
         <div
           class="card-resumen pend"
           [class.filtro-on]="filtroEstado === 'pendiente'"
@@ -210,6 +249,9 @@
               <div class="insp-stats">
                 <span class="chip total">{{ ins.total }}</span>
                 <span class="chip exec">{{ ins.ejecutados }}</span>
+                @if (modo.hayEstadoImpedimento) {
+                  <span class="chip imped" title="Impedimentos">{{ ins.impedimentos }}</span>
+                }
                 <span class="chip pend">{{ ins.pendientes }}</span>
                 <span class="chip rend">{{ ins.rendimiento }}%</span>
               </div>
@@ -239,6 +281,15 @@
           <span class="punto" [style.background]="modo.colores['ejecutado']"></span>
           {{ modo.etiquetaEjecutado }}
         </div>
+        @if (modo.hayEstadoImpedimento) {
+          <div
+            class="ley-item"
+            [class.off]="filtroEstado && filtroEstado !== 'impedimento'"
+            (click)="filtrarPorEstado('impedimento')"
+          >
+            <span class="punto" [style.background]="modo.colores['impedimento']"></span> Impedimento
+          </div>
+        }
         <div
           class="ley-item"
           [class.off]="filtroEstado && filtroEstado !== 'pendiente'"
