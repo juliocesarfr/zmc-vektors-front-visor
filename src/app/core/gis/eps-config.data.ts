@@ -169,6 +169,69 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       utm: "EPSG:32718", // UTM 18S
     },
   },
+  "019": {
+    ccodeps: "019",
+    descripcion: "EPS Selva Central",
+    geoserver: {
+      baseUrl: "https://sysco.epsselvacentral.com.pe/geoserver",
+      workspace: "SELVACENTRAL",
+    },
+    // Solo hay red de agua de Oxapampa y Pichanaki (sin catastro): cada capa trae la columna localidad.
+    capas: {
+      calles: "eje_calle",
+    },
+    capasTecnicas: {
+      tuberiasAgua: "tuberia_agua",
+      valvulas: "valvula",
+      hidrantes: "hidrante",
+      fuentes: "reservorio",
+    },
+    etiquetas: {
+      hidrantes: "Hidrantes",
+      fuentes: "Reservorios",
+    },
+    consultaCapas: {
+      tuberiasAgua: {
+        campoTitulo: "capa_cad",
+        atributos: {
+          localidad: "Localidad",
+          material: "Material",
+          diametro_mm: "Diámetro (mm)",
+          longitud_m: "Longitud (m)",
+        },
+      },
+      valvulas: {
+        campoTitulo: "codigo",
+        atributos: {
+          localidad: "Localidad",
+          tipo: "Tipo",
+          diametro_mm: "Diámetro (mm)",
+          material: "Material",
+          estado: "Estado",
+        },
+      },
+      hidrantes: {
+        campoTitulo: "codigo",
+        atributos: { localidad: "Localidad", tipo: "Tipo", diametro_mm: "Diámetro (mm)", estado: "Estado" },
+      },
+      fuentes: {
+        campoTitulo: "nombre",
+        atributos: { localidad: "Localidad", capacidad: "Capacidad" },
+      },
+      calles: {
+        campoTitulo: "nombre",
+        atributos: { localidad: "Localidad", nombre: "Nombre" },
+      },
+    },
+    vista: {
+      centro: [-75.402, -10.577],
+      zoom: 15,
+    },
+    proyecciones: {
+      mapa: "EPSG:4326",
+      utm: "EPSG:32718", // UTM 18S
+    },
+  },
   "016": {
     ccodeps: "016",
     descripcion: "EPS emapa",
