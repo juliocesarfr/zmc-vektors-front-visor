@@ -183,10 +183,13 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       max-height: 380px;
       display: flex;
       flex-direction: column;
+      background: #ffffff;
       background: linear-gradient(180deg, rgba(8, 18, 38, 0.96) 0%, rgba(4, 10, 24, 0.98) 100%);
       backdrop-filter: blur(16px) saturate(1.2);
       -webkit-backdrop-filter: blur(16px) saturate(1.2);
       border-radius: 12px;
+      border: 1px solid #CBD5E1;
+      box-shadow: 0 16px 40px -6px rgba(15, 23, 42, 0.28);
       border: 1px solid rgba(0, 229, 255, 0.35);
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 229, 255, 0.15);
       color: #e8edf2;
@@ -216,6 +219,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       align-items: center;
       justify-content: space-between;
       padding: 10px 14px;
+      background: #1D4ED8;
       background: linear-gradient(90deg, rgba(2, 74, 118, 0.95) 0%, rgba(3, 38, 92, 0.95) 100%);
       border-bottom: 1px solid rgba(0, 229, 255, 0.25);
       color: #ffffff;
@@ -232,10 +236,13 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
 
         i {
           font-size: 13px;
+          color: #93c5fd;
           color: #00e5ff;
         }
 
         .osm-tf-badge-radio {
+          background: rgba(255, 255, 255, 0.2);
+          color: #ffffff;
           background: rgba(0, 229, 255, 0.2);
           color: #00e5ff;
           border: 1px solid rgba(0, 229, 255, 0.4);
@@ -246,6 +253,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         }
 
         .osm-tf-total-badge {
+          background: #0891B2;
           background: rgba(2, 132, 199, 0.4);
           color: #ffffff;
           border: 1px solid rgba(56, 189, 248, 0.4);
@@ -265,8 +273,10 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
           display: inline-flex;
           align-items: center;
           gap: 5px;
+          background: #10B981;
           background: #059669;
           color: #ffffff;
+          border: none;
           border: 1px solid #10b981;
           border-radius: 6px;
           padding: 4px 10px;
@@ -277,6 +287,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
           transition: all 0.2s;
 
           &:hover:not(:disabled) {
+            background: #059669;
             background: #047857;
             transform: translateY(-1px);
           }
@@ -288,6 +299,8 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         }
 
         .btn-tf-cerrar {
+          background: transparent;
+          border: none;
           background: rgba(255, 255, 255, 0.1);
           border: 1px solid rgba(255, 255, 255, 0.2);
           color: rgba(255, 255, 255, 0.85);
@@ -303,6 +316,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
 
           &:hover {
             color: #ffffff;
+            background: rgba(255, 255, 255, 0.2);
             background: rgba(244, 63, 94, 0.4);
             border-color: #f43f5e;
           }
@@ -315,6 +329,8 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       align-items: center;
       gap: 6px;
       padding: 7px 12px;
+      background: #F8FAFC;
+      border-bottom: 1px solid #E2E8F0;
       background: rgba(6, 14, 30, 0.95);
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       flex-shrink: 0;
@@ -325,6 +341,9 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         gap: 5px;
         padding: 4px 10px;
         border-radius: 6px;
+        border: 1px solid #CBD5E1;
+        background: #ffffff;
+        color: #64748B;
         border: 1px solid rgba(255, 255, 255, 0.14);
         background: rgba(255, 255, 255, 0.05);
         color: #94a3b8;
@@ -338,12 +357,17 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         }
 
         &:hover {
+          border-color: #94A3B8;
+          color: #334155;
           border-color: rgba(255, 255, 255, 0.3);
           background: rgba(255, 255, 255, 0.12);
           color: #ffffff;
         }
 
         &.activo {
+          border-color: #1D4ED8;
+          background: #EFF6FF;
+          color: #1D4ED8;
           border-color: #00e5ff;
           background: rgba(0, 229, 255, 0.18);
           color: #00e5ff;
@@ -352,6 +376,9 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         }
 
         &.warn.activo {
+          border-color: #F43F5E;
+          background: #FFF1F2;
+          color: #E11D48;
           border-color: #f43f5e;
           background: rgba(244, 63, 94, 0.2);
           color: #fb7185;
@@ -359,6 +386,9 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         }
 
         &.domestico.activo {
+          border-color: #F59E0B;
+          background: #FFFBEB;
+          color: #D97706;
           border-color: #f59e0b;
           background: rgba(245, 158, 11, 0.2);
           color: #fbbf24;
@@ -366,6 +396,9 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         }
 
         &.ok.activo {
+          border-color: #10B981;
+          background: #ECFDF5;
+          color: #059669;
           border-color: #10b981;
           background: rgba(16, 185, 129, 0.2);
           color: #34d399;
@@ -380,12 +413,14 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       flex: 1;
 
       scrollbar-width: thin;
+      scrollbar-color: #CBD5E1 transparent;
       scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 
       &::-webkit-scrollbar {
         width: 6px;
       }
       &::-webkit-scrollbar-thumb {
+        background: #CBD5E1;
         background: rgba(255, 255, 255, 0.2);
         border-radius: 4px;
       }
@@ -399,6 +434,8 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       th {
         position: sticky;
         top: 0;
+        background: #334155;
+        color: #ffffff;
         background: rgba(8, 22, 46, 0.98);
         color: #38bdf8;
         font-weight: 700;
@@ -406,6 +443,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         letter-spacing: 0.3px;
         text-transform: uppercase;
         padding: 8px 12px;
+        border-bottom: 2px solid #0891B2;
         border-bottom: 2px solid rgba(0, 229, 255, 0.35);
         text-align: left;
         z-index: 1;
@@ -413,10 +451,13 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
 
       td {
         padding: 7px 12px;
+        border-bottom: 1px solid #F1F5F9;
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         vertical-align: middle;
       }
 
+      tr:hover td {
+        background: #EFF6FF;
       tr {
         background: transparent;
 
@@ -433,24 +474,28 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
     .td-vacio {
       text-align: center;
       padding: 24px !important;
+      color: #64748B;
       color: #94a3b8;
       font-style: italic;
     }
 
     .nombre-comercio {
       font-weight: 700;
+      color: #334155;
       color: #ffffff;
       font-size: 12.5px;
     }
 
     .dir-comercio {
       font-size: 10.5px;
+      color: #64748B;
       color: #94a3b8;
       margin-top: 1px;
       display: flex;
       align-items: center;
       gap: 4px;
 
+      i { font-size: 10px; color: #64748B; }
       i { font-size: 10px; color: #64748b; }
     }
 
@@ -458,6 +503,9 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       display: inline-block;
       padding: 2px 7px;
       border-radius: 4px;
+      background: #EFF6FF;
+      color: #1D4ED8;
+      border: 1px solid #BFDBFE;
       background: rgba(2, 132, 199, 0.25);
       color: #38bdf8;
       border: 1px solid rgba(56, 189, 248, 0.35);
@@ -479,18 +527,27 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
     }
 
     .badge-rojo {
+      background: #FFF1F2;
+      color: #F43F5E;
+      border: 1px solid #FECDD3;
       background: rgba(244, 63, 94, 0.18);
       color: #fb7185;
       border: 1px solid rgba(244, 63, 94, 0.45);
     }
 
     .badge-amarillo {
+      background: #FFFBEB;
+      color: #D97706;
+      border: 1px solid #FDE68A;
       background: rgba(245, 158, 11, 0.18);
       color: #fbbf24;
       border: 1px solid rgba(245, 158, 11, 0.45);
     }
 
     .badge-verde {
+      background: #ECFDF5;
+      color: #10B981;
+      border: 1px solid #A7F3D0;
       background: rgba(16, 185, 129, 0.18);
       color: #34d399;
       border: 1px solid rgba(16, 185, 129, 0.45);
@@ -507,6 +564,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      color: #0891B2;
       color: #00e5ff;
       font-weight: 700;
 
@@ -515,6 +573,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
 
     .titular {
       font-size: 10.5px;
+      color: #334155;
       color: #e2e8f0;
       font-weight: 600;
       white-space: nowrap;
@@ -525,6 +584,7 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
 
     .dir-sysco {
       font-size: 10px;
+      color: #64748B;
       color: #94a3b8;
       display: flex;
       align-items: center;
@@ -537,10 +597,12 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
       display: inline-flex;
       align-items: center;
       gap: 4px;
+      color: #64748B;
       color: #64748b;
       font-weight: 500;
       font-size: 11px;
 
+      i { font-size: 10px; color: #94A3B8; }
       i { font-size: 10px; color: #475569; }
     }
 
@@ -565,25 +627,35 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
     }
 
     .btn-mapa {
+      background: #1D4ED8;
+      color: #ffffff;
+      box-shadow: 0 2px 5px rgba(29, 78, 216, 0.3);
       background: rgba(2, 132, 199, 0.35);
       border: 1px solid #00e5ff;
       color: #00e5ff;
       box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
 
       &:hover {
+        background: #1E40AF;
         background: #0284c7;
         color: #ffffff;
         box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
         transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(29, 78, 216, 0.4);
       }
     }
 
     .btn-street {
+      background: #FFFBEB;
+      color: #B45309;
+      border: 1px solid #FDE68A;
       background: rgba(245, 158, 11, 0.2);
       border: 1px solid rgba(245, 158, 11, 0.45);
       color: #fbbf24;
 
       &:hover {
+        background: #FEF3C7;
+        color: #92400E;
         background: rgba(245, 158, 11, 0.35);
         color: #ffffff;
       }

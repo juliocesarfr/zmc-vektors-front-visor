@@ -1,0 +1,478 @@
+<p-toast [appendTo]="'body'"></p-toast>
+
+<div class="cd-wrapper">
+  <div class="cd-toolbar">
+    <div class="cd-title">
+      <img src="assets/images/img-medicion/writing.png" alt="reclamos" />
+      <h3>RECLAMOS DE PRIMERA INSTANCIA <span>| Mapa</span></h3>
+    </div>
+
+    <div class="cd-toolbar-actions">
+      @if (!filtrosVisible) {
+        <div class="cd-filtros-summary">
+          <span class="filtro-chip sucursal">
+            <i class="pi pi-building"></i> Sede: {{ getDescSede() }}
+          </span>
+          <span class="filtro-chip sector">
+            <i class="pi pi-briefcase"></i> Oficina: {{ getDescOficina() }}
+          </span>
+          @if (fechaInicial && fechaFinal) {
+            <span class="filtro-chip estado">
+              <i class="pi pi-calendar"></i> {{ fechaInicial | date: 'dd/MM/yyyy' }} -
+              {{ fechaFinal | date: 'dd/MM/yyyy' }}
+            </span>
+          }
+          <span class="filtro-chip tipo">
+            <i class="pi pi-tag"></i> Tipo: {{ getDescTipoReclamo() }}
+          </span>
+          <span class="filtro-chip actividad">
+            <i class="pi pi-file-edit"></i> Concepto: {{ getDescConcepto() }}
+          </span>
+        </div>
+      }
+      <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
+        <span class="toggle-icon-wrap">
+          <i
+            class="pi"
+            [class.pi-sliders-h]="!filtrosVisible"
+            [class.pi-times]="filtrosVisible"
+          ></i>
+        </span>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main btn-descargar-shape"
+        (click)="descargarShape()"
+        [disabled]="descargandoShape"
+        title="Muestra lo que tendrá el shape de las capas encendidas, en la zona que se ve del mapa, y lo descarga en un .zip"
+      >
+        <i
+          class="pi"
+          [class.pi-download]="!descargandoShape"
+          [class.pi-spin]="descargandoShape"
+          [class.pi-spinner]="descargandoShape"
+        ></i>
+        <span>{{ descargandoShape ? 'Descargando…' : 'Descargar shape' }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="volverAlMain()"
+        title="Volver al Visor Principal de Georreferencia"
+      >
+        <i class="pi pi-arrow-left"></i>
+        <span>Volver al Principal</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
+    <div class="cd-filtros-inner">
+      <div class="cd-filtros">
+        <span class="p-float-label">
+          <p-datepicker
+            [(ngModel)]="fechaInicial"
+            dateFormat="dd/mm/yy"
+            [showIcon]="true"
+            [readonlyInput]="true"
+            [maxDate]="fechaFinal"
+            appendTo="body"
+            [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido"
+            [class.ng-dirty]="!hayRangoDeFechasValido"
+          ></p-datepicker>
+          <label>Fecha desde <i class="pi pi-exclamation-circle" style="color: red"></i></label>
+        </span>
+
+        <span class="p-float-label">
+          <p-datepicker
+            [(ngModel)]="fechaFinal"
+            dateFormat="dd/mm/yy"
+            [showIcon]="true"
+            [readonlyInput]="true"
+            [minDate]="fechaInicial"
+            appendTo="body"
+            [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido"
+            [class.ng-dirty]="!hayRangoDeFechasValido"
+          ></p-datepicker>
+          <label>Fecha hasta <i class="pi pi-exclamation-circle" style="color: red"></i></label>
+        </span>
+
+        <span class="p-float-label">
+          <p-select
+            [options]="listaSedes"
+            [(ngModel)]="selectedSede"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            (ngModelChange)="onSedeChange()"
+            [style]="{ width: '200px' }"
+            placeholder="Sede"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Sede</label>
+        </span>
+
+        <span class="p-float-label">
+          <p-select
+            [options]="listaOficinas"
+            [(ngModel)]="selectedOficina"
+            optionLabel="descripcion"
+            optionValue="codoficina"
+            [filter]="true"
+            filterBy="descripcion"
+            [style]="{ width: '240px' }"
+            placeholder="Oficina"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Derivación a: Oficina</label>
+        </span>
+
+        <span class="p-float-label">
+          <p-select
+            [options]="listaTiposReclamo"
+            [(ngModel)]="selectedTipoReclamo"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            (ngModelChange)="onTipoReclamoChange()"
+            [style]="{ width: '210px' }"
+            placeholder="Tipo de reclamo"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Tipo de reclamo</label>
+        </span>
+
+        <span class="p-float-label">
+          <p-select
+            [options]="listaConceptos"
+            [(ngModel)]="selectedConcepto"
+            optionLabel="descripcion"
+            optionValue="codReclamo"
+            [filter]="true"
+            filterBy="descripcion,codReclamo"
+            [style]="{ width: '280px' }"
+            placeholder="Concepto"
+            [appendTo]="'body'"
+          >
+            <ng-template let-concepto pTemplate="item">
+              @if (concepto.codReclamo === 'ALL') {
+                <div>{{ concepto.descripcion }}</div>
+              } @else {
+                <div>{{ concepto.codReclamo }} - {{ concepto.descripcion }}</div>
+              }
+            </ng-template>
+          </p-select>
+          <label>Concepto del reclamo</label>
+        </span>
+
+        <div class="filtros-btns">
+          <p-button
+            (click)="procesar()"
+            icon="pi pi-search"
+            label="BUSCAR"
+            severity="warn"
+            [loading]="cargando"
+            [disabled]="!hayRangoDeFechasValido"
+          ></p-button>
+          <p-button
+            (click)="limpiar()"
+            icon="pi pi-filter-slash"
+            label="Limpiar"
+            [outlined]="true"
+          ></p-button>
+        </div>
+      </div>
+      @if (!hayRangoDeFechasValido) {
+        <small class="p-error"> La fecha desde no puede ser mayor que la fecha hasta. </small>
+      }
+    </div>
+  </div>
+
+  <div class="cd-map-container">
+    @if (cargando) {
+      <div class="map-loading-overlay">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Cargando mapa...</span>
+      </div>
+    }
+
+    @if (totalReclamos > 0) {
+      <div class="cd-resumen">
+        <div class="card-resumen">
+          <span class="numero">{{ totalReclamos }}</span>
+          <span class="titulo">Reclamos</span>
+        </div>
+        <div class="card-resumen ok">
+          <span class="numero">{{ totalReclamos - totalSinCoordenadas }}</span>
+          <span class="titulo">En Mapa</span>
+        </div>
+        <div
+          class="card-resumen warn"
+          [class.descargable]="totalSinCoordenadas > 0"
+          (click)="descargarSinCoordenadas()"
+          title="Descargar en Excel los reclamos sin coordenadas"
+        >
+          <span class="numero">{{ totalSinCoordenadas }}</span>
+          <span class="titulo">Sin Coord.</span>
+        </div>
+      </div>
+    }
+
+    <div id="map" #mapContainer class="map"></div>
+
+    @if (mostrarLeyenda && entradasLeyenda.length > 0) {
+      <app-leyenda-grupos
+        class="cd-leyenda"
+        titulo="Estado del reclamo"
+        icono="pi pi-palette"
+        [subtitulo]="
+          (fechaInicial | date: 'dd/MM') +
+          ' al ' +
+          (fechaFinal | date: 'dd/MM/yyyy') +
+          ' · ' +
+          totalReclamos +
+          ' reclamos'
+        "
+        [entradas]="entradasLeyenda"
+        [grupoFiltrado]="grupoFiltrado"
+        [cargando]="cargandoLotes"
+        textoCargando="pintando lotes…"
+        (elegir)="filtrarPorGrupo($event)"
+        (cerrar)="mostrarLeyenda = false"
+      ></app-leyenda-grupos>
+    }
+    @if (!mostrarLeyenda && entradasLeyenda.length > 0) {
+      <button class="cd-leyenda-toggle" (click)="mostrarLeyenda = true" title="Mostrar leyenda">
+        <i class="pi pi-palette"></i>
+      </button>
+    }
+
+    @if (mostrarSearchPanel) {
+      <div class="cd-search-panel">
+        <div class="search-header">
+          <span><i class="pi pi-search"></i> Buscar Cliente</span>
+          <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+        </div>
+        @if (isBusquedaClienteActiva) {
+          <div class="search-actions">
+            <span class="limpiar-link" (click)="reiniciarBusqueda()">
+              <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+            </span>
+          </div>
+        }
+        <div class="search-body p-inputgroup mt-2">
+          <input
+            type="text"
+            pInputText
+            placeholder="Cód. Cliente..."
+            [(ngModel)]="searchCodCliente"
+            (keyup.enter)="buscarPorCodCliente()"
+          />
+          <button
+            pButton
+            type="button"
+            icon="pi pi-search"
+            (click)="buscarPorCodCliente()"
+            class="p-button-primary"
+            title="Buscar"
+          ></button>
+        </div>
+      </div>
+    }
+    @if (!mostrarSearchPanel) {
+      <button class="cd-search-toggle" (click)="abrirBusqueda()">
+        <i class="pi pi-search"></i>
+      </button>
+    }
+
+    <app-capas-sidebar
+      [baseLayers]="baseLayers"
+      [baseActive]="baseActive"
+      [commercialLayers]="commercialLayers"
+      (baseLayerChange)="setBaseLayer($event)"
+      (layerToggle)="toggleCommercialLayer($event)"
+      (abiertoChange)="onSidebarToggle()"
+    >
+    </app-capas-sidebar>
+
+    <!-- POPUP DEL RECLAMO -->
+    @if (reclamoSeleccionado) {
+      <div class="user-popup" (click)="$event.stopPropagation()">
+        <div class="up-header">
+          <div class="up-header-left">
+            <div class="up-avatar">
+              <img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario" />
+            </div>
+            <div class="up-header-info">
+              <span class="up-label">RECLAMANTE · RECLAMO N° {{ reclamoSeleccionado.nroreclamo }}</span>
+              <strong class="up-name">{{ reclamoSeleccionado.reclamante || 'SIN REGISTRO' }}</strong>
+            </div>
+          </div>
+          <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="up-suministro">
+          <div class="up-sum-item primary">
+            <i class="pi pi-bolt"></i>
+            <span class="up-sum-label">CÓDIGO CLIENTE</span>
+            <span class="up-sum-value">{{ reclamoSeleccionado.codcliente }}</span>
+          </div>
+          <div class="up-sum-sep"></div>
+          <div class="up-sum-item">
+            <span class="up-sum-label">ESTADO</span>
+            <span class="up-sum-value"
+              ><span
+                class="estado-muestra"
+                [style.background]="fondoEstado(reclamoSeleccionado)"
+              ></span
+              >{{ estadoDelReclamo(reclamoSeleccionado) }}</span
+            >
+          </div>
+        </div>
+        <div class="up-body">
+          <div class="up-section">
+            <div
+              class="up-section-title loc"
+              style="display: flex; justify-content: space-between; align-items: center"
+            >
+              <div>
+                <img
+                  src="assets/images/img-georeferencia/ubication-icon.gif"
+                  class="gif-icon"
+                  alt="Ubicación"
+                />
+                UBICACIÓN Y PREDIO
+              </div>
+              <button
+                pButton
+                type="button"
+                class="p-button-outlined p-button-sm p-button-warning"
+                title="Ver en Google Street View"
+                (click)="
+                  abrirStreetView(
+                    reclamoSeleccionado?.lon ?? reclamoSeleccionado?.lonpredio,
+                    reclamoSeleccionado?.lat ?? reclamoSeleccionado?.latpredio
+                  )
+                "
+                style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem"
+              >
+                <img
+                  src="assets/images/img-georeferencia/google-street-view-icon.gif"
+                  style="height: 2.5rem"
+                  alt="Street View"
+                />
+                <span style="font-weight: 900">Ver en Maps</span>
+              </button>
+            </div>
+            <div class="up-grid grid-2">
+              <div class="up-cell full">
+                <span class="uc-label">Propietario</span
+                ><span class="uc-val">{{ reclamoSeleccionado.propietario }}</span>
+              </div>
+              <div class="up-cell full">
+                <span class="uc-label">Dirección</span
+                ><span class="uc-val">{{ direccionDe(reclamoSeleccionado) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Urbanización</span
+                ><span class="uc-val">{{ reclamoSeleccionado.c_urbaniza }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Cód. catastral</span
+                ><span class="uc-val">{{ reclamoSeleccionado.codcatastral }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="up-section">
+            <div class="up-section-title medidor">
+              <i class="pi pi-file-edit"></i> RECLAMO
+            </div>
+            <div class="up-grid grid-2">
+              <div class="up-cell full">
+                <span class="uc-label">Concepto del reclamo</span
+                ><span class="uc-val"
+                  >{{ reclamoSeleccionado.codreclamo }} {{ reclamoSeleccionado.tiporeclamo }}</span
+                >
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Sede</span
+                ><span class="uc-val">{{ reclamoSeleccionado.codsede }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Oficina</span
+                ><span class="uc-val">{{ reclamoSeleccionado.codoficina }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Procesado</span
+                ><span class="uc-val">{{ reclamoSeleccionado.procesado ? 'Sí' : 'No' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Registrado por</span
+                ><span class="uc-val">{{ reclamoSeleccionado.creador }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="up-section">
+            <div class="up-section-title loc"><i class="pi pi-calendar"></i> FECHAS</div>
+            <div class="up-grid grid-2">
+              <div class="up-cell">
+                <span class="uc-label">Reclamo</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fecharec }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Máxima de resolución</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fechamaxresol }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Inspección interna</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fechainspinterna }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Inspección externa</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fechainspintext }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Reunión</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fechareunion }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Conciliación</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fecharesolconcil }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Resolución</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fechares }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Notificación</span
+                ><span class="uc-val">{{ reclamoSeleccionado.fechanotificares }}</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="up-section"
+            style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent"
+          >
+            <button
+              pButton
+              type="button"
+              icon="pi pi-search-plus"
+              label="Ver más información"
+              class="p-button-sm w-full btn-ver-mas"
+              (click)="verMasInformacion(reclamoSeleccionado?.codcliente)"
+            ></button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <app-paneles-mapa-gis
+      [controlador]="controladorGis"
+      [hayPanelDerecho]="!!reclamoSeleccionado || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"
+    ></app-paneles-mapa-gis>
+  </div>
+</div>
