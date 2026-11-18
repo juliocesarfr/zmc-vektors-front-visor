@@ -456,8 +456,6 @@ import { abrirGoogleStreetView } from "../../mapa/street-view";
         vertical-align: middle;
       }
 
-      tr:hover td {
-        background: #EFF6FF;
       tr {
         background: transparent;
 
