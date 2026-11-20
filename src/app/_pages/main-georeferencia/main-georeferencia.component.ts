@@ -178,10 +178,14 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   callesLayer!: TileLayer<TileWMS>;
   manzanasLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
+  fichaAguaWmsLayer?: TileLayer<TileWMS>;
+  fichaAlcantarilladoWmsLayer?: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
   private registroCapas: Record<string, BaseLayer> = {};
+  // Capa de GeoServer que se enciende junto con el interruptor: la vectorial solo trae los puntos de la búsqueda.
+  private capasWmsDelInterruptor: Record<string, BaseLayer | undefined> = {};
   private capasVector: VectorLayer<VectorSource>[] = [];
   private detenerObservadorMapa?: () => void;
 
@@ -369,6 +373,12 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
     this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
     this.rutaLecturaLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("rutaLectura"), false);
+    this.fichaAguaWmsLayer = this.gis.tieneCapa("fichaAgua")
+      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("fichaAgua"), false)
+      : undefined;
+    this.fichaAlcantarilladoWmsLayer = this.gis.tieneCapa("fichaAlcantarillado")
+      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("fichaAlcantarillado"), false)
+      : undefined;
 
     this.lecturasLayer = this.crearCapaPuntos(
       { forma: "circulo", radios: RADIOS_LECTURA, visible: false },
@@ -411,6 +421,10 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       manzanas: this.manzanasLayer,
       rutaLectura: this.rutaLecturaLayer,
     };
+    this.capasWmsDelInterruptor = {
+      caja_agua: this.fichaAguaWmsLayer,
+      ficha_alc: this.fichaAlcantarilladoWmsLayer,
+    };
 
     this.map = new OlMap({
       target: this.mapaEl.nativeElement,
@@ -421,6 +435,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         this.callesLayer,
         this.lotesLayer,
         this.rutaLecturaLayer,
+        ...[this.fichaAlcantarilladoWmsLayer, this.fichaAguaWmsLayer].filter((capa) => !!capa),
         this.acomAguaLayer,
         this.acomDesagueLayer,
         this.fichaAlcLayer,
@@ -809,7 +824,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   toggleLayer(layer: { id: string; active: boolean }): void {
     layer.active = !layer.active;
-    this.registroCapas[layer.id]?.setVisible(layer.active);
+    this.mostrarCapa(layer.id, layer.active);
     if (layer.id === "usuarios" && layer.active) {
       const total = this.lecturasLayer?.getSource()?.getFeatures().length ?? 0;
       if (total === 0) {
@@ -820,6 +835,11 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         );
       }
     }
+  }
+
+  private mostrarCapa(id: string, visible: boolean): void {
+    this.registroCapas[id]?.setVisible(visible);
+    this.capasWmsDelInterruptor[id]?.setVisible(visible);
   }
 
   isCapaUsuariosActiva(): boolean {
@@ -880,6 +900,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       { rol: "calles", capa: this.callesLayer },
       { rol: "manzanas", capa: this.manzanasLayer },
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
+      ...(this.fichaAguaWmsLayer ? [{ rol: "fichaAgua", capa: this.fichaAguaWmsLayer }] : []),
+      ...(this.fichaAlcantarilladoWmsLayer ? [{ rol: "fichaAlcantarillado", capa: this.fichaAlcantarilladoWmsLayer }] : []),
     ];
   }
 
@@ -889,7 +911,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       const debeEstarActiva = capasPermitidas.includes(c.id);
       if (c.active !== debeEstarActiva) {
         c.active = debeEstarActiva;
-        this.registroCapas[c.id]?.setVisible(debeEstarActiva);
+        this.mostrarCapa(c.id, debeEstarActiva);
       }
     });
     this.capasSidebar?.apagarTecnicas();
@@ -1322,7 +1344,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     const layer = this.commercialLayers.find((c) => c.id === id);
     if (layer && !layer.active) {
       layer.active = true;
-      this.registroCapas[id]?.setVisible(true);
+      this.mostrarCapa(id, true);
     }
   }
 

@@ -217,10 +217,14 @@ export class ControldigitacionComponent
   manzanasLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
   centroideFichaLayer!: TileLayer<TileWMS>;
+  fichaAguaWmsLayer?: TileLayer<TileWMS>;
+  fichaAlcantarilladoWmsLayer?: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
   private registroCapas: Record<string, BaseLayer> = {};
+  // Capa de GeoServer que se enciende junto con el interruptor: la vectorial solo trae los puntos de la búsqueda.
+  private capasWmsDelInterruptor: Record<string, BaseLayer | undefined> = {};
   private capasVector: VectorLayer<VectorSource>[] = [];
 
   tipoPopup: TipoPopup = "lectura";
@@ -790,6 +794,12 @@ export class ControldigitacionComponent
       this.gis.capa("centroideFicha"),
       false,
     );
+    this.fichaAguaWmsLayer = this.gis.tieneCapa("fichaAgua")
+      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("fichaAgua"), false)
+      : undefined;
+    this.fichaAlcantarilladoWmsLayer = this.gis.tieneCapa("fichaAlcantarillado")
+      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("fichaAlcantarillado"), false)
+      : undefined;
 
     this.lecturasLayer = this.crearCapaPuntos(
       { forma: "circulo", radios: RADIOS_LECTURA, visible: true },
@@ -827,6 +837,10 @@ export class ControldigitacionComponent
       rutaLectura: this.rutaLecturaLayer,
       centroideFicha: this.centroideFichaLayer,
     };
+    this.capasWmsDelInterruptor = {
+      caja_agua: this.fichaAguaWmsLayer,
+      ficha_alc: this.fichaAlcantarilladoWmsLayer,
+    };
 
     this.map = new OlMap({
       // Sin target aquí: en el microfrontend el id "map" engancha otro div. Se asigna en ngAfterViewInit.
@@ -838,6 +852,7 @@ export class ControldigitacionComponent
         this.lotesLayer,
         this.rutaLecturaLayer,
         this.centroideFichaLayer,
+        ...[this.fichaAlcantarilladoWmsLayer, this.fichaAguaWmsLayer].filter((capa) => !!capa),
         this.acomAguaLayer,
         this.acomDesagueLayer,
         this.fichaAlcLayer,
@@ -987,7 +1002,12 @@ export class ControldigitacionComponent
 
   toggleCommercialLayer(layer: { id: string; active: boolean }): void {
     layer.active = !layer.active;
-    this.registroCapas[layer.id]?.setVisible(layer.active);
+    this.mostrarCapa(layer.id, layer.active);
+  }
+
+  private mostrarCapa(id: string, visible: boolean): void {
+    this.registroCapas[id]?.setVisible(visible);
+    this.capasWmsDelInterruptor[id]?.setVisible(visible);
   }
 
   seleccionarSectores(sectores: SectorCiclo[]): void {
@@ -1033,7 +1053,7 @@ export class ControldigitacionComponent
     this.commercialLayers.forEach((c) => {
       if (capasActivar.includes(c.id) && !c.active) {
         c.active = true;
-        this.registroCapas[c.id]?.setVisible(true);
+        this.mostrarCapa(c.id, true);
       }
     });
   }
