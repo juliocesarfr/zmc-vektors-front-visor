@@ -122,6 +122,37 @@
             <span class="nombre">{{ capa.label }}</span>
             <span class="interruptor"></span>
           </button>
+          @if (clase === 'tecnicas' && capa.active && filtrosDe(capa).length > 0) {
+            <div class="filtros-capa">
+              @for (filtro of filtrosDe(capa); track filtro.campo) {
+                <label class="filtro-capa">
+                  <span class="etiqueta">{{ filtro.etiqueta }}</span>
+                  <select
+                    [class.con-filtro]="filtro.elegido !== null"
+                    [disabled]="filtro.cargando || filtro.opciones.length === 0"
+                    [tabindex]="abierto ? 0 : -1"
+                    [attr.aria-label]="filtro.etiqueta + ' de ' + capa.label"
+                    (change)="elegirFiltro(capa, filtro, $any($event.target).value)"
+                  >
+                    <option value="" [selected]="filtro.elegido === null">
+                      {{
+                        filtro.cargando
+                          ? 'Cargando…'
+                          : filtro.opciones.length === 0
+                            ? 'Sin valores'
+                            : 'Todos'
+                      }}
+                    </option>
+                    @for (opcion of filtro.opciones; track opcion.etiqueta; let posicion = $index) {
+                      <option [value]="posicion" [selected]="filtro.elegido === posicion">
+                        {{ opcion.etiqueta }} ({{ opcion.cantidad | number: '1.0-0' }})
+                      </option>
+                    }
+                  </select>
+                </label>
+              }
+            </div>
+          }
         }
       </div>
     }

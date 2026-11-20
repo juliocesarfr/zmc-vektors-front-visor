@@ -26,6 +26,29 @@ export interface AtributoGis {
   valor: string;
 }
 
+/** Un valor por el que se puede filtrar una capa, con todas las formas en que está escrito en GeoServer. */
+export interface ValorFiltroCapa {
+  etiqueta: string;
+  /** Como están guardados (con espacios de más, por ejemplo): el filtro CQL compara el texto exacto. */
+  valoresOriginales: string[];
+  cantidad: number;
+  /** Elementos con la columna vacía o nula. */
+  sinDato: boolean;
+}
+
+export const ETIQUETA_SIN_DATO = "(Sin dato)";
+
+// En CQL, la condición que deja pasar todo: va en el lugar de las capas sin filtro.
+const SIN_FILTRO_CQL = "INCLUDE";
+
+/** Condición CQL para dejar en la capa solo los elementos con ese valor en la columna. */
+export function condicionCql(campo: string, valor: ValorFiltroCapa): string {
+  if (valor.sinDato) return `(${campo} IS NULL OR ${campo} = '')`;
+  // Las comillas simples se duplican: el valor va dentro de un filtro CQL.
+  const textos = valor.valoresOriginales.map((texto) => `'${texto.replace(/'/g, "''")}'`);
+  return `${campo} IN (${textos.join(",")})`;
+}
+
 /** Curva de nivel con su cota en metros. */
 export interface CurvaNivel {
   elevacion: number;
@@ -96,6 +119,41 @@ export class ConsultaCapasGisService {
   private readonly http = new HttpClient(inject(HttpBackend));
 
   /**
+   * Valores distintos de una columna de la capa, del más frecuente al menos, para armar su filtro.
+   * Se pide solo esa columna (sin geometría): con las diez mil tuberías de una EPS pesa menos de un mega.
+   */
+  valoresDeCampo(rol: CapaGisId, campo: string): Observable<ValorFiltroCapa[]> {
+    const url = this.gis.urlGetFeature(rol, undefined, { propertyName: campo });
+    if (!url) return of([]);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) => {
+        const porEtiqueta = new Map<string, ValorFiltroCapa>();
+        for (const elemento of respuesta.features ?? []) {
+          const original = elemento?.properties?.[campo];
+          const texto = original == null ? "" : String(original);
+          // Agrupa "BUZON" con "BUZON ": son el mismo tipo escrito con un espacio de más.
+          const etiqueta = texto.replace(/\s+/g, " ").trim().toUpperCase();
+          let valor = porEtiqueta.get(etiqueta);
+          if (!valor) {
+            valor = { etiqueta: etiqueta || ETIQUETA_SIN_DATO, valoresOriginales: [], cantidad: 0, sinDato: !etiqueta };
+            porEtiqueta.set(etiqueta, valor);
+          }
+          valor.cantidad++;
+          if (etiqueta && !valor.valoresOriginales.includes(texto)) valor.valoresOriginales.push(texto);
+        }
+        return Array.from(porEtiqueta.values()).sort(
+          (primero, segundo) => Number(primero.sinDato) - Number(segundo.sinDato) || segundo.cantidad - primero.cantidad,
+        );
+      }),
+      catchError((error) => {
+        console.warn("[GIS] No se pudieron leer los valores para filtrar la capa.", error);
+        return of([]);
+      }),
+    );
+  }
+
+  /**
    * Pregunta a GeoServer qué hay bajo el clic en las capas WMS visibles, con una sola
    * petición GetFeatureInfo. Devuelve primero lo más cercano al clic.
    */
@@ -109,12 +167,16 @@ export class ConsultaCapasGisService {
 
     const rolPorNombre = new Map<string, CapaGisId>();
     const nombres: string[] = [];
+    // Un filtro por capa, en el mismo orden que `nombres`: así lo pide GeoServer cuando se consultan varias.
+    const filtros: string[] = [];
     for (const { rol, capa } of visibles) {
-      const nombresCapa = String(capa.getSource()!.getParams()["LAYERS"] ?? "")
+      const parametros = capa.getSource()!.getParams();
+      const nombresCapa = String(parametros["LAYERS"] ?? "")
         .split(",")
         .filter(Boolean);
       for (const nombre of nombresCapa) {
         nombres.push(nombre);
+        filtros.push(parametros["CQL_FILTER"] ? String(parametros["CQL_FILTER"]) : SIN_FILTRO_CQL);
         rolPorNombre.set(this.sinWorkspace(nombre), rol);
       }
     }
@@ -130,6 +192,8 @@ export class ConsultaCapasGisService {
         QUERY_LAYERS: capasTexto,
         // El estilo propio de la primera capa solo nombra a esa capa: con él GeoServer no consulta las demás.
         SLD_BODY: undefined,
+        // Lo mismo con su filtro: cada capa lleva el suyo, para no mostrar al clic lo que el filtro ocultó.
+        CQL_FILTER: filtros.some((filtro) => filtro !== SIN_FILTRO_CQL) ? filtros.join(";") : undefined,
         INFO_FORMAT: "application/json",
         FEATURE_COUNT: MAXIMO_ELEMENTOS,
         BUFFER: TOLERANCIA_PX,

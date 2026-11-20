@@ -22,6 +22,7 @@ export type CapaGisConocida =
   | "fuentes"
   | "valvulas"
   | "curvasNivel"
+  | "nodosAgua"
   | "nodosAlcantarillado"
   | "sectoresOperacionales"
   | "presiones";
@@ -61,6 +62,7 @@ export interface CapasTecnicasGis {
   fuentes?: string;
   valvulas?: string;
   curvasNivel?: string;
+  nodosAgua?: string;
   nodosAlcantarillado?: string;
   sectoresOperacionales?: string;
   presiones?: string;
@@ -117,6 +119,14 @@ export interface GisEpsConfig {
   ortofotos?: OrtofotoGis[];
   /** Rol -> qué se muestra al hacer clic sobre un elemento de esa capa. */
   consultaCapas?: Record<string, ConsultaCapaGis>;
+  /** Rol -> columnas por las que se puede filtrar la capa desde el panel de capas, en el orden en que se muestran. */
+  filtrosCapas?: Record<string, FiltroCapaGis[]>;
+}
+
+/** Columna de GeoServer por la que se filtra una capa; sus valores se leen de la propia capa. */
+export interface FiltroCapaGis {
+  campo: string;
+  etiqueta: string;
 }
 
 export interface ConsultaCapaGis {

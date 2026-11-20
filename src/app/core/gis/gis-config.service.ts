@@ -7,6 +7,7 @@ import {
   CapaGisId,
   CapasTecnicasGis,
   ConsultaCapaGis,
+  FiltroCapaGis,
   OrtofotoGis,
   GisEpsConfig,
   GisVistaConfig,
@@ -233,6 +234,10 @@ export class GisConfigService {
 
   consultaCapa(id: CapaGisId): ConsultaCapaGis {
     return this.actual.consultaCapas?.[id] ?? {};
+  }
+
+  filtrosCapa(id: CapaGisId): FiltroCapaGis[] {
+    return this.actual.filtrosCapas?.[id] ?? [];
   }
 
   calificarCapa(nombre: string | undefined): string {

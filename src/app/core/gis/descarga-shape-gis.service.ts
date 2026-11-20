@@ -57,9 +57,12 @@ export class DescargaShapeGisService {
     const capasGis = this.capasGisVisibles(descarga.capasGis);
     if (capasGis.size > 0) {
       const columnas = await this.columnasPorCapa(Array.from(capasGis.keys()), capasGis);
+      const filtros = this.filtrosPorCapa(descarga.capasGis);
       // Una petición por capa y todas a la vez: en una sola, GeoServer las arma una tras otra y el tiempo se suma.
       const contenidos = await Promise.all(
-        Array.from(capasGis.keys(), (nombre) => this.pedirShapeGeoServer(nombre, columnas.get(nombre)!, descarga.extension)),
+        Array.from(capasGis.keys(), (nombre) =>
+          this.pedirShapeGeoServer(nombre, columnas.get(nombre)!, descarga.extension, filtros.get(nombre)),
+        ),
       );
       for (const contenido of contenidos) await zip.loadAsync(contenido);
       capas.push(...Array.from(capasGis.values(), (rol) => this.gis.etiquetaCapa(rol)));
@@ -96,7 +99,18 @@ export class DescargaShapeGisService {
     return visibles;
   }
 
-  private async pedirShapeGeoServer(nombre: string, columnas: string[], extension: Extent): Promise<Blob> {
+  // El filtro que el usuario eligió en el panel de capas va en el parámetro CQL_FILTER de la capa WMS.
+  private filtrosPorCapa(capas: CapaConsultable[]): Map<string, string> {
+    const filtros = new Map<string, string>();
+    for (const { rol, capa } of capas) {
+      const filtro = capa.getSource()?.getParams()["CQL_FILTER"];
+      const nombre = this.gis.capa(rol);
+      if (nombre && filtro && capa.getVisible()) filtros.set(nombre, String(filtro));
+    }
+    return filtros;
+  }
+
+  private async pedirShapeGeoServer(nombre: string, columnas: string[], extension: Extent, filtro?: string): Promise<Blob> {
     const [minimoX, minimoY, maximoX, maximoY] = transformExtent(extension, this.gis.proyeccionMapa, WGS84);
 
     const parametros = new URLSearchParams({
@@ -105,9 +119,18 @@ export class DescargaShapeGisService {
       request: "GetFeature",
       typeName: nombre,
       outputFormat: "SHAPE-ZIP",
-      bbox: `${minimoX},${minimoY},${maximoX},${maximoY},${WGS84}`,
       propertyName: columnas.join(","),
     });
+    // WFS no admite bbox y CQL_FILTER juntos: con filtro, el recorte a la vista va dentro del CQL.
+    if (filtro) {
+      const [geometria] = columnas;
+      parametros.set(
+        "CQL_FILTER",
+        `BBOX(${geometria},${minimoX},${minimoY},${maximoX},${maximoY},'${WGS84}') AND (${filtro})`,
+      );
+    } else {
+      parametros.set("bbox", `${minimoX},${minimoY},${maximoX},${maximoY},${WGS84}`);
+    }
     const archivo = await firstValueFrom(
       this.http.get(`${this.gis.urlWfs()}?${parametros}`, { responseType: "blob" }),
     );

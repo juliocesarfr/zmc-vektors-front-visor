@@ -10,7 +10,14 @@ import XYZ from "ol/source/XYZ";
 import { containsCoordinate } from "ol/extent";
 import { transformExtent } from "ol/proj";
 
-import { CapaConsultable, GisConfigService, WGS84 } from "../../../core/gis";
+import {
+  CapaConsultable,
+  ConsultaCapasGisService,
+  GisConfigService,
+  ValorFiltroCapa,
+  WGS84,
+  condicionCql,
+} from "../../../core/gis";
 import { crearCapaOrtofoto, crearCapaSatelital, crearCapaWms } from "../../mapa/capas";
 
 export interface CapaBaseUi {
@@ -32,6 +39,16 @@ export interface CapaSwitchUi {
   simbolo?: SimboloCapaUi;
 }
 
+/** Selector de una columna de la capa: se llena con los valores que la capa tiene en GeoServer. */
+export interface FiltroCapaUi {
+  campo: string;
+  etiqueta: string;
+  opciones: ValorFiltroCapa[];
+  /** Posición en `opciones` del valor elegido; `null` = todos. */
+  elegido: number | null;
+  cargando: boolean;
+}
+
 // La leyenda de GeoServer no sirve aquí: varias capas traen estilos genéricos o bordes negros que no se ven sobre el panel.
 const SIMBOLOS_TECNICOS: Record<string, SimboloCapaUi> = {
   fuentes: { forma: "punto", color: "#06b6d4" },
@@ -39,6 +56,8 @@ const SIMBOLOS_TECNICOS: Record<string, SimboloCapaUi> = {
   tuberiasAlcantarillado: { forma: "linea", color: "#b7791f" },
   valvulas: { forma: "rombo", color: "#f43f5e" },
   curvasNivel: { forma: "linea", color: "#a3a3a3" },
+  // En GeoServer cada accesorio tiene su color: aquí va el de la tee, que es el más común.
+  nodosAgua: { forma: "punto", color: "#1976d2" },
   nodosAlcantarillado: { forma: "punto", color: "#d97706" },
   sectoresOperacionales: { forma: "area", color: "#0d9488" },
   presiones: { forma: "punto", color: "#9333ea" },
@@ -57,6 +76,7 @@ const TECLA_PANEL = "c";
 })
 export class CapasSidebarComponent implements OnChanges {
   private readonly gis = inject(GisConfigService);
+  private readonly consultaCapasGis = inject(ConsultaCapasGisService);
 
   @Input() baseLayers: CapaBaseUi[] = [];
   @Input() baseActive: string | null = null;
@@ -93,6 +113,9 @@ export class CapasSidebarComponent implements OnChanges {
   private readonly capasOrtofoto = new Map<string, LayerGroup>();
 
   private readonly capasTecnicas = new Map<string, TileLayer<TileWMS>>();
+
+  /** Filtros de cada capa técnica; se crean al prenderla por primera vez. */
+  private readonly filtrosPorCapa = new Map<string, FiltroCapaUi[]>();
 
   get cantidadActivas(): number {
     return this.contarActivas(this.commercialLayers) + this.contarActivas(this.technicalLayers);
@@ -152,6 +175,40 @@ export class CapasSidebarComponent implements OnChanges {
   toggleTecnica(capa: CapaSwitchUi): void {
     capa.active = !capa.active;
     this.capasTecnicas.get(capa.id)?.setVisible(capa.active);
+    if (capa.active) this.cargarFiltros(capa.id);
+  }
+
+  filtrosDe(capa: CapaSwitchUi): FiltroCapaUi[] {
+    return this.filtrosPorCapa.get(capa.id) ?? [];
+  }
+
+  // Los valores se piden recién al prender la capa: la mayoría de las veces no se usan todas.
+  private cargarFiltros(idCapa: string): void {
+    if (this.filtrosPorCapa.has(idCapa)) return;
+    const filtros: FiltroCapaUi[] = this.gis
+      .filtrosCapa(idCapa)
+      .map((filtro) => ({ ...filtro, opciones: [], elegido: null, cargando: true }));
+    this.filtrosPorCapa.set(idCapa, filtros);
+
+    for (const filtro of filtros) {
+      this.consultaCapasGis.valoresDeCampo(idCapa, filtro.campo).subscribe((opciones) => {
+        filtro.opciones = opciones;
+        filtro.cargando = false;
+      });
+    }
+  }
+
+  /** `posicion` vacía = todos. Los filtros de una misma capa se suman (tipo Y material). */
+  elegirFiltro(capa: CapaSwitchUi, filtro: FiltroCapaUi, posicion: string): void {
+    filtro.elegido = posicion === "" ? null : Number(posicion);
+    const condiciones = this.filtrosDe(capa)
+      .filter((otro) => otro.elegido !== null && otro.opciones[otro.elegido])
+      .map((otro) => condicionCql(otro.campo, otro.opciones[otro.elegido!]));
+    // Sin condiciones el parámetro va como undefined y OpenLayers no lo manda: la capa vuelve a verse entera.
+    this.capasTecnicas
+      .get(capa.id)
+      ?.getSource()
+      ?.updateParams({ CQL_FILTER: condiciones.length > 0 ? condiciones.join(" AND ") : undefined });
   }
 
   apagarTecnicas(): void {

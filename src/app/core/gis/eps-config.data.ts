@@ -13,54 +13,148 @@ export const PROYECCIONES_POR_DEFECTO: GisProyeccionesConfig = {
   utm: PROYECCION_UTM_DEFECTO,
 };
 
-export const CONFIG_EPS: Record<string, GisEpsConfig> = {
-  "004": {
-    ccodeps: "004",
-    descripcion: "EPS Yurimaguas",
-    geoserver: {
-      baseUrl: "http://177.67.250.210/geoserver",
-      workspace: "YURIMAGUAS",
+// Yurimaguas e Iquitos son la misma EPS (004) en servidores distintos, cada uno con su GeoServer:
+// al compilar el frontend que se sube al servidor de Iquitos se cambia esta constante a "IQUITOS".
+type SedeEps004 = "YURIMAGUAS" | "IQUITOS";
+const SEDE_004 = "YURIMAGUAS" as SedeEps004;
+
+const EPS_004_YURIMAGUAS: GisEpsConfig = {
+  ccodeps: "004",
+  descripcion: "EPS Yurimaguas",
+  geoserver: {
+    baseUrl: "http://177.67.250.210/geoserver",
+    workspace: "YURIMAGUAS",
+  },
+  // El GeoServer de 177.67.250.210 no publica lotes por sector: sin `lotesPorSector` se usa la capa
+  // de lotes completa. `usuarios` es una vista SQL sin datos personales sobre "FICHA PUNTOS PREDIO".
+  capas: {
+    lotes: "yurimaguas_sig_lotes",
+    sectoresComerciales: "yurimaguas_sig_sectores_comerciales",
+    manzanas: "yurimaguas_sig_manzanas",
+    calles: "yurimaguas_sig_calles",
+    urbanizaciones: "yurimaguas_sig_urbanismos",
+    acometidaAgua: "acometida_agua",
+    usuarios: "usuarios",
+    acometidaAlcantarillado: "acometida_alcantarillado",
+    fichaAgua: "yurimaguas_ficha_agua",
+    fichaAlcantarillado: "yurimaguas_ficha_alcantarillado",
+    rutaLectura: "ruta_lectura",
+    rutaDistribucion: "ruta_reparto",
+    secuenciaRutaLectura: "secuencia_ruta_lectura",
+    secuenciaRutaReparto: "secuencia_ruta_reparto",
+  },
+  etiquetas: {
+    rutaDistribucion: "Ruta de Reparto",
+    secuenciaRutaLectura: "Secuencia de Lectura",
+    secuenciaRutaReparto: "Secuencia de Reparto",
+  },
+  // Completar con el nombre real publicado en GeoServer.
+  capasTecnicas: {
+    // tuberiasAgua: "",
+    // tuberiasAlcantarillado: "",
+    // fuentes: "",
+    // valvulas: "",
+    // curvasNivel: "",
+  },
+  vista: {
+    centro: [-76.1223, -5.9018],
+    zoom: 18,
+  },
+  proyecciones: {
+    mapa: "EPSG:4326",
+    utm: "EPSG:32718", // UTM 18S
+  },
+};
+
+const EPS_004_IQUITOS: GisEpsConfig = {
+  ccodeps: "004",
+  descripcion: "EPS Sedaloreto - Iquitos",
+  geoserver: {
+    baseUrl: "http://143.105.156.90:8080/geoserver",
+    workspace: "IQUITOS",
+  },
+  // Iquitos y Requena en las mismas capas (columna localidad). La ficha predio se publica desde una vista
+  // sin nombre, DNI, celular ni correo; no hay capa de calles ni de rutas.
+  capas: {
+    lotes: "lotes",
+    sectoresComerciales: "sectores",
+    manzanas: "manzanas",
+    usuarios: "ficha_predio_publica",
+    centroideFicha: "ficha_predio_publica",
+    fichaAgua: "conexion_agua",
+    fichaAlcantarillado: "conexion_alcantarillado",
+  },
+  etiquetas: {
+    fichaAgua: "Conexiones de Agua",
+    fichaAlcantarillado: "Conexiones de Alcantarillado",
+  },
+  consultaCapas: {
+    lotes: {
+      campoTitulo: "suministro",
+      atributos: { localidad: "Localidad", suministro: "Suministro" },
     },
-    // El GeoServer de 177.67.250.210 no publica lotes por sector: sin `lotesPorSector` se usa la capa
-    // de lotes completa. `usuarios` es una vista SQL sin datos personales sobre "FICHA PUNTOS PREDIO".
-    capas: {
-      lotes: "yurimaguas_sig_lotes",
-      sectoresComerciales: "yurimaguas_sig_sectores_comerciales",
-      manzanas: "yurimaguas_sig_manzanas",
-      calles: "yurimaguas_sig_calles",
-      urbanizaciones: "yurimaguas_sig_urbanismos",
-      acometidaAgua: "acometida_agua",
-      usuarios: "usuarios",
-      acometidaAlcantarillado: "acometida_alcantarillado",
-      fichaAgua: "yurimaguas_ficha_agua",
-      fichaAlcantarillado: "yurimaguas_ficha_alcantarillado",
-      rutaLectura: "ruta_lectura",
-      rutaDistribucion: "ruta_reparto",
-      secuenciaRutaLectura: "secuencia_ruta_lectura",
-      secuenciaRutaReparto: "secuencia_ruta_reparto",
+    centroideFicha: {
+      campoTitulo: "suministro",
+      campoCliente: "suministro",
+      atributos: {
+        localidad: "Localidad",
+        suministro: "Suministro",
+        cod_sector: "Sector",
+        cod_mzna: "Manzana",
+        cod_lote: "Lote",
+        nombre_via: "Vía",
+        nombre_urb: "Urbanización",
+        num_munic: "Nro. municipal",
+        ruta_lectu: "Ruta de lectura",
+        ruta_repar: "Ruta de reparto",
+        estado_pre: "Estado del predio",
+        categoria_: "Categoría",
+      },
     },
-    etiquetas: {
-      rutaDistribucion: "Ruta de Reparto",
-      secuenciaRutaLectura: "Secuencia de Lectura",
-      secuenciaRutaReparto: "Secuencia de Reparto",
+    fichaAgua: {
+      campoTitulo: "ficha_nume",
+      atributos: {
+        localidad: "Localidad",
+        condicion: "Condición",
+        ubicacion: "Ubicación",
+        estado_conexion: "Estado",
+        diametro: "Diámetro",
+        medidor: "Medidor",
+        numero_medidor: "Nro. medidor",
+        estado_medidor: "Estado del medidor",
+      },
     },
-    // Completar con el nombre real publicado en GeoServer.
-    capasTecnicas: {
-      // tuberiasAgua: "",
-      // tuberiasAlcantarillado: "",
-      // fuentes: "",
-      // valvulas: "",
-      // curvasNivel: "",
+    fichaAlcantarillado: {
+      campoTitulo: "ficha_nume",
+      atributos: {
+        localidad: "Localidad",
+        condicion: "Condición",
+        ubicacion: "Ubicación",
+        estado_conexion: "Estado",
+        diametro: "Diámetro",
+      },
     },
-    vista: {
-      centro: [-76.1223, -5.9018],
-      zoom: 18,
+    sectoresComerciales: {
+      campoTitulo: "sector",
+      atributos: { localidad: "Localidad", sector: "Sector" },
     },
-    proyecciones: {
-      mapa: "EPSG:4326",
-      utm: "EPSG:32718", // UTM 18S
+    manzanas: {
+      campoTitulo: "manzana",
+      atributos: { localidad: "Localidad", manzana: "Manzana" },
     },
   },
+  vista: {
+    centro: [-73.2588, -3.7531],
+    zoom: 16,
+  },
+  proyecciones: {
+    mapa: "EPSG:4326",
+    utm: "EPSG:32718", // UTM 18S
+  },
+};
+
+export const CONFIG_EPS: Record<string, GisEpsConfig> = {
+  "004": SEDE_004 === "IQUITOS" ? EPS_004_IQUITOS : EPS_004_YURIMAGUAS,
   "051": {
     ccodeps: "051",
     descripcion: "EPS Rioja",
@@ -259,10 +353,40 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       fuentes: "sm_sig_fuentes",
       tuberiasAgua: "sm_sig_tuberias",
       tuberiasAlcantarillado: "sm_sig_alcantarillado",
+      nodosAgua: "sm_sig_nodos",
       nodosAlcantarillado: "sm_sig_nodosas",
       valvulas: "sm_sig_valvulas",
       presiones: "sm_sig_presiones",
       curvasNivel: "sm_sig_curvas_de_nivel",
+    },
+    // Columnas reales de GeoServer con pocos valores distintos (revisadas en la capa el 2026-11-19).
+    filtrosCapas: {
+      sectoresOperacionales: [
+        { campo: "sector", etiqueta: "Sector" },
+        { campo: "tipo", etiqueta: "Tipo" },
+      ],
+      fuentes: [{ campo: "tipo", etiqueta: "Tipo" }],
+      tuberiasAgua: [
+        { campo: "tipo", etiqueta: "Tipo" },
+        { campo: "material", etiqueta: "Material" },
+      ],
+      tuberiasAlcantarillado: [
+        { campo: "tipo", etiqueta: "Tipo" },
+        { campo: "material", etiqueta: "Material" },
+      ],
+      nodosAgua: [
+        { campo: "accesorio", etiqueta: "Accesorio" },
+        { campo: "material", etiqueta: "Material" },
+      ],
+      nodosAlcantarillado: [{ campo: "tipo", etiqueta: "Tipo" }],
+      valvulas: [
+        { campo: "type", etiqueta: "Tipo" },
+        { campo: "status", etiqueta: "Estado" },
+      ],
+      presiones: [
+        { campo: "funcion", etiqueta: "Función" },
+        { campo: "zona", etiqueta: "Zona" },
+      ],
     },
     ortofotos: [
       {
@@ -322,6 +446,22 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
           node1: "Nodo inicial",
           node2: "Nodo final",
           anyo: "Año",
+          fec_reg: "Fecha de registro",
+          comentario: "Comentario",
+        },
+      },
+      nodosAgua: {
+        campoTitulo: "dc_id",
+        atributos: {
+          accesorio: "Accesorio",
+          descr_acc: "Descripción",
+          diametro: "Diámetro",
+          material: "Material",
+          marca: "Marca",
+          prof: "Profundidad (m)",
+          elev_terr: "Cota de terreno",
+          terreno: "Terreno",
+          conserv: "Conservación",
           fec_reg: "Fecha de registro",
           comentario: "Comentario",
         },
@@ -566,6 +706,7 @@ export const ETIQUETAS_POR_DEFECTO: Record<string, string> = {
   tuberiasAlcantarillado: "Tuberías de Desagüe",
   valvulas: "Válvulas",
   curvasNivel: "Curvas de Nivel",
+  nodosAgua: "Accesorios de la Red de Agua",
   nodosAlcantarillado: "Buzones y Cajas de Desagüe",
   sectoresOperacionales: "Sectores Operacionales",
   presiones: "Puntos de Presión",
