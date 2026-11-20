@@ -77,8 +77,14 @@ export class LecturasEnVivoService implements OnDestroy {
 
     this.conectadoEn = Date.now();
     this.suscrito = true;
-    this.ws.connectapk(this.onMovil);
-    this.ws.connect(this.onWeb);
+    // Cada canal por separado: si uno no puede abrirse, el otro igual queda escuchando.
+    for (const abrirCanal of [() => this.ws.connectapk(this.onMovil), () => this.ws.connect(this.onWeb)]) {
+      try {
+        abrirCanal();
+      } catch (error) {
+        console.error("[Tiempo real] No se pudo abrir un canal.", error);
+      }
+    }
   }
 
   /** Actualiza el filtro sin reabrir la conexión (al cambiar ciclo/sucursal). */
