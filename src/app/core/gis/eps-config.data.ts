@@ -73,16 +73,16 @@ const EPS_004_IQUITOS: GisEpsConfig = {
     baseUrl: "http://143.105.156.90:8080/geoserver",
     workspace: "IQUITOS",
   },
-  // Iquitos y Requena en las mismas capas (columna localidad). La ficha predio se publica desde una vista
-  // sin nombre, DNI, celular ni correo; no hay capa de calles ni de rutas.
+  // Capas publicadas directamente desde las tablas de catastro de Iquitos (2026); no hay capa de calles ni de rutas.
+  // La ficha predio trae nombre, DNI, celular y correo: la consulta solo muestra campos sin datos personales.
   capas: {
-    lotes: "lotes",
-    sectoresComerciales: "sectores",
-    manzanas: "manzanas",
-    usuarios: "ficha_predio_publica",
-    centroideFicha: "ficha_predio_publica",
-    fichaAgua: "conexion_agua",
-    fichaAlcantarillado: "conexion_alcantarillado",
+    lotes: "tb_lotes_iquitos2026",
+    sectoresComerciales: "tb_sectores_iquitos2026",
+    manzanas: "tb_manzanas_iquitos2026",
+    usuarios: "tb_ficha_predio_iquitos2026",
+    centroideFicha: "tb_ficha_predio_iquitos2026",
+    fichaAgua: "tb_ficha_agua_iquitos2026",
+    fichaAlcantarillado: "tb_ficha_alcantarillado_iquitos2026",
   },
   etiquetas: {
     fichaAgua: "Conexiones de Agua",
@@ -90,14 +90,16 @@ const EPS_004_IQUITOS: GisEpsConfig = {
   },
   consultaCapas: {
     lotes: {
-      campoTitulo: "suministro",
-      atributos: { localidad: "Localidad", suministro: "Suministro" },
+      campoTitulo: "SUMINISTRO",
+      // El suministro del lote es el código de cliente: con él el buscador pinta el lote del usuario.
+      campoCliente: "SUMINISTRO",
+      atributos: { SUMINISTRO: "Suministro" },
     },
     centroideFicha: {
       campoTitulo: "suministro",
       campoCliente: "suministro",
       atributos: {
-        localidad: "Localidad",
+        nomb_localidad: "Localidad",
         suministro: "Suministro",
         cod_sector: "Sector",
         cod_mzna: "Manzana",
@@ -105,43 +107,50 @@ const EPS_004_IQUITOS: GisEpsConfig = {
         nombre_via: "Vía",
         nombre_urb: "Urbanización",
         num_munic: "Nro. municipal",
-        ruta_lectu: "Ruta de lectura",
-        ruta_repar: "Ruta de reparto",
-        estado_pre: "Estado del predio",
-        categoria_: "Categoría",
+        ruta_lectura: "Ruta de lectura",
+        ruta_reparto: "Ruta de reparto",
+        estado_predio: "Estado del predio",
+        condicion: "Condición",
+        servicio: "Servicio",
+        cat_tarifa_1: "Categoría",
       },
     },
     fichaAgua: {
-      campoTitulo: "ficha_nume",
+      campoTitulo: "ficha_numero",
       atributos: {
-        localidad: "Localidad",
         condicion: "Condición",
-        ubicacion: "Ubicación",
-        estado_conexion: "Estado",
-        diametro: "Diámetro",
+        "ubicación_caja_agua": "Ubicación",
+        "estado_conexión_agua": "Estado",
+        "diámetro_conexión_agua_potable": "Diámetro",
         medidor: "Medidor",
-        numero_medidor: "Nro. medidor",
+        "número_medidor": "Nro. medidor",
         estado_medidor: "Estado del medidor",
+        marca_medidor: "Marca del medidor",
       },
     },
     fichaAlcantarillado: {
-      campoTitulo: "ficha_nume",
+      campoTitulo: "ficha_numero",
       atributos: {
-        localidad: "Localidad",
-        condicion: "Condición",
-        ubicacion: "Ubicación",
-        estado_conexion: "Estado",
-        diametro: "Diámetro",
+        "condición": "Condición",
+        "ubicación_caja_desague": "Ubicación",
+        "estado_conexión_desague": "Estado",
+        "diametro_conexión_desague": "Diámetro",
       },
     },
     sectoresComerciales: {
-      campoTitulo: "sector",
-      atributos: { localidad: "Localidad", sector: "Sector" },
+      campoTitulo: "Layer",
+      atributos: { Layer: "Sector" },
     },
     manzanas: {
-      campoTitulo: "manzana",
-      atributos: { localidad: "Localidad", manzana: "Manzana" },
+      campoTitulo: "MZ",
+      atributos: { MZ: "Manzana" },
     },
+  },
+  // Las capas de lotes, manzanas y sectores traen también Requena (al oeste de x = 660000); este servidor
+  // solo atiende Iquitos: sin esto, el lote de un cliente con el mismo número se buscaba en Requena.
+  zonaTrabajo: {
+    campoGeometria: "geom",
+    extensionUtm: [660000, 9500000, 800000, 9700000],
   },
   vista: {
     centro: [-73.2588, -3.7531],

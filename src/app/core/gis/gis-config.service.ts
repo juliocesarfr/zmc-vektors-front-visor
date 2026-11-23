@@ -145,9 +145,18 @@ export class GisConfigService {
       outputFormat: "application/json",
       ...parametrosExtra,
     });
-    if (cqlFilter) params.set("CQL_FILTER", cqlFilter);
+    // GeoServer no acepta bbox y CQL_FILTER juntos: una búsqueda con bbox ya mira alrededor de un punto del mapa.
+    const filtro = "bbox" in parametrosExtra ? cqlFilter : this.conZonaTrabajo(cqlFilter);
+    if (filtro) params.set("CQL_FILTER", filtro);
 
     return `${this.urlWfs()}?${params.toString()}`;
+  }
+
+  private conZonaTrabajo(cqlFilter?: string): string | undefined {
+    const zona = this.actual.zonaTrabajo;
+    if (!zona) return cqlFilter;
+    const filtroZona = `BBOX(${zona.campoGeometria},${zona.extensionUtm.join(",")},'${this.proyeccionUtm}')`;
+    return cqlFilter ? `(${cqlFilter}) AND ${filtroZona}` : filtroZona;
   }
 
   get capasTecnicasDeclaradas(): CapasTecnicasGis {

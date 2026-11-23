@@ -121,6 +121,18 @@ export interface GisEpsConfig {
   consultaCapas?: Record<string, ConsultaCapaGis>;
   /** Rol -> columnas por las que se puede filtrar la capa desde el panel de capas, en el orden en que se muestran. */
   filtrosCapas?: Record<string, FiltroCapaGis[]>;
+  /**
+   * Zona que atiende este servidor cuando sus capas traen también otra localidad: las búsquedas en GeoServer
+   * (por ejemplo, el lote de un cliente) solo devuelven lo que cae dentro, para que el mapa no salte a la otra ciudad.
+   */
+  zonaTrabajo?: ZonaTrabajoGis;
+}
+
+export interface ZonaTrabajoGis {
+  /** Nombre de la columna de geometría en las capas de GeoServer. */
+  campoGeometria: string;
+  /** [oeste, sur, este, norte] en la proyección UTM de la EPS. */
+  extensionUtm: [number, number, number, number];
 }
 
 /** Columna de GeoServer por la que se filtra una capa; sus valores se leen de la propia capa. */
