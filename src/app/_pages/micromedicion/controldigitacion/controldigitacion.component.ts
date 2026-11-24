@@ -122,6 +122,7 @@ import {
   rangoFotosRecientes,
 } from "../../../shared/utils/fechas.utils";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 /** Qué ficha muestra el popup según la capa en que se hizo clic. */
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
@@ -147,7 +148,7 @@ const COLUMNAS_TABLA_LECTURAS: ColumnaListado[] = [
 @Component({
   selector: "app-controldigitacion",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     VisorImagenesComponent,
     PanelesMapaGisComponent,

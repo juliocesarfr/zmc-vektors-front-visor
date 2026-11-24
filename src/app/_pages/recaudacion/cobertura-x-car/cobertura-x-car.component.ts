@@ -78,6 +78,7 @@ import {
   textoDistancia,
 } from "./cobertura-x-car.reglas";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 const TODOS = "ALL";
 
 /** Columnas de la tabla y del Excel de los clientes del área dibujada y de los que no tienen coordenadas. */
@@ -108,7 +109,7 @@ const COLUMNAS_RESUMEN: ColumnaListado[] = [
 @Component({
   selector: "app-cobertura-x-car",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CommonModule,
     FormsModule,
     ButtonModule,

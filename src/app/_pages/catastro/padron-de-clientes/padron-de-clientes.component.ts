@@ -80,6 +80,7 @@ import {
 } from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
 import { CapaShape, ColumnaShape } from "../../../shared/utils/shapefile";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -114,7 +115,7 @@ const COLUMNAS_SHAPE_PADRON: ColumnaShape[] = [
 @Component({
   selector: "app-padron-de-clientes",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     CommonModule,

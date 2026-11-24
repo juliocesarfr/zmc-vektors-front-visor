@@ -280,3 +280,74 @@
     animation: none;
   }
 }
+
+// Descarga en Excel de los usuarios que están dentro de un área (sector, manzana, lote…).
+.pg-descargas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.pg-descarga {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.12);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+
+  i {
+    color: #22c55e;
+  }
+
+  &:hover:not(:disabled) {
+    border-color: #22c55e;
+    background: rgba(34, 197, 94, 0.22);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.pg-descargas-mensaje {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+}
+
+.pg-descargas-botones {
+  display: flex;
+  gap: 6px;
+
+  .pg-descarga {
+    flex: 1;
+  }
+}
+
+.pg-descarga-secundaria {
+  border-color: rgba(0, 229, 255, 0.45);
+  background: rgba(0, 229, 255, 0.1);
+
+  i {
+    color: var(--acento);
+  }
+
+  &:hover:not(:disabled) {
+    border-color: var(--acento);
+    background: rgba(0, 229, 255, 0.2);
+  }
+}
+
+.pg-fotos {
+  display: block;
+  margin-top: 10px;
+}

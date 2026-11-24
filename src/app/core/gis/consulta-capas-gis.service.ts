@@ -1,7 +1,7 @@
 import { Injectable, inject } from "@angular/core";
 import { HttpBackend, HttpClient } from "@angular/common/http";
 import { forkJoin, Observable, of } from "rxjs";
-import { catchError, map } from "rxjs/operators";
+import { catchError, map, switchMap } from "rxjs/operators";
 import GeoJSON from "ol/format/GeoJSON";
 import { get as obtenerProyeccion } from "ol/proj";
 import type View from "ol/View";
@@ -24,6 +24,12 @@ export interface CapaConsultable {
 export interface AtributoGis {
   etiqueta: string;
   valor: string;
+}
+
+/** Foto de una ficha, publicada como enlace en una columna de GeoServer. */
+export interface FotoGis {
+  etiqueta: string;
+  url: string;
 }
 
 /** Un valor por el que se puede filtrar una capa, con todas las formas en que está escrito en GeoServer. */
@@ -62,6 +68,8 @@ export interface ElementoGis {
   /** Identificador del elemento ("E0898TPV01"); si la capa no lo tiene, el rótulo de la capa. */
   titulo: string;
   atributos: AtributoGis[];
+  /** Fotos de la ficha (fachada, medidor, tapa…); vacío si la capa no las declara. */
+  fotos: FotoGis[];
   /** En la proyección del mapa, para resaltarlo. */
   geometria?: Geometry;
 }
@@ -75,6 +83,8 @@ interface RespuestaGeoServer {
 }
 
 const MAXIMO_ELEMENTOS = 10;
+// Fichas que se revisan por suministro para elegir la más reciente.
+const FICHAS_POR_CLIENTE = 20;
 
 // Píxeles de tolerancia alrededor del clic: una válvula es un punto diminuto y sin margen casi nunca se acierta.
 const TOLERANCIA_PX = 8;
@@ -394,8 +404,74 @@ export class ConsultaCapasGisService {
       capa: etiquetaCapa,
       titulo: identificador || etiquetaCapa,
       atributos: this.atributosVisibles(rol, propiedades),
+      fotos: this.fotosDe(rol, propiedades),
       geometria: this.leerGeometria(elemento?.geometry, proyeccionDatos, proyeccionMapa),
     };
+  }
+
+  /** Fotos declaradas de la capa que traen un enlace válido. */
+  private fotosDe(rol: CapaGisId, propiedades: Record<string, unknown>): FotoGis[] {
+    const fotos = this.gis.consultaCapa(rol).fotos ?? {};
+    return Object.entries(fotos)
+      .map(([campo, etiqueta]) => ({ etiqueta, url: String(propiedades[campo] ?? "").trim() }))
+      .filter((foto) => /^https?:\/\//i.test(foto.url));
+  }
+
+  /**
+   * Fotos de las fichas de un cliente (predio por su suministro, y agua y alcantarillado por el número de ficha).
+   * Vacío si la EPS no declara fotos o el cliente no tiene ficha.
+   */
+  fotosDeCliente(codcliente: string): Observable<FotoGis[]> {
+    const ficha = this.gis.consultaCapa("centroideFicha");
+    if (!ficha.campoCliente || !ficha.fotos || !/^\d+$/.test(codcliente)) return of([]);
+
+    const campoFicha = ficha.campoFicha ?? ficha.campoTitulo;
+    const columnasPredio = [
+      ...Object.keys(ficha.fotos),
+      ...(campoFicha ? [campoFicha] : []),
+      ...(ficha.campoFecha ? [ficha.campoFecha] : []),
+    ];
+    const url = this.gis.urlGetFeature("centroideFicha", `${ficha.campoCliente}='${codcliente}'`, {
+      propertyName: columnasPredio.join(","),
+      maxFeatures: String(FICHAS_POR_CLIENTE),
+    });
+    if (!url) return of([]);
+
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      switchMap((respuesta) => {
+        // Un suministro puede tener varias fichas: se toman las fotos de la más reciente.
+        const fichas = (respuesta.features ?? []).map((elemento) => elemento?.properties ?? {});
+        const campoFecha = ficha.campoFecha;
+        if (campoFecha) fichas.sort((a, b) => String(b[campoFecha] ?? "").localeCompare(String(a[campoFecha] ?? "")));
+        const propiedades = fichas[0] ?? {};
+        const fotosPredio = this.fotosDe("centroideFicha", propiedades);
+        const numeroFicha = campoFicha ? String(propiedades[campoFicha] ?? "").trim() : "";
+        if (!numeroFicha) return of(fotosPredio);
+        const conexiones = (["fichaAgua", "fichaAlcantarillado"] as CapaGisId[]).map((rol) =>
+          this.fotosDeConexion(rol, numeroFicha),
+        );
+        return forkJoin(conexiones).pipe(map((listas) => [...fotosPredio, ...listas.flat()]));
+      }),
+      catchError((error) => {
+        console.warn("[GIS] No se pudieron traer las fotos del cliente.", error);
+        return of([]);
+      }),
+    );
+  }
+
+  private fotosDeConexion(rol: CapaGisId, numeroFicha: string): Observable<FotoGis[]> {
+    const consulta = this.gis.consultaCapa(rol);
+    const campo = consulta.campoFicha ?? consulta.campoTitulo;
+    if (!consulta.fotos || !campo || !this.gis.tieneCapa(rol)) return of([]);
+    const url = this.gis.urlGetFeature(rol, `${campo}='${numeroFicha.replace(/'/g, "''")}'`, {
+      propertyName: Object.keys(consulta.fotos).join(","),
+      maxFeatures: "1",
+    });
+    if (!url) return of([]);
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) => this.fotosDe(rol, respuesta.features?.[0]?.properties ?? {})),
+      catchError(() => of([])),
+    );
   }
 
   // Si GeoServer responde en una proyección que OpenLayers no conoce, el elemento se muestra sin resaltarlo.

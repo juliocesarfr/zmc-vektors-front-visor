@@ -1,0 +1,24 @@
+// Mismo aspecto que las secciones del cuadro del cliente (fondo oscuro, acento cian).
+.ffc {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ffc-titulo {
+  color: #00e5ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.ffc-cargando {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}

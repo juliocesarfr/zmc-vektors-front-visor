@@ -1,0 +1,51 @@
+<div class="gf-fotos">
+  @for (foto of fotos; track foto.url; let indice = $index) {
+    <button type="button" class="gf-foto" (click)="abrir(indice)" [title]="'Ver ' + foto.etiqueta">
+      <span class="gf-foto-imagen">
+        <img [src]="foto.url" [alt]="foto.etiqueta" loading="lazy" />
+        <i class="pi pi-search-plus"></i>
+      </span>
+      <span class="gf-foto-rotulo">{{ foto.etiqueta }}</span>
+    </button>
+  }
+</div>
+
+<!-- Las miniaturas van en la plantilla de la foto: en vertical dejan toda la altura de la pantalla para la imagen. -->
+<p-galleria #visor [value]="fotos" [(visible)]="estaAbierta" [activeIndex]="indiceActivo"
+  (activeIndexChange)="irA($event)" [fullScreen]="true" [circular]="true" [showItemNavigators]="fotos.length > 1"
+  [showThumbnails]="false" [baseZIndex]="100000" maskClass="gf-fondo">
+  <ng-template #item let-foto>
+    <div class="gf-escena" [class.gf-escena-sola]="fotos.length < 2" (click)="cerrar()">
+      <div class="gf-ambiente" [style.background-image]="'url(' + foto.url + ')'"></div>
+
+      <div class="gf-zona-foto">
+        <div class="gf-marco" [class.gf-marco-ampliado]="estaAmpliada" (click)="alternarZoom($event)"
+          (mousemove)="moverZoom($event)" (mouseleave)="estaAmpliada = false"
+          [title]="estaAmpliada ? 'Clic para volver al tamaño normal' : 'Clic para ampliar'">
+          <img class="gf-grande" [src]="foto.url" [alt]="foto.etiqueta" [style.transform-origin]="origenZoom" />
+          <div class="gf-rotulo">
+            <strong>{{ foto.etiqueta }}</strong>
+            <span>{{ indiceActivo + 1 }} / {{ fotos.length }}</span>
+          </div>
+          <div class="gf-pista"><i class="pi pi-search-plus"></i> Clic para ampliar</div>
+        </div>
+      </div>
+
+      <a class="gf-abrir-original" [href]="foto.url" target="_blank" rel="noopener" (click)="$event.stopPropagation()"
+        title="Abrir la foto original en otra pestaña">
+        <i class="pi pi-external-link"></i>
+      </a>
+
+      @if (fotos.length > 1) {
+        <div class="gf-tira" (click)="$event.stopPropagation()">
+          @for (miniatura of fotos; track miniatura.url; let indice = $index) {
+            <button type="button" class="gf-miniatura" [class.gf-miniatura-activa]="indice === indiceActivo"
+              (click)="irA(indice)" [title]="miniatura.etiqueta">
+              <img [src]="miniatura.url" [alt]="miniatura.etiqueta" />
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </ng-template>
+</p-galleria>

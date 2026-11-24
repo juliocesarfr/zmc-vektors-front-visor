@@ -2,10 +2,11 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ButtonModule } from 'primeng/button';
 
+import { FotosFichaClienteComponent } from "../fotos-ficha-cliente/fotos-ficha-cliente.component";
 @Component({
   selector: 'app-mapa-popup-cliente',
   standalone: true,
-  imports: [CommonModule, ButtonModule],
+  imports: [FotosFichaClienteComponent, CommonModule, ButtonModule],
   templateUrl: './mapa-popup-cliente.component.html',
   styleUrls: ['./mapa-popup-cliente.component.scss']
 })

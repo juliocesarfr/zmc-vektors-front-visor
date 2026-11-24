@@ -80,6 +80,7 @@ import {
   LeyendaGruposComponent,
 } from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 // Relleno del lote semitransparente: debajo se siguen viendo las calles y el número del lote.
 const OPACIDAD_RELLENO_LOTE = 0.45;
 
@@ -124,7 +125,7 @@ const COLUMNAS_SHAPE_CONEXIONES: ColumnaShape[] = [
 @Component({
   selector: "app-conexiones-nuevas",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     CommonModule,

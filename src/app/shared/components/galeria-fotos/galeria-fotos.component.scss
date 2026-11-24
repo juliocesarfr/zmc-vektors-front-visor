@@ -1,0 +1,360 @@
+$acento: #00e5ff;
+$ancho-tira: 132px;
+$espacio-flecha: 92px;
+$margen-foto: 16px;
+
+.gf-fotos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gf-foto {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+  text-align: left;
+  cursor: zoom-in;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $acento;
+    box-shadow: 0 6px 18px rgba(0, 229, 255, 0.18);
+    transform: translateY(-2px);
+    outline: none;
+
+    img {
+      transform: scale(1.06);
+    }
+
+    .pi {
+      opacity: 1;
+    }
+  }
+}
+
+.gf-foto-imagen {
+  position: relative;
+  display: block;
+  height: 110px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .pi {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #fff;
+    background: rgba(2, 6, 23, 0.45);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+}
+
+.gf-foto-rotulo {
+  padding: 5px 8px 6px;
+  font-size: 11px;
+}
+
+// La galería se muestra fuera del componente (en el body): sus estilos no pueden ir encapsulados.
+::ng-deep .gf-fondo {
+  background: #020617 !important;
+
+  .p-galleria {
+    width: 100vw;
+    height: 100vh;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .p-galleria-content,
+  .p-galleria-items-container {
+    height: 100%;
+  }
+
+  @mixin boton-redondo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(2, 6, 23, 0.55);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+  }
+
+  .p-galleria-nav-button {
+    @include boton-redondo;
+    width: 56px;
+    height: 56px;
+    margin: -28px 18px 0;
+    z-index: 3;
+
+    &:not(.p-disabled):hover {
+      background: rgba(0, 229, 255, 0.28);
+      border-color: $acento;
+      color: #fff;
+      transform: scale(1.08);
+    }
+  }
+
+  // La flecha derecha queda junto a la foto, no encima de la tira de miniaturas.
+  .p-galleria-next-button {
+    right: $ancho-tira;
+  }
+
+  .p-galleria-close-button {
+    @include boton-redondo;
+    top: 14px;
+    right: 18px;
+    width: 46px;
+    height: 46px;
+    margin: 0;
+    z-index: 4;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.9);
+      border-color: transparent;
+      color: #fff;
+    }
+  }
+
+  .gf-escena {
+    position: relative;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    cursor: zoom-out;
+  }
+
+  // La misma foto, desenfocada, llena la pantalla: una foto vertical ya no queda perdida en un fondo negro.
+  .gf-ambiente {
+    position: absolute;
+    inset: -60px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(46px) brightness(0.38) saturate(1.25);
+  }
+
+  .gf-zona-foto {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: $margen-foto $espacio-flecha;
+  }
+
+  .gf-marco {
+    position: relative;
+    display: flex;
+    overflow: hidden;
+    border-radius: 14px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    cursor: zoom-in;
+    animation: gf-aparecer 0.28s ease;
+
+    &:hover .gf-pista {
+      opacity: 1;
+    }
+  }
+
+  .gf-grande {
+    display: block;
+    // La foto usa toda la altura de la pantalla: solo se descuenta el margen.
+    max-height: calc(100vh - #{2 * $margen-foto});
+    max-width: calc(100vw - #{2 * $espacio-flecha + $ancho-tira});
+    min-height: min(70vh, 100%);
+    object-fit: contain;
+    transition: transform 0.25s ease;
+  }
+
+  .gf-marco-ampliado {
+    cursor: zoom-out;
+
+    .gf-grande {
+      transform: scale(2.6);
+      // Al seguir al cursor no debe ir con retardo.
+      transition: transform 0.25s ease, transform-origin 0s;
+    }
+
+    .gf-rotulo,
+    .gf-pista {
+      opacity: 0 !important;
+    }
+  }
+
+  .gf-rotulo {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.6);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 14px;
+    pointer-events: none;
+    transition: opacity 0.2s;
+
+    span {
+      padding-left: 10px;
+      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .gf-pista {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    padding: 7px 12px;
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.6);
+    backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .gf-abrir-original {
+    @include boton-redondo;
+    position: absolute;
+    top: 14px;
+    right: 76px;
+    width: 46px;
+    height: 46px;
+    z-index: 4;
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(0, 229, 255, 0.28);
+      border-color: $acento;
+    }
+  }
+
+  .gf-tira {
+    position: relative;
+    flex: 0 0 $ancho-tira;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 74px 14px 16px;
+    overflow-y: auto;
+    background: rgba(2, 6, 23, 0.45);
+    backdrop-filter: blur(14px);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: default;
+  }
+
+  .gf-miniatura {
+    flex: 0 0 auto;
+    padding: 0;
+    height: 72px;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background: transparent;
+    opacity: 0.5;
+    cursor: pointer;
+    transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    &:hover {
+      opacity: 0.9;
+      transform: scale(1.04);
+    }
+  }
+
+  .gf-miniatura-activa {
+    opacity: 1;
+    border-color: $acento;
+    box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.25);
+  }
+
+  .gf-escena-sola {
+    .gf-grande {
+      max-width: calc(100vw - #{2 * $espacio-flecha});
+    }
+  }
+
+  @keyframes gf-aparecer {
+    from {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
+  // En pantallas angostas no hay ancho para la tira vertical: pasa abajo, en horizontal.
+  @media (max-width: 900px) {
+    .gf-escena {
+      flex-direction: column;
+    }
+
+    .gf-zona-foto {
+      padding: 68px 8px 8px;
+    }
+
+    .gf-grande {
+      max-width: calc(100vw - 16px);
+      max-height: calc(100vh - 176px);
+      min-height: 0;
+    }
+
+    .gf-tira {
+      flex: 0 0 auto;
+      flex-direction: row;
+      justify-content: flex-start;
+      padding: 10px;
+      overflow-x: auto;
+      border-left: 0;
+    }
+
+    .gf-miniatura {
+      width: 96px;
+    }
+
+    .p-galleria-next-button {
+      right: 0;
+    }
+
+    .p-galleria-nav-button {
+      margin: -28px 8px 0;
+    }
+  }
+}

@@ -81,6 +81,7 @@ import {
   LeyendaGruposComponent,
 } from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 interface TipoModificacionUI {
   codigo: TipoModificacionCatastral;
   descripcion: string;
@@ -138,7 +139,7 @@ const COLUMNAS_SHAPE_MODIFICACIONES: ColumnaShape[] = [
 @Component({
   selector: "app-modificaciones-catastrales",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     CommonModule,

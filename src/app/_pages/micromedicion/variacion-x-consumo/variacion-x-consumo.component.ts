@@ -83,6 +83,7 @@ import {
   textoVariacion,
 } from "./variacion-x-consumo.reglas";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 const TODOS = "ALL";
 
 const COLUMNAS_VARIACION: ColumnaListado[] = [
@@ -103,7 +104,7 @@ const COLUMNAS_VARIACION: ColumnaListado[] = [
 @Component({
   selector: "app-variacion-x-consumo",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CommonModule,
     FormsModule,
     ButtonModule,

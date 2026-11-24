@@ -58,6 +58,51 @@
       } @else {
         <div class="pg-vacio">Este elemento no tiene datos registrados.</div>
       }
+
+      @if (elementoActivo?.fotos?.length) {
+        <app-galeria-fotos class="pg-fotos" [fotos]="elementoActivo!.fotos"></app-galeria-fotos>
+      }
     </div>
+
+    @if (esArea) {
+      <div class="pg-descargas">
+        @if (faltaCargarClientes) {
+          <span class="pg-descargas-mensaje">
+            <i class="pi pi-info-circle"></i> Primero cargue los clientes con «Filtrar datos»; luego haga clic en el
+            área para ver y descargar los que están dentro.
+          </span>
+        } @else if (cantidadClientes === 0) {
+          <span class="pg-descargas-mensaje">De los clientes cargados, ninguno está dentro de esta área.</span>
+        } @else if (cantidadClientes) {
+          <span class="pg-descargas-mensaje">
+            De los clientes cargados, <strong>{{ cantidadClientes | number: '1.0-0' }}</strong> están dentro de esta área.
+          </span>
+          <div class="pg-descargas-botones">
+            <button
+              type="button"
+              class="pg-descarga pg-descarga-secundaria"
+              title="Marca en el mapa los clientes que están dentro, para comprobarlos"
+              (click)="alternarEnMapa()"
+            >
+              <i [class]="estanEnMapa ? 'pi pi-eye-slash' : 'pi pi-eye'"></i>
+              {{ estanEnMapa ? 'Ocultar del mapa' : 'Ver en el mapa' }}
+            </button>
+            <button
+              type="button"
+              class="pg-descarga"
+              [disabled]="estaDescargando"
+              title="Excel con los clientes que están dentro de este elemento"
+              (click)="descargarClientes()"
+            >
+              <i [class]="estaDescargando ? 'pi pi-spin pi-spinner' : 'pi pi-file-excel'"></i>
+              Descargar
+            </button>
+          </div>
+        }
+        @if (mensajeDescarga) {
+          <span class="pg-descargas-mensaje">{{ mensajeDescarga }}</span>
+        }
+      </div>
+    }
   </div>
 </div>

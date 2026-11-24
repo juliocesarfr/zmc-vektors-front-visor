@@ -241,6 +241,10 @@ export class GisConfigService {
     return palabras.charAt(0).toUpperCase() + palabras.slice(1);
   }
 
+  get usuariosDesdeFichasGeoserver(): boolean {
+    return !!this.actual.usuariosDesdeFichasGeoserver && this.tieneCapa("centroideFicha");
+  }
+
   consultaCapa(id: CapaGisId): ConsultaCapaGis {
     return this.actual.consultaCapas?.[id] ?? {};
   }

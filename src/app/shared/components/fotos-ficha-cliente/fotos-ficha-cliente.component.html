@@ -1,0 +1,10 @@
+@if (estaCargando || fotos.length) {
+  <section class="ffc">
+    <div class="ffc-titulo"><i class="pi pi-images"></i> Fotos de la ficha catastral</div>
+    @if (estaCargando) {
+      <div class="ffc-cargando"><i class="pi pi-spin pi-spinner"></i> Buscando fotos…</div>
+    } @else {
+      <app-galeria-fotos [fotos]="fotos"></app-galeria-fotos>
+    }
+  </section>
+}

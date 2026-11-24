@@ -92,6 +92,7 @@ import {
 } from "./seguimiento-programa.reglas";
 import { RegistroCorte } from "@host/_models/vektors/Cobranza/RegistroCorte";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 const COLOR_SIN_ESTADO = "#64748b";
 
 const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
@@ -110,7 +111,7 @@ const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
 @Component({
   selector: "app-seguimiento-programa",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     VisorImagenesComponent,
     PanelesMapaGisComponent,

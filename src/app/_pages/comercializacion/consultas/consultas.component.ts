@@ -88,6 +88,7 @@ import {
 } from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
 import { CapaShape, ColumnaShape } from "../../../shared/utils/shapefile";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -127,7 +128,7 @@ const SIN_TOPE_DE_REGISTROS = 99999;
 @Component({
   selector: "app-consultas",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     CommonModule,

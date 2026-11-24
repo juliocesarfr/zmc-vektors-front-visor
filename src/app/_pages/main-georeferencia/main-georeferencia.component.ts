@@ -77,6 +77,7 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
 import { BusquedaAvanzadaClientesService } from '../../../../../host/src/app/_servicios/vektors/busqueda-avanzada-clientes.service';
 import { BusquedaAvanzadaClientesRequest } from '../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models';
 
+import { FotosFichaClienteComponent } from "../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
 /** Columnas de la tabla y del Excel de los clientes que caen en el área dibujada. */
@@ -104,7 +105,7 @@ const SIN_TOPE_DE_REGISTROS = 99999;
   templateUrl: './main-georeferencia.component.html',
   styleUrl: './main-georeferencia.component.scss',
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     DialogoComerciosOsmComponent,
@@ -180,6 +181,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   rutaLecturaLayer!: TileLayer<TileWMS>;
   fichaAguaWmsLayer?: TileLayer<TileWMS>;
   fichaAlcantarilladoWmsLayer?: TileLayer<TileWMS>;
+  /** Fichas de predio de GeoServer: donde está configurado, es lo que muestra el interruptor «Usuarios». */
+  usuariosWmsLayer?: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
 
@@ -187,6 +190,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   // Capa de GeoServer que se enciende junto con el interruptor: la vectorial solo trae los puntos de la búsqueda.
   private capasWmsDelInterruptor: Record<string, BaseLayer | undefined> = {};
   private capasVector: VectorLayer<VectorSource>[] = [];
+  /** Capas encendidas al abrir la pantalla; a ellas se vuelve al limpiar una búsqueda. */
+  private capasAlAbrir: string[] = [];
   private detenerObservadorMapa?: () => void;
 
   loteSeleccionadoGis: ElementoGis | null = null;
@@ -255,6 +260,10 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   ngOnInit(): void {
     this.commercialLayers = this.gis.soloCapasPublicadas(this.commercialLayers);
+    if (this.gis.usuariosDesdeFichasGeoserver) {
+      this.capasAlAbrir = CAPAS_DE_BUSQUEDA;
+      this.commercialLayers.forEach((capa) => (capa.active = this.capasAlAbrir.includes(capa.id)));
+    }
     this.cargarSucursales();
     this.cargarTiposDocumento();
 
@@ -310,7 +319,14 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       avisar: (detalle) => this.avisar('info', 'Aviso', detalle),
       alConsultarElemento: (elementos) => {
         const elementoLote = elementos.find((e) => e.rol === "lotes");
-        if (elementoLote) {
+        const codigoDeFicha = this.codigoClienteDeFicha(elementos);
+        if (codigoDeFicha) {
+          // Se conservan las capas que el usuario tenía encendidas: solo hizo clic en una ficha.
+          const capasEncendidas = this.commercialLayers.filter((capa) => capa.active).map((capa) => capa.id);
+          this.buscarClientePorCodigo(codigoDeFicha, [...CAPAS_DE_BUSQUEDA, ...capasEncendidas]);
+          this.loteSeleccionadoGis = elementoLote ?? null;
+          this.pestanaActivaPopup = "cliente";
+        } else if (elementoLote) {
           this.loteSeleccionadoGis = elementoLote;
           this.pestanaActivaPopup = "lote";
           const codcliente = this.extraerCodigoClienteDeLote(elementoLote);
@@ -379,6 +395,9 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.fichaAlcantarilladoWmsLayer = this.gis.tieneCapa("fichaAlcantarillado")
       ? crearCapaWms(this.gis.urlWms(), this.gis.capa("fichaAlcantarillado"), false)
       : undefined;
+    this.usuariosWmsLayer = this.gis.usuariosDesdeFichasGeoserver
+      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("centroideFicha"), true)
+      : undefined;
 
     this.lecturasLayer = this.crearCapaPuntos(
       { forma: "circulo", radios: RADIOS_LECTURA, visible: false },
@@ -422,6 +441,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       rutaLectura: this.rutaLecturaLayer,
     };
     this.capasWmsDelInterruptor = {
+      usuarios: this.usuariosWmsLayer,
       caja_agua: this.fichaAguaWmsLayer,
       ficha_alc: this.fichaAlcantarilladoWmsLayer,
     };
@@ -435,7 +455,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
         this.callesLayer,
         this.lotesLayer,
         this.rutaLecturaLayer,
-        ...[this.fichaAlcantarilladoWmsLayer, this.fichaAguaWmsLayer].filter((capa) => !!capa),
+        ...[this.fichaAlcantarilladoWmsLayer, this.fichaAguaWmsLayer, this.usuariosWmsLayer].filter((capa) => !!capa),
         this.acomAguaLayer,
         this.acomDesagueLayer,
         this.fichaAlcLayer,
@@ -825,7 +845,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   toggleLayer(layer: { id: string; active: boolean }): void {
     layer.active = !layer.active;
     this.mostrarCapa(layer.id, layer.active);
-    if (layer.id === "usuarios" && layer.active) {
+    if (layer.id === "usuarios" && layer.active && !this.usuariosWmsLayer) {
       const total = this.lecturasLayer?.getSource()?.getFeatures().length ?? 0;
       if (total === 0) {
         this.avisar(
@@ -902,6 +922,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       { rol: "sectoresComerciales", capa: this.sectoresComercialesLayer },
       ...(this.fichaAguaWmsLayer ? [{ rol: "fichaAgua", capa: this.fichaAguaWmsLayer }] : []),
       ...(this.fichaAlcantarilladoWmsLayer ? [{ rol: "fichaAlcantarillado", capa: this.fichaAlcantarilladoWmsLayer }] : []),
+      ...(this.usuariosWmsLayer ? [{ rol: "centroideFicha", capa: this.usuariosWmsLayer }] : []),
     ];
   }
 
@@ -1410,8 +1431,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.controladorGis?.cerrarPopupGis();
     this.controladorGis?.quitarPredio();
     this.controladorGis?.quitarCalle();
-    // Vuelve a como abre la pantalla: capas apagadas y sin pedir los usuarios de la sucursal.
-    this.desactivarCapasSecundarias([]);
+    // Vuelve a como abre la pantalla, sin pedir los usuarios de la sucursal.
+    this.desactivarCapasSecundarias(this.capasAlAbrir);
     this.isBusquedaActiva = false;
     this.mostrarRegistros([], false);
     this.limpiarURL();
@@ -1768,7 +1789,21 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     return null;
   }
 
-  buscarClientePorCodigo(codigo: string): void {
+  /** Código de cliente de la ficha de predio de GeoServer que quedó bajo el clic; sin ficha o sin código, null. */
+  private codigoClienteDeFicha(elementos: ElementoGis[]): string | null {
+    if (!this.usuariosWmsLayer) return null;
+    const { campoCliente, atributos } = this.gis.consultaCapa("centroideFicha");
+    const etiqueta = campoCliente ? atributos?.[campoCliente] : undefined;
+    if (!etiqueta) return null;
+    for (const elemento of elementos) {
+      if (elemento.rol !== "centroideFicha") continue;
+      const codigo = (elemento.atributos.find((atributo) => atributo.etiqueta === etiqueta)?.valor ?? "").trim();
+      if (/^\d+$/.test(codigo) && Number(codigo) > 0) return codigo;
+    }
+    return null;
+  }
+
+  buscarClientePorCodigo(codigo: string, capasVisibles: string[] = CAPAS_DE_BUSQUEDA): void {
     const cod = String(codigo || "").trim();
     if (!cod) return;
     this.searchSuministro = cod;
@@ -1776,7 +1811,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       { codcliente: cod },
       `Buscando suministro ${cod}...`,
       `No se encontró el suministro ${cod} en el sistema.`,
-      CAPAS_DE_BUSQUEDA,
+      capasVisibles,
     );
   }
 

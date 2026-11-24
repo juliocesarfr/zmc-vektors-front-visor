@@ -126,6 +126,11 @@ export interface GisEpsConfig {
    * (por ejemplo, el lote de un cliente) solo devuelven lo que cae dentro, para que el mapa no salte a la otra ciudad.
    */
   zonaTrabajo?: ZonaTrabajoGis;
+  /**
+   * El mapa principal abre con la capa de fichas de predio de GeoServer en el interruptor «Usuarios»;
+   * al hacer clic en una ficha se abre el cliente del sistema comercial (por `campoCliente` de `centroideFicha`).
+   */
+  usuariosDesdeFichasGeoserver?: boolean;
 }
 
 export interface ZonaTrabajoGis {
@@ -148,4 +153,10 @@ export interface ConsultaCapaGis {
   atributos?: Record<string, string>;
   /** Columna con el código de cliente; permite ubicar el predio de un usuario buscado. */
   campoCliente?: string;
+  /** Columna con el enlace de una foto -> rótulo; se muestran como imágenes, no como texto. */
+  fotos?: Record<string, string>;
+  /** Columna que une esta ficha con la ficha predio (las de agua y alcantarillado, por su número de ficha). */
+  campoFicha?: string;
+  /** Fecha de la ficha: si un cliente tiene varias, sus fotos salen de la más reciente. */
+  campoFecha?: string;
 }

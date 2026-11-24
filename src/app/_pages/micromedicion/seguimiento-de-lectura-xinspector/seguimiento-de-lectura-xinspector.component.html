@@ -482,6 +482,7 @@
             (click)="centrarEnSeleccion()"
             style="margin-bottom: 0.5rem"
           ></button>
+          <app-fotos-ficha-cliente [codcliente]="$any(registroSeleccionado['codcliente'])"></app-fotos-ficha-cliente>
           <button
             pButton
             type="button"

@@ -33,6 +33,7 @@ import { TablaSeleccionMapaComponent } from '../tabla-seleccion-mapa/tabla-selec
       @if (controlador.elementosGis.length > 0) {
         <app-mapa-popup-gis
           [elementos]="controlador.elementosGis"
+          [controlador]="controlador"
           (cerrar)="controlador.cerrarPopupGis()"
           (elementoActivoCambia)="controlador.resaltarElementoGis($event)"
         ></app-mapa-popup-gis>

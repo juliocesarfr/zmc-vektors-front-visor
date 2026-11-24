@@ -79,6 +79,7 @@ import {
 } from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
 import { GruposEstadoReclamo } from "./estados-reclamo";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 // Relleno del lote semitransparente: debajo se siguen viendo las calles y el número del lote.
 const OPACIDAD_RELLENO_LOTE = 0.45;
 
@@ -134,7 +135,7 @@ const COLUMNAS_SHAPE_RECLAMOS: ColumnaShape[] = [
 @Component({
   selector: "app-reclamos-primera-instancia",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     CommonModule,

@@ -89,6 +89,7 @@ import { InspectorLectura } from "@host/_models/vektors/InspectorLectura";
 import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLecturaInspector";
 import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
 
+import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
 const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -107,7 +108,7 @@ const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
 @Component({
   selector: "app-seguimiento-de-lectura-xinspector",
   standalone: true,
-  imports: [
+  imports: [FotosFichaClienteComponent, 
     CapasSidebarComponent,
     PanelesMapaGisComponent,
     CommonModule,

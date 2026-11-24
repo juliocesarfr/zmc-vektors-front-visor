@@ -597,6 +597,7 @@
           </div>
         </div>
       </section>
+      <app-fotos-ficha-cliente [codcliente]="lecturaSeleccionada.codcliente || datosClientePopup?.codcliente"></app-fotos-ficha-cliente>
       <button type="button" class="btn-ver-mas" (click)="
             verMasInformacion(lecturaSeleccionada.codcliente || datosClientePopup?.codcliente)
           ">

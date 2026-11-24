@@ -38,7 +38,15 @@ const TIPOS_GEOMETRIA = new Set([
 ]);
 
 // Aunque la capa no declare sus atributos, estos datos personales no salen en el shape.
-const COLUMNAS_PERSONALES = new Set(["dni", "telefono", "celular", "correo", "email"]);
+// Por la forma del nombre y no por la lista exacta: cada EPS los llama distinto
+// (nrodocident, nuevo_num_documento_usuario, dniinspecencuestador, num_documento_enc…).
+// Cubre número de documento, DNI, RUC, teléfono, celular, correo y los datos del encuestado o del familiar.
+const PATRON_COLUMNA_PERSONAL =
+  /(num|nro|nuevo).*doc|doc.*(num|nro)|dni|(^|_)ruc($|_)|telef|celular|correo|mail|encuestad|parentesco/i;
+
+export function esColumnaPersonal(columna: string): boolean {
+  return PATRON_COLUMNA_PERSONAL.test(columna);
+}
 
 @Injectable({ providedIn: "root" })
 export class DescargaShapeGisService {
@@ -173,7 +181,7 @@ export class DescargaShapeGisService {
         .filter((columna) =>
           declarados
             ? columna in declarados
-            : !COLUMNAS_OCULTAS.has(columna.toLowerCase()) && !COLUMNAS_PERSONALES.has(columna.toLowerCase()),
+            : !COLUMNAS_OCULTAS.has(columna.toLowerCase()) && !esColumnaPersonal(columna),
         );
       columnas.set(nombre, [geometria.name, ...atributos]);
     }

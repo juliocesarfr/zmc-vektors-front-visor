@@ -26,7 +26,8 @@ import { InteraccionGis } from "./interaccion-gis";
 import { AccionDibujo, MenuDibujos } from "./menu-dibujos";
 import { PredioBuscado } from "./predio-buscado";
 import { CalleBuscada } from "./calle-buscada";
-import { registrosDentroDeArea } from "./geo.utils";
+import { extraerCoordenada, registrosDentroDeArea } from "./geo.utils";
+import { PuntosEnArea } from "./puntos-en-area";
 import { capturarAreaMapa, mostrarAvisoMapa, proporcionDelArea } from "./exportar-imagen-mapa";
 import { construirTerreno } from "./vista-3d/terreno";
 import { Ventana3d } from "./vista-3d/ventana-3d";
@@ -106,6 +107,7 @@ export class ControladorMapaGis {
 
   private readonly interaccion: InteraccionGis;
   private readonly predio: PredioBuscado;
+  private readonly puntosEnArea: PuntosEnArea;
   private readonly calle: CalleBuscada;
   private busquedaCalle?: Subscription;
   private readonly menuDibujos?: MenuDibujos;
@@ -158,6 +160,7 @@ export class ControladorMapaGis {
         esAreaDibujada(this.menuDibujos?.dibujoEn(pixel)?.getGeometry()),
     });
     this.predio = new PredioBuscado(map);
+    this.puntosEnArea = new PuntosEnArea(map);
     this.calle = new CalleBuscada(map);
   }
 
@@ -188,6 +191,52 @@ export class ControladorMapaGis {
   cerrarPopupGis(): void {
     this.elementosGis = [];
     this.interaccion.cancelar();
+    this.puntosEnArea.quitar();
+  }
+
+  // ---------- Usuarios dentro de un área consultada (sector, manzana…) ----------
+
+  /** La pantalla carga sus clientes con «Filtrar datos» (Catastro, Micromedición…): el área usa esos. */
+  get cargaClientesConFiltro(): boolean {
+    return !!this.opciones.listado;
+  }
+
+  /**
+   * Clientes cargados en la pantalla (con «Filtrar datos») que caen dentro de `area`, con su ubicación.
+   * `null` si la pantalla no tiene clientes cargados: entonces se usan los usuarios de GeoServer.
+   */
+  clientesCargadosEn(area: Geometry): { filas: FilaListado[]; coordenadas: Coordinate[] } | null {
+    const listado = this.opciones.listado;
+    if (!listado || !this.hayRegistros()) return null;
+    const filas: FilaListado[] = [];
+    const coordenadas: Coordinate[] = [];
+    for (const registro of listado.registros()) {
+      const coordenada = extraerCoordenada(registro, listado.origen);
+      if (!coordenada || !area.intersectsCoordinate(coordenada)) continue;
+      filas.push(listado.aFila ? listado.aFila(registro) : registro);
+      coordenadas.push(coordenada);
+    }
+    return { filas, coordenadas };
+  }
+
+  /** Excel de los clientes cargados dentro del área, con las mismas columnas que el listado de la pantalla. */
+  descargarClientesCargados(filas: FilaListado[], titulo: string, detalle: string): Promise<void> {
+    const listado = this.opciones.listado!;
+    return descargarListadoExcel(listado.excelService, {
+      titulo: `${listado.tituloReporte} - ${titulo}`,
+      subcabecera: [...listado.subcabecera(), detalle],
+      nombreArchivo: listado.nombreArchivo,
+      columnas: listado.columnas,
+      filas,
+    });
+  }
+
+  mostrarPuntosEnArea(coordenadas: Coordinate[]): void {
+    this.puntosEnArea.mostrar(coordenadas);
+  }
+
+  quitarPuntosEnArea(): void {
+    this.puntosEnArea.quitar();
   }
 
   resaltarElementoGis(elemento: ElementoGis): void {

@@ -114,9 +114,21 @@ const EPS_004_IQUITOS: GisEpsConfig = {
         servicio: "Servicio",
         cat_tarifa_1: "Categoría",
       },
+      // Enlaces públicos a las fotos del levantamiento catastral.
+      fotos: {
+        fotografia_01_fachada_predio: "Fachada del predio",
+        fotografia_05_panoramico: "Vista panorámica",
+      },
+      campoFicha: "ficha_numero",
+      campoFecha: "fecha",
     },
     fichaAgua: {
       campoTitulo: "ficha_numero",
+      campoFicha: "ficha_numero",
+      fotos: {
+        "fotografía_2_tapa_de_agua": "Tapa de la caja de agua",
+        fotografia_3_medidor: "Medidor",
+      },
       atributos: {
         condicion: "Condición",
         "ubicación_caja_agua": "Ubicación",
@@ -130,6 +142,10 @@ const EPS_004_IQUITOS: GisEpsConfig = {
     },
     fichaAlcantarillado: {
       campoTitulo: "ficha_numero",
+      campoFicha: "ficha_numero",
+      fotos: {
+        "fotografía_4_tapa_de_desagüe": "Tapa de la caja de desagüe",
+      },
       atributos: {
         "condición": "Condición",
         "ubicación_caja_desague": "Ubicación",
@@ -152,6 +168,7 @@ const EPS_004_IQUITOS: GisEpsConfig = {
     campoGeometria: "geom",
     extensionUtm: [660000, 9500000, 800000, 9700000],
   },
+  usuariosDesdeFichasGeoserver: true,
   vista: {
     centro: [-73.2588, -3.7531],
     zoom: 16,
