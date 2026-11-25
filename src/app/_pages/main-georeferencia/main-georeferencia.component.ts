@@ -37,7 +37,7 @@ import Point from 'ol/geom/Point';
 import CircleGeom from 'ol/geom/Circle';
 import { circular } from 'ol/geom/Polygon';
 import type { Coordinate } from 'ol/coordinate';
-import { extend, getCenter } from 'ol/extent';
+import { createEmpty, extend, getCenter, isEmpty, type Extent } from 'ol/extent';
 import { transform, getPointResolution } from 'ol/proj';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 
@@ -241,6 +241,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private codsucCalles: string | null = null;
   callesSugeridas: Calles[] = [];
   calleElegida: Calles | null = null;
+  searchNroCalle: string = '';
   listaSucursales: any[] = [];
   selectedSucursal: any = null;
   filtrosVisible = false;
@@ -917,14 +918,14 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.capasSidebar?.apagarTecnicas();
   }
 
-  /** Antes de cada búsqueda: sin ficha abierta, sin lote marcado y solo las capas de búsqueda. */
+  /** Antes de cada búsqueda: sin ficha abierta, sin lote marcado y con las capas necesarias activas (sin apagar las que ya eligió el usuario). */
   private prepararNuevaBusqueda(capasVisibles: string[] = CAPAS_DE_BUSQUEDA): void {
     this.buscadorEstabaAbierto = false;
     this.cerrarPopup();
     this.controladorGis?.cerrarPopupGis();
     this.controladorGis?.quitarPredio();
     this.controladorGis?.quitarCalle();
-    this.desactivarCapasSecundarias(capasVisibles);
+    capasVisibles.forEach((id) => this.activarCapaPorId(id));
   }
 
   private ubicarCliente(registro: RegistroLectura): void {
@@ -1238,12 +1239,25 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     });
   }
 
-  /** Igual que en Consulta de Usuario: sugiere las calles que empiezan con lo escrito. */
+  /** Sugiere calles cuyo nombre empieza o contiene el texto escrito (sin distinguir tildes). */
   sugerirCalles(evento: { query: string }): void {
-    const texto = (evento.query || '').trim().toLowerCase();
-    this.callesSugeridas = this.callesSucursal.filter((calle) =>
-      String(calle.descripcioncalle ?? '').toLowerCase().startsWith(texto),
-    );
+    const texto = normalizarTexto(evento.query || '');
+    if (!texto) {
+      this.callesSugeridas = [...this.callesSucursal];
+      return;
+    }
+    const empiezan: Calles[] = [];
+    const contienen: Calles[] = [];
+    for (const calle of this.callesSucursal) {
+      const nombre = normalizarTexto(String(calle.descripcioncalle ?? ''));
+      const completa = normalizarTexto(`${(calle as any).destipocalle ?? ''} ${calle.descripcioncalle ?? ''}`);
+      if (nombre.startsWith(texto) || completa.startsWith(texto)) {
+        empiezan.push(calle);
+      } else if (nombre.includes(texto) || completa.includes(texto)) {
+        contienen.push(calle);
+      }
+    }
+    this.callesSugeridas = [...empiezan, ...contienen];
   }
 
   buscarPorCalle(): void {
@@ -1252,11 +1266,21 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.avisar("warn", "Calle", "Elija primero una calle de la lista.");
       return;
     }
+    const nro = this.searchNroCalle.trim();
+    const mensajeSinResultados = nro
+      ? `No se encontraron clientes en "${calle}" con dirección "${nro}".`
+      : `No se encontraron clientes en la calle "${calle}".`;
+
     this.buscarClientes(
       { codcalle: calle },
-      'Buscando clientes de la calle...',
-      `No se encontraron clientes en la calle "${calle}".`,
-      [...CAPAS_DE_BUSQUEDA, 'calles'],
+      nro ? `Buscando ${calle} ${nro}...` : 'Buscando clientes de la calle...',
+      mensajeSinResultados,
+      CAPAS_DE_BUSQUEDA,
+      nro ? (clientes) => filtrarPorDireccionExacta(clientes, nro) : undefined,
+      (todosLosClientes) => {
+        const zona = this.extensionDeRegistros(todosLosClientes);
+        if (zona) this.controladorGis?.marcarCalle(calle, undefined, false, zona);
+      },
     );
   }
 
@@ -1292,6 +1316,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     mensaje: string,
     mensajeSinResultados: string,
     capasVisibles: string[] = CAPAS_DE_BUSQUEDA,
+    filtrarResultados?: (clientes: RegistroLectura[]) => RegistroLectura[],
+    alCargar?: (todosLosClientes: RegistroLectura[]) => void,
   ): void {
     this.prepararNuevaBusqueda(capasVisibles);
     this.resultadosTab = [];
@@ -1300,15 +1326,26 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       this.pedirClientes({ codsuc: this.selectedSucursal?.codsuc || 'ALL', inicio: 0, nropagina: SIN_TOPE_DE_REGISTROS, ...filtro }),
       mensaje,
       (clientes) => {
-        this.resultadosTab = clientes;
-        if (clientes.length === 0) {
+        const filtrados = filtrarResultados ? filtrarResultados(clientes) : clientes;
+        this.resultadosTab = filtrados;
+        alCargar?.(clientes);
+        if (filtrados.length === 0) {
           this.avisar("warn", "Sin resultados", mensajeSinResultados);
-        } else if (clientes.length === 1) {
-          this.elegirResultado(clientes[0]);
+        } else if (filtrados.length === 1) {
+          this.elegirResultado(filtrados[0]);
         }
       },
       "Ocurrió un error al buscar los clientes.",
     );
+  }
+
+  private extensionDeRegistros(registros: RegistroLectura[]): Extent | undefined {
+    const extension = createEmpty();
+    for (const registro of registros) {
+      const coord = extraerCoordenada(registro, ORIGENES_COORDENADA.usuario);
+      if (coord) extend(extension, [coord[0], coord[1], coord[0], coord[1]]);
+    }
+    return isEmpty(extension) ? undefined : extension;
   }
 
   /** Como antes: pone en el mapa todos los clientes de la tabla (los filtrados, si hay filtro) y la tabla sigue abierta. */
@@ -1320,9 +1357,10 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.isBusquedaActiva = true;
     const nombreCalle = this.tabActivaBuscador === 'calles' ? this.calleElegida?.descripcioncalle : undefined;
     if (nombreCalle) {
-      // Como en GIS Loreto: se pinta la calle y el mapa se acerca a ella; si GeoServer no la tiene, a los clientes.
-      this.mostrarRegistros(registros, false);
-      this.controladorGis?.marcarCalle(nombreCalle, () => this.acercarARegistros(registros));
+      // Pinta solo los tramos de la calle en la zona de los clientes de la sucursal y encuadra sobre ellos.
+      const zona = this.extensionDeRegistros(registros);
+      this.mostrarRegistros(registros, !!zona);
+      this.controladorGis?.marcarCalle(nombreCalle, undefined, !zona, zona);
     } else {
       this.mostrarRegistros(registros, true);
     }
@@ -1332,7 +1370,9 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
 
   /** El usuario eligió un cliente de la tabla: el mapa muestra solo ese, con su ficha y su lote marcado. */
   elegirResultado(registro: RegistroLectura): void {
-    this.controladorGis?.quitarCalle();
+    if (this.tabActivaBuscador !== 'calles') {
+      this.controladorGis?.quitarCalle();
+    }
     this.isBusquedaActiva = true;
     this.mostrarRegistros([registro], false);
     this.buscadorEstabaAbierto = this.resultadosTab.length > 1;
@@ -1399,6 +1439,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.searchNombre = "";
     this.searchCatastral = "";
     this.calleElegida = null;
+    this.searchNroCalle = "";
     this.tipoDocumentoElegido = null;
     this.filtroResultados = "";
     this.searchSector = "";
@@ -1780,4 +1821,36 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     );
   }
 
+}
+
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizarNumeroDireccion(texto: string): string {
+  return normalizarTexto(texto).replace(/^0+(?=\d)/, "").replace(/\s+/g, " ");
+}
+
+/** Prioriza coincidencia exacta en `nrocalle`; si no hay, busca coincidencia parcial en la dirección completa. */
+function filtrarPorDireccionExacta(clientes: RegistroLectura[], direccionBuscada: string): RegistroLectura[] {
+  const nroBuscado = normalizarNumeroDireccion(direccionBuscada);
+  const textoBuscado = normalizarTexto(direccionBuscada);
+  if (!textoBuscado) return clientes;
+
+  const exactos = clientes.filter((registro: any) => {
+    const nro = normalizarNumeroDireccion(String(registro.nrocalle ?? ""));
+    return nro !== "" && nro === nroBuscado;
+  });
+  if (exactos.length > 0) return exactos;
+
+  return clientes.filter((registro: any) => {
+    const completa = normalizarTexto(
+      `${registro.descripcioncorta ?? ""} ${registro.descripcioncalle ?? ""} ${registro.nrocalle ?? ""} ${registro.referencia ?? ""}`,
+    );
+    return completa.includes(textoBuscado);
+  });
 }

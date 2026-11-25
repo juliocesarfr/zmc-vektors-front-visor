@@ -357,14 +357,24 @@ export class ConsultaCapasGisService {
     const texto = nombre.trim();
     if (!campoTitulo || !texto) return of([]);
 
-    // Las comillas simples se duplican: el nombre va dentro de un filtro CQL.
-    const filtro = `${campoTitulo} ILIKE '%${texto.replace(/'/g, "''")}%'`;
+    const normalizado = normalizarSinTildes(texto);
+    // GeoServer puede guardar tildes (ej. "CIRCUNVALACIÓN") mientras Sysco busca sin tildes ("CIRCUNVALACION"):
+    // reemplazamos vocales por `_` en el ILIKE y filtramos exacto sin tildes sobre los tramos devueltos.
+    const patronCql = normalizado
+      .replace(/'/g, "''")
+      .replace(/[aeiou]/g, "_")
+      .replace(/\s+/g, "%");
+    const filtro = `${campoTitulo} ILIKE '%${patronCql}%'`;
     const url = this.gis.urlGetFeature("calles", filtro, { srsName: proyeccionMapa });
     if (!url) return of([]);
 
     return this.http.get<RespuestaGeoServer>(url).pipe(
       map((respuesta) =>
         (respuesta.features ?? [])
+          .filter((tramo) => {
+            const valor = tramo?.properties?.[campoTitulo];
+            return typeof valor === "string" && normalizarSinTildes(valor).includes(normalizado);
+          })
           .map((tramo) => this.leerGeometria(tramo?.geometry, respuesta.crs?.properties?.name, proyeccionMapa))
           .filter((geometria): geometria is Geometry => !!geometria),
       ),
@@ -404,10 +414,11 @@ export class ConsultaCapasGisService {
     proyeccionDatos: string | undefined,
     proyeccionMapa: ProjectionLike,
   ): Geometry | undefined {
-    if (!geometria || (proyeccionDatos && !obtenerProyeccion(proyeccionDatos))) return undefined;
+    const proyeccionNormalizada = normalizarProyeccion(proyeccionDatos);
+    if (!geometria || (proyeccionNormalizada && !obtenerProyeccion(proyeccionNormalizada))) return undefined;
     try {
       return this.formatoGeoJson.readGeometry(geometria, {
-        dataProjection: proyeccionDatos ?? proyeccionMapa,
+        dataProjection: proyeccionNormalizada ?? proyeccionMapa,
         featureProjection: proyeccionMapa,
       }) ?? undefined;
     } catch {
@@ -485,4 +496,19 @@ export class ConsultaCapasGisService {
   private sinWorkspace(nombre: string): string {
     return nombre.includes(":") ? nombre.split(":")[1] : nombre;
   }
+}
+
+function normalizarSinTildes(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizarProyeccion(crs: string | undefined): string | undefined {
+  if (!crs) return undefined;
+  const match = /EPSG:+(\d+)$/i.exec(crs.trim());
+  return match ? `EPSG:${match[1]}` : crs;
 }

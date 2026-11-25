@@ -241,6 +241,12 @@
               </ng-template>
             </p-autoComplete>
           </fieldset>
+          <fieldset class="search-fieldset search-fieldset--nro">
+            <legend class="search-legend">Nro. / Dirección</legend>
+            <div class="input-content">
+              <input type="text" [(ngModel)]="searchNroCalle" placeholder="Ej: 450" (keyup.enter)="buscarPorCalle()" />
+            </div>
+          </fieldset>
           <button type="button" class="btn-cyan-pill" (click)="buscarPorCalle()" [disabled]="cargando || !calleElegida">
             BUSCAR
           </button>

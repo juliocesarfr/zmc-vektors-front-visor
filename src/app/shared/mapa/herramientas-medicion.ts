@@ -12,6 +12,7 @@ import { getPointResolution } from "ol/proj";
 import VectorSource from "ol/source/Vector";
 import { getArea, getLength } from "ol/sphere";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
+import { MARCA_MODO_ROTAR } from "./rotacion-mapa";
 
 const MARCA_DIBUJO_EN_CURSO = "dibujoEnCurso";
 
@@ -32,6 +33,7 @@ const MS_MARGEN_TRAS_DIBUJO = 400;
 export function estaUsandoHerramientas(map: OlMap): boolean {
   return (
     !!map.get(MARCA_DIBUJO_EN_CURSO) ||
+    !!map.get(MARCA_MODO_ROTAR) ||
     map.getInteractions().getArray().some((interaccion) => interaccion.get("isDrawInteraction"))
   );
 }

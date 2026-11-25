@@ -5,10 +5,10 @@ import { fromCircle } from "ol/geom/Polygon";
 import { getArea } from "ol/sphere";
 import type Geometry from "ol/geom/Geometry";
 import type { Coordinate } from "ol/coordinate";
-import { getHeight, getWidth, type Extent } from "ol/extent";
+import { buffer, getHeight, getWidth, intersects, type Extent } from "ol/extent";
 import { firstValueFrom, of, type Subscription } from "rxjs";
 import { getCenter } from "ol/extent";
-import { getPointResolution } from "ol/proj";
+import { get as obtenerProyeccion, getPointResolution } from "ol/proj";
 import { switchMap } from "rxjs/operators";
 import type { ExcelService } from "@host/_servicios/reportes/excel.service";
 import type VectorLayer from "ol/layer/Vector";
@@ -26,6 +26,7 @@ import { InteraccionGis } from "./interaccion-gis";
 import { AccionDibujo, MenuDibujos } from "./menu-dibujos";
 import { PredioBuscado } from "./predio-buscado";
 import { CalleBuscada } from "./calle-buscada";
+import { RotacionMapa } from "./rotacion-mapa";
 import { registrosDentroDeArea } from "./geo.utils";
 import { capturarAreaMapa, mostrarAvisoMapa, proporcionDelArea } from "./exportar-imagen-mapa";
 import { construirTerreno } from "./vista-3d/terreno";
@@ -107,6 +108,7 @@ export class ControladorMapaGis {
   private readonly interaccion: InteraccionGis;
   private readonly predio: PredioBuscado;
   private readonly calle: CalleBuscada;
+  private readonly rotacion: RotacionMapa;
   private busquedaCalle?: Subscription;
   private readonly menuDibujos?: MenuDibujos;
   private busquedaPredio?: Subscription;
@@ -159,6 +161,7 @@ export class ControladorMapaGis {
     });
     this.predio = new PredioBuscado(map);
     this.calle = new CalleBuscada(map);
+    this.rotacion = new RotacionMapa(map, !!listado);
   }
 
   get capaPredio(): VectorLayer<VectorSource> {
@@ -226,17 +229,37 @@ export class ControladorMapaGis {
   /**
    * Pinta la calle buscada y la encuadra de cerca, en la parte del mapa que queda libre.
    * `alNoEncontrar` corre si la EPS no la publica o GeoServer no la tiene, para que la pantalla encuadre otra cosa.
+   * Si se indica `zonaReferencia` (extensión de los clientes de la sucursal), solo pinta los tramos de esa zona
+   * para no resaltar calles homónimas de otras sucursales.
    */
-  marcarCalle(nombre: string, alNoEncontrar?: () => void): void {
+  marcarCalle(
+    nombre: string,
+    alNoEncontrar?: () => void,
+    encuadrar = true,
+    zonaReferencia?: Extent,
+  ): void {
     this.quitarCalle();
     this.busquedaCalle = this.opciones.consulta
       .buscarCalle(nombre, this.opciones.gis.proyeccionMapa)
       .subscribe((tramos) => {
-        this.calle.mostrar(tramos);
+        const tramosFiltrados = zonaReferencia
+          ? this.filtrarTramosEnZona(tramos, zonaReferencia)
+          : tramos;
+        this.calle.mostrar(tramosFiltrados);
         const extension = this.calle.extension();
-        if (extension) this.encuadrarEnZonaLibre(extension);
-        else alNoEncontrar?.();
+        if (extension) {
+          if (encuadrar) this.encuadrarEnZonaLibre(extension);
+        } else {
+          alNoEncontrar?.();
+        }
       });
+  }
+
+  private filtrarTramosEnZona(tramos: Geometry[], zona: Extent): Geometry[] {
+    const enGrados = obtenerProyeccion(this.opciones.gis.proyeccionMapa)?.getUnits() === "degrees";
+    const margen = enGrados ? 0.004 : 400;
+    const zonaAmpliada = buffer(zona, margen);
+    return tramos.filter((tramo) => intersects(tramo.getExtent(), zonaAmpliada));
   }
 
   quitarCalle(): void {
@@ -291,6 +314,7 @@ export class ControladorMapaGis {
     this.quitarPredio();
     this.quitarCalle();
     this.calle.destruir();
+    this.rotacion.destruir();
     this.interaccion.destruir();
     this.menuDibujos?.destruir();
     this.predio.destruir();

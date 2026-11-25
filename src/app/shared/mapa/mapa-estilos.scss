@@ -100,7 +100,8 @@
 
   .ol-zoom button,
   .ol-full-screen button,
-  .ol-custom-draw-menu button {
+  .ol-custom-draw-menu button,
+  .ol-rotacion-mapa .btn-rotar-mapa {
     font-size: 16px !important;
     font-weight: normal !important;
     line-height: 1 !important;
@@ -122,7 +123,8 @@
 
   .ol-zoom button:hover,
   .ol-full-screen button:hover,
-  .ol-custom-draw-menu button:hover {
+  .ol-custom-draw-menu button:hover,
+  .ol-rotacion-mapa .btn-rotar-mapa:hover {
     background: $vidrio-oscuro !important;
     border-color: rgba(0, 229, 255, 0.55) !important;
     transform: translateY(-2px) !important;
@@ -167,6 +169,83 @@
     &.open {
       display: flex !important;
     }
+  }
+
+  .ol-rotacion-mapa {
+    position: absolute !important;
+    top: $alto-barra-pantalla + 320px !important;
+    right: $columna-controles !important;
+    left: auto !important;
+    bottom: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: transparent !important;
+    padding: 0 !important;
+
+    &--sin-herramientas {
+      top: $alto-barra-pantalla + 12px !important;
+    }
+
+    .btn-rotar-mapa {
+      .aguja-brujula {
+        display: block;
+        transition: transform 0.06s linear;
+      }
+
+      &.activo {
+        border-color: $acento-mapa !important;
+        box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.35), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+      }
+    }
+
+    .btn-restablecer-norte {
+      display: none !important;
+      align-items: center !important;
+      gap: 5px !important;
+      height: 32px !important;
+      width: auto !important;
+      padding: 0 10px !important;
+      cursor: pointer !important;
+      background: $vidrio-oscuro !important;
+      backdrop-filter: blur(12px);
+      border: 1px solid $borde-vidrio !important;
+      border-radius: 8px !important;
+      color: #e8edf2 !important;
+      font-size: 12px !important;
+      font-family: "Segoe UI", Arial, sans-serif !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25) !important;
+      transition: border-color 0.2s ease, transform 0.2s ease !important;
+
+      strong {
+        color: #f87171;
+        font-weight: 800;
+      }
+
+      .angulo-rotacion {
+        color: #cbd5e1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      &.visible {
+        display: inline-flex !important;
+      }
+
+      &:hover {
+        border-color: rgba(0, 229, 255, 0.55) !important;
+        transform: translateY(-2px) !important;
+      }
+    }
+  }
+
+  .ol-viewport.geo-modo-rotar {
+    cursor: grab !important;
+  }
+
+  .ol-viewport.geo-rotando-mapa,
+  .ol-viewport.geo-modo-rotar.geo-rotando-mapa {
+    cursor: grabbing !important;
   }
 
   .gis-sidebar-container {
