@@ -19,7 +19,7 @@ import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import LayerGroup from "ol/layer/Group";
 import BaseLayer from "ol/layer/Base";
 import OSM from "ol/source/OSM";
@@ -90,6 +90,7 @@ import { ResumenTomaLecturaInspector } from "@host/_models/vektors/ResumenTomaLe
 import { DetalleTomaLecturaInspector } from "@host/_models/vektors/DetalleTomaLecturaInspector";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 const COLUMNAS_TABLA_SEGUIMIENTO: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -168,16 +169,16 @@ export class SeguimientoDeLecturaXinspectorComponent
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   map!: OlMap;
-  usuariosLayer!: VectorLayer<VectorSource>;
-  tomasLayer!: VectorLayer<VectorSource>;
-  lineasLayer!: VectorLayer<VectorSource>;
+  usuariosLayer!: VectorImageLayer<VectorSource>;
+  tomasLayer!: VectorImageLayer<VectorSource>;
+  lineasLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
   manzanasLayer!: TileLayer<TileWMS>;
   osmLayer!: TileLayer<OSM>;
   satelitalLayer!: TileLayer<XYZ>;
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: VectorImageLayer<VectorSource>[] = [];
   private registroCapas: Record<string, BaseLayer> = {};
 
   dataCiclos: any[] = [];
@@ -449,7 +450,7 @@ export class SeguimientoDeLecturaXinspectorComponent
   }
 
   private quitarPorCliente(
-    capa: VectorLayer<VectorSource>,
+    capa: VectorImageLayer<VectorSource>,
     codcliente: string,
   ): void {
     const source = capa?.getSource();
@@ -792,7 +793,8 @@ export class SeguimientoDeLecturaXinspectorComponent
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    this.usuariosLayer = new VectorLayer({
+    this.usuariosLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: (f) =>
         this.estilos.punto({
@@ -805,7 +807,8 @@ export class SeguimientoDeLecturaXinspectorComponent
         }),
     });
 
-    this.tomasLayer = new VectorLayer({
+    this.tomasLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: (f) =>
         this.estilos.punto({
@@ -818,7 +821,8 @@ export class SeguimientoDeLecturaXinspectorComponent
         }),
     });
 
-    this.lineasLayer = new VectorLayer({
+    this.lineasLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: (f, resolution) =>
         this.estilos.lineaAcometida(
@@ -863,11 +867,11 @@ export class SeguimientoDeLecturaXinspectorComponent
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
-        hitTolerance: 5,
-        layerFilter: (layer: any) =>
-          !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoEnPixel(
+        this.map,
+        evt.pixel,
+        (capa) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (feature) {
         this.seleccionarFeature(feature);

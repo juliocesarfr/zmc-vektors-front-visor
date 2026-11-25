@@ -43,7 +43,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import TileWMS from "ol/source/TileWMS";
 import View from "ol/View";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { containsCoordinate, createEmpty, extend, Extent, getCenter, isEmpty } from "ol/extent";
@@ -89,6 +89,7 @@ import {
 import { CapaShape, ColumnaShape } from "../../../shared/utils/shapefile";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -173,7 +174,7 @@ export class ConsultasComponent
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   map!: OlMap;
-  usuariosLayer!: VectorLayer<VectorSource>;
+  usuariosLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -182,7 +183,7 @@ export class ConsultasComponent
   satelitalLayer!: TileLayer<XYZ>;
 
   private registroCapas: Record<string, BaseLayer> = {};
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: VectorImageLayer<VectorSource>[] = [];
 
   filtrosVisible = false;
   baseActive: string | null = "osm";
@@ -970,7 +971,8 @@ export class ConsultasComponent
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    this.usuariosLayer = new VectorLayer({
+    this.usuariosLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       style: (f) => {
@@ -1072,11 +1074,11 @@ export class ConsultasComponent
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
-        hitTolerance: 5,
-        layerFilter: (layer: any) =>
-          !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoEnPixel(
+        this.map,
+        evt.pixel,
+        (capa) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (feature) {
         this.seleccionarFeature(feature);

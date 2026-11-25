@@ -34,7 +34,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import TileWMS from "ol/source/TileWMS";
 import View from "ol/View";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { containsCoordinate, createEmpty, extend, Extent, isEmpty } from "ol/extent";
@@ -80,6 +80,7 @@ import {
 import { GruposEstadoReclamo } from "./estados-reclamo";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 // Relleno del lote semitransparente: debajo se siguen viendo las calles y el número del lote.
 const OPACIDAD_RELLENO_LOTE = 0.45;
 
@@ -178,8 +179,8 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   map!: OlMap;
-  reclamosLayer!: VectorLayer<VectorSource>;
-  lotesReclamosLayer!: VectorLayer<VectorSource>;
+  reclamosLayer!: VectorImageLayer<VectorSource>;
+  lotesReclamosLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -188,7 +189,7 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
   satelitalLayer!: TileLayer<XYZ>;
 
   private registroCapas: Record<string, BaseLayer> = {};
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: VectorImageLayer<VectorSource>[] = [];
 
   filtrosVisible = true;
   baseActive: string | null = "osm";
@@ -670,7 +671,8 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
       return grupo && (!this.grupoFiltrado || grupo.clave === this.grupoFiltrado) ? grupo : null;
     };
 
-    this.reclamosLayer = new VectorLayer({
+    this.reclamosLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       zIndex: 20,
@@ -688,7 +690,8 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
       },
     });
 
-    this.lotesReclamosLayer = new VectorLayer({
+    this.lotesReclamosLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       zIndex: 10,
@@ -793,10 +796,11 @@ export class ReclamosPrimeraInstanciaComponent implements OnInit, AfterViewInit,
   private initClick(): void {
     this.map.on("singleclick", (evento) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evento.pixel, (f) => f, {
-        hitTolerance: 5,
-        layerFilter: (capa: any) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoEnPixel(
+        this.map,
+        evento.pixel,
+        (capa) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (feature) {
         this.seleccionarFeature(feature);

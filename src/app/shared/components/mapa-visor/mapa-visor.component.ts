@@ -27,6 +27,7 @@ import XYZ from 'ol/source/XYZ';
 import TileWMS from 'ol/source/TileWMS';
 import { defaults as defaultControls } from 'ol/control';
 import VectorLayer from 'ol/layer/Vector';
+import BaseVectorLayer from 'ol/layer/BaseVector';
 import VectorSource from 'ol/source/Vector';
 import { Feature } from 'ol';
 
@@ -40,6 +41,7 @@ import { FilaListado } from '../../utils/listado-excel';
 import { PanelesMapaGisComponent } from '../paneles-mapa-gis/paneles-mapa-gis.component';
 import { CapasSidebarComponent } from '../capas-sidebar/capas-sidebar.component';
 import { crearCapaWms, crearCapaOsm, crearCapaSatelital, CAPAS_BASE_UI } from "../../mapa/capas";
+import { elementoEnPixel } from "../../mapa/elemento-bajo-cursor";
 
 export interface BaseLayerConfig {
   id: string;
@@ -76,7 +78,7 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   commercialLayers: CommercialLayerConfig[] = [];
 
-  @Input() customVectorLayers: VectorLayer<VectorSource>[] = [];
+  @Input() customVectorLayers: BaseVectorLayer<any, VectorSource, any>[] = [];
 
   /**
    * Con listado, el visor agrega las herramientas de dibujo y lista en tabla o Excel los
@@ -214,17 +216,11 @@ export class MapaVisorComponent implements OnInit, AfterViewInit, OnDestroy {
     this.map.on("singleclick", (evt) => {
       if (estaUsandoHerramientas(this.map)) return;
 
-      let f: Feature | undefined;
-      this.map.forEachFeatureAtPixel(
+      const f = elementoEnPixel(
+        this.map,
         evt.pixel,
-        (feature) => {
-          if (!f) f = feature as Feature;
-        },
-        {
-          hitTolerance: 5,
-          layerFilter: (layer: any) => !layer.get('isDrawLayer') && !layer.get(MARCA_CAPA_RESALTADO),
-        }
-      );
+        (capa) => !capa.get('isDrawLayer') && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (f) {
         this.seleccionarFeature(f);

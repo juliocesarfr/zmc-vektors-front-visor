@@ -29,7 +29,7 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import { circular } from "ol/geom/Polygon";
 import TileLayer from "ol/layer/Tile";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import BaseLayer from "ol/layer/Base";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
@@ -79,6 +79,7 @@ import {
 } from "./cobertura-x-car.reglas";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 const TODOS = "ALL";
 
 /** Columnas de la tabla y del Excel de los clientes del área dibujada y de los que no tienen coordenadas. */
@@ -159,10 +160,10 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   manzanasLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
-  carsLayer!: VectorLayer<VectorSource>;
-  clientesLayer!: VectorLayer<VectorSource>;
-  alcanceLayer!: VectorLayer<VectorSource>;
-  lineasLayer!: VectorLayer<VectorSource>;
+  carsLayer!: VectorImageLayer<VectorSource>;
+  clientesLayer!: VectorImageLayer<VectorSource>;
+  alcanceLayer!: VectorImageLayer<VectorSource>;
+  lineasLayer!: VectorImageLayer<VectorSource>;
   private registroCapas: Record<string, BaseLayer> = {};
 
   readonly baseLayers = CAPAS_BASE_UI;
@@ -569,7 +570,8 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    this.alcanceLayer = new VectorLayer({
+    this.alcanceLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: (feature) => {
         const clave = feature.get("_claveCar");
@@ -583,7 +585,8 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
       },
     });
 
-    this.lineasLayer = new VectorLayer({
+    this.lineasLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: () => {
         const color = (this.carFiltrado && this.cobertura?.cars.get(this.carFiltrado)?.color) || "#9575cd";
@@ -591,7 +594,8 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
       },
     });
 
-    this.clientesLayer = new VectorLayer({
+    this.clientesLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: (feature) => {
         const clave = feature.get("_claveCar");
@@ -607,7 +611,8 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
       },
     });
 
-    this.carsLayer = new VectorLayer({
+    this.carsLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       zIndex: 10,
       style: (feature) => {
@@ -683,10 +688,11 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
 
     this.map.on("singleclick", (evento) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evento.pixel, (encontrado) => encontrado, {
-        hitTolerance: 5,
-        layerFilter: (capa) => (capa === this.carsLayer || capa === this.clientesLayer) && !capa.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoEnPixel(
+        this.map,
+        evento.pixel,
+        (capa) => (capa === this.carsLayer || capa === this.clientesLayer) && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (feature?.get("_tipo") === "car") {
         this.filtrarPorCar(feature.get("_claveCar"));

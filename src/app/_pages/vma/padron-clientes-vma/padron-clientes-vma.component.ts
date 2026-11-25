@@ -22,7 +22,7 @@ import { forkJoin, of, Subject } from "rxjs";
 import { catchError, finalize, takeUntil } from "rxjs/operators";
 
 import OlMap from "ol/Map";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import VectorSource from "ol/source/Vector";
 import { Feature } from "ol";
 
@@ -106,7 +106,8 @@ export class PadronClientesVmaComponent implements OnInit {
   selectedActividad: any = null;
   selectedTipoUsuario: any = null;
 
-  usuariosLayer = new VectorLayer({
+  usuariosLayer = new VectorImageLayer({
+    imageRatio: 1.5,
     source: new VectorSource(),
     style: (feature) => {
       const zoom = this.map?.getView().getZoom() ?? 15;

@@ -34,7 +34,7 @@ import {
 import OlMap from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import LayerGroup from "ol/layer/Group";
 import BaseLayer from "ol/layer/Base";
 import OSM from "ol/source/OSM";
@@ -93,6 +93,7 @@ import {
 import { RegistroCorte } from "@host/_models/vektors/Cobranza/RegistroCorte";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 const COLOR_SIN_ESTADO = "#64748b";
 
 const COLUMNAS_TABLA_PROGRAMA: ColumnaListado[] = [
@@ -162,10 +163,10 @@ export class SeguimientoProgramaComponent
     MODO_CORTE;
 
   map!: OlMap;
-  cortesLayer!: VectorLayer<VectorSource>;
-  lotesUsuarioLayer!: VectorLayer<VectorSource>;
-  acomAguaLayer!: VectorLayer<VectorSource>;
-  acomDesagueLayer!: VectorLayer<VectorSource>;
+  cortesLayer!: VectorImageLayer<VectorSource>;
+  lotesUsuarioLayer!: VectorImageLayer<VectorSource>;
+  acomAguaLayer!: VectorImageLayer<VectorSource>;
+  acomDesagueLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -591,27 +592,31 @@ export class SeguimientoProgramaComponent
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
     this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
 
-    this.lotesUsuarioLayer = new VectorLayer({
+    this.lotesUsuarioLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       style: (f) => this.estiloLote(f as Feature),
     });
 
-    this.acomAguaLayer = new VectorLayer({
+    this.acomAguaLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: false,
       style: (f, resolution) =>
         this.estilos.lineaAcometida(COLOR_FICHA_AGUA, false, resolution),
     });
 
-    this.acomDesagueLayer = new VectorLayer({
+    this.acomDesagueLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: false,
       style: (f, resolution) =>
         this.estilos.lineaAcometida(COLOR_FICHA_ALCANTARILLADO, false, resolution),
     });
 
-    this.cortesLayer = new VectorLayer({
+    this.cortesLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       style: (f) => this.estiloPunto(f as Feature),
@@ -726,11 +731,7 @@ export class SeguimientoProgramaComponent
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const f = this.map.forEachFeatureAtPixel(
-        evt.pixel,
-        (ft, layer) => (layer === this.cortesLayer ? ft : undefined),
-        { hitTolerance: 6 },
-      ) as Feature | undefined;
+      const f = elementoEnPixel(this.map, evt.pixel, (capa) => capa === this.cortesLayer, 6)?.elemento;
       if (f) {
         this.seleccionarFeature(f);
       } else {

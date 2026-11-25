@@ -28,7 +28,7 @@ import View from "ol/View";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import TileLayer from "ol/layer/Tile";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import BaseLayer from "ol/layer/Base";
 import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
@@ -84,6 +84,7 @@ import {
 } from "./variacion-x-promedio.reglas";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 const TODOS = "ALL";
 
 const COLUMNAS_VARIACION: ColumnaListado[] = [
@@ -159,7 +160,7 @@ export class VariacionXPromedioComponent implements OnInit, AfterViewInit, OnDes
   manzanasLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
   rutaLecturaLayer!: TileLayer<TileWMS>;
-  clientesLayer!: VectorLayer<VectorSource>;
+  clientesLayer!: VectorImageLayer<VectorSource>;
   private registroCapas: Record<string, BaseLayer> = {};
 
   readonly baseLayers = CAPAS_BASE_UI;
@@ -520,7 +521,8 @@ export class VariacionXPromedioComponent implements OnInit, AfterViewInit, OnDes
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
     this.rutaLecturaLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("rutaLectura"), false);
 
-    this.clientesLayer = new VectorLayer({
+    this.clientesLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       style: (feature) => {
         const grupo = this.resultados.get(feature.get("codcliente"))?.grupo ?? GRUPO_SIN_PROMEDIO;
@@ -584,10 +586,11 @@ export class VariacionXPromedioComponent implements OnInit, AfterViewInit, OnDes
 
     this.map.on("singleclick", (evento) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evento.pixel, (encontrado) => encontrado, {
-        hitTolerance: 5,
-        layerFilter: (capa) => capa === this.clientesLayer && !capa.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoEnPixel(
+        this.map,
+        evento.pixel,
+        (capa) => capa === this.clientesLayer && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (feature) {
         this.seleccionarCliente(feature);

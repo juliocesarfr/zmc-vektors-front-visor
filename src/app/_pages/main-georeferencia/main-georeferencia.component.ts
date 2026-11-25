@@ -25,7 +25,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import OlMap from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
-import VectorLayer from 'ol/layer/Vector';
+import VectorImageLayer from 'ol/layer/VectorImage';
 import LayerGroup from 'ol/layer/Group';
 import BaseLayer from 'ol/layer/Base';
 import OSM from 'ol/source/OSM';
@@ -41,7 +41,7 @@ import { extend, getCenter } from 'ol/extent';
 import { transform, getPointResolution } from 'ol/proj';
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
 
-import { CapaConsultable, ConsultaCapasGisService, GisConfigService, ClientesRadioService, ElementoGis } from '../../core/gis';
+import { CapaConsultable, ConsultaCapasGisService, GisConfigService, ClientesRadioService, ElementoGis, PROPIEDAD_ROLES_POR_CAPA } from '../../core/gis';
 import { OsmComerciosService, ResumenDeteccionOsm, ComercioOsm, EstadoCruceComercial, normalizarCoordenadaWgs84 } from '../../core/gis/osm-comercios.service';
 import { DialogoComerciosOsmComponent } from '../../shared/components/dialogo-comercios-osm/dialogo-comercios-osm.component';
 import { WGS84 } from '../../core/gis/gis-proyeccion';
@@ -78,6 +78,7 @@ import { BusquedaAvanzadaClientesService } from '../../../../../host/src/app/_se
 import { BusquedaAvanzadaClientesRequest } from '../../../../../host/src/app/_models/vektors/busqueda-avanzada-clientes.models';
 
 import { FotosFichaClienteComponent } from "../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../shared/mapa/elemento-bajo-cursor";
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
 /** Columnas de la tabla y del Excel de los clientes que caen en el área dibujada. */
@@ -168,12 +169,12 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   ];
 
   map?: OlMap;
-  lecturasLayer!: VectorLayer<VectorSource>;
-  circuloDeteccionLayer!: VectorLayer<VectorSource>;
-  cajaAguaLayer!: VectorLayer<VectorSource>;
-  fichaAlcLayer!: VectorLayer<VectorSource>;
-  acomAguaLayer!: VectorLayer<VectorSource>;
-  acomDesagueLayer!: VectorLayer<VectorSource>;
+  lecturasLayer!: VectorImageLayer<VectorSource>;
+  circuloDeteccionLayer!: VectorImageLayer<VectorSource>;
+  cajaAguaLayer!: VectorImageLayer<VectorSource>;
+  fichaAlcLayer!: VectorImageLayer<VectorSource>;
+  acomAguaLayer!: VectorImageLayer<VectorSource>;
+  acomDesagueLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -189,7 +190,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private registroCapas: Record<string, BaseLayer> = {};
   // Capa de GeoServer que se enciende junto con el interruptor: la vectorial solo trae los puntos de la búsqueda.
   private capasWmsDelInterruptor: Record<string, BaseLayer | undefined> = {};
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: VectorImageLayer<VectorSource>[] = [];
   /** Capas encendidas al abrir la pantalla; a ellas se vuelve al limpiar una búsqueda. */
   private capasAlAbrir: string[] = [];
   private detenerObservadorMapa?: () => void;
@@ -385,6 +386,10 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     this.satelitalLayer = crearCapaSatelital(this.baseActive === "satelital");
 
     this.lotesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("lotes"), true);
+    this.lotesLayer.set(PROPIEDAD_ROLES_POR_CAPA, {
+      [this.sinWorkspace(this.gis.capa("lotes"))]: "lotes",
+      ...(this.gis.tieneCapa("centroideFicha") ? { [this.sinWorkspace(this.gis.capa("centroideFicha"))]: "centroideFicha" } : {}),
+    });
     this.sectoresComercialesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("sectoresComerciales"), false);
     this.callesLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("calles"), false);
     this.manzanasLayer = crearCapaWms(this.gis.urlWms(), this.gis.capa("manzanas"), false);
@@ -396,7 +401,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       ? crearCapaWms(this.gis.urlWms(), this.gis.capa("fichaAlcantarillado"), false)
       : undefined;
     this.usuariosWmsLayer = this.gis.usuariosDesdeFichasGeoserver
-      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("centroideFicha"), true)
+      ? crearCapaWms(this.gis.urlWms(), this.gis.capa("centroideFicha"), true, 1, this.gis.sldCapa("centroideFicha"))
       : undefined;
 
     this.lecturasLayer = this.crearCapaPuntos(
@@ -413,7 +418,8 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     );
     this.acomAguaLayer = this.crearCapaAcometida(COLOR_FICHA_AGUA);
     this.acomDesagueLayer = this.crearCapaAcometida(COLOR_FICHA_ALCANTARILLADO);
-    this.circuloDeteccionLayer = new VectorLayer({
+    this.circuloDeteccionLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       zIndex: 50,
     });
@@ -445,6 +451,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       caja_agua: this.fichaAguaWmsLayer,
       ficha_alc: this.fichaAlcantarilladoWmsLayer,
     };
+    this.juntarLotesYFichas();
 
     this.map = new OlMap({
       target: this.mapaEl.nativeElement,
@@ -478,8 +485,9 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       visible: boolean;
     },
     colorDe: (punto: FeatureLike) => string | null,
-  ): VectorLayer<VectorSource> {
-    return new VectorLayer({
+  ): VectorImageLayer<VectorSource> {
+    return new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: opciones.visible,
       style: (punto) => {
@@ -503,8 +511,9 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
     });
   }
 
-  private crearCapaAcometida(color: string): VectorLayer<VectorSource> {
-    return new VectorLayer({
+  private crearCapaAcometida(color: string): VectorImageLayer<VectorSource> {
+    return new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: false,
       style: (linea, resolucion) =>
@@ -773,29 +782,18 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
       }
       if (estaUsandoHerramientas(this.map!)) return;
 
-      let clickedLayer: BaseLayer | null = null;
-      const feature = this.map!.forEachFeatureAtPixel(
+      const encontrado = elementoEnPixel(
+        this.map!,
         evt.pixel,
-        (f, layer) => {
-          if (
-            layer === this.circuloDeteccionLayer ||
-            layer?.get("noHitDetection") ||
-            (f as any)?.get("esCirculoDeteccion")
-          ) {
-            return null;
-          }
-          clickedLayer = layer;
-          return f;
-        },
-        {
-          hitTolerance: 6,
-          layerFilter: (layer: any) =>
-            layer !== this.circuloDeteccionLayer &&
-            !layer.get("noHitDetection") &&
-            !layer.get("isDrawLayer") &&
-            (!layer.get(MARCA_CAPA_RESALTADO) || layer.get("esCapaPredioBuscado")),
-        },
-      ) as Feature | undefined;
+        (capa) =>
+          capa !== this.circuloDeteccionLayer &&
+          !capa.get("noHitDetection") &&
+          !capa.get("isDrawLayer") &&
+          (!capa.get(MARCA_CAPA_RESALTADO) || capa.get("esCapaPredioBuscado")),
+        6,
+      );
+      const feature = encontrado?.elemento;
+      const clickedLayer = encontrado?.capa ?? null;
 
       if (feature) {
         if (feature.get("esPredioBuscado")) {
@@ -860,6 +858,28 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   private mostrarCapa(id: string, visible: boolean): void {
     this.registroCapas[id]?.setVisible(visible);
     this.capasWmsDelInterruptor[id]?.setVisible(visible);
+    if (id === "lotes" || id === "usuarios") this.juntarLotesYFichas();
+  }
+
+  /**
+   * Con lotes y fichas encendidos, una sola tesela trae las dos capas: cada petición a un servidor lejano
+   * (Iquitos) tarda ~0,5 s en ir y volver, y pedirlas por separado duplicaba la espera del mapa.
+   * Con estilo propio para las fichas (EMAPA) van por separado: ese estilo solo nombra a su capa.
+   */
+  private sinWorkspace(nombreCapa: string): string {
+    return nombreCapa.split(":").pop()!;
+  }
+
+  private juntarLotesYFichas(): void {
+    if (!this.usuariosWmsLayer || !this.lotesLayer || this.gis.sldCapa("centroideFicha")) return;
+    const lotes = this.gis.capa("lotes");
+    const fichas = this.gis.capa("centroideFicha");
+    const juntas = this.lotesLayer.getVisible() && this.isCapaUsuariosActiva();
+    const capasPedidas = juntas ? `${lotes},${fichas}` : lotes;
+    if (this.lotesLayer.getSource()!.getParams()["LAYERS"] !== capasPedidas) {
+      this.lotesLayer.getSource()!.updateParams({ LAYERS: capasPedidas });
+    }
+    this.usuariosWmsLayer.setVisible(!juntas && this.isCapaUsuariosActiva());
   }
 
   isCapaUsuariosActiva(): boolean {
@@ -1101,7 +1121,7 @@ export class MainGeoreferenciaComponent implements OnInit, AfterViewInit, OnDest
   }
 
   private buscarPuntoPorCodigo(
-    capa: VectorLayer<VectorSource> | undefined,
+    capa: VectorImageLayer<VectorSource> | undefined,
     codigo: string,
   ): Feature | undefined {
     const buscado = codigo.trim().toLowerCase();

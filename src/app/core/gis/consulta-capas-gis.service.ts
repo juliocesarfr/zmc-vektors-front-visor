@@ -16,6 +16,12 @@ import { CapaGisId } from "./gis-config.model";
 import { GisConfigService } from "./gis-config.service";
 import { formatoFechaCorta } from "../../shared/utils/fechas.utils";
 
+/**
+ * Propiedad de una capa WMS que pide varias capas de GeoServer en la misma tesela: nombre (sin workspace) -> rol,
+ * para que al hacer clic cada elemento salga con el rol de su capa y no con el de la fuente.
+ */
+export const PROPIEDAD_ROLES_POR_CAPA = "rolesPorCapa";
+
 export interface CapaConsultable {
   rol: CapaGisId;
   capa: TileLayer<TileWMS>;
@@ -187,7 +193,8 @@ export class ConsultaCapasGisService {
       for (const nombre of nombresCapa) {
         nombres.push(nombre);
         filtros.push(parametros["CQL_FILTER"] ? String(parametros["CQL_FILTER"]) : SIN_FILTRO_CQL);
-        rolPorNombre.set(this.sinWorkspace(nombre), rol);
+        const rolesDeLaCapa = capa.get(PROPIEDAD_ROLES_POR_CAPA) as Record<string, CapaGisId> | undefined;
+        rolPorNombre.set(this.sinWorkspace(nombre), rolesDeLaCapa?.[this.sinWorkspace(nombre)] ?? rol);
       }
     }
     if (nombres.length === 0) return of([]);

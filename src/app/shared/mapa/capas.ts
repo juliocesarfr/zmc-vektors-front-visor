@@ -57,7 +57,8 @@ export function crearCapaWms(
   const fuente = new TileWMS({
     url: urlWms,
     // TILED permite que GeoWebCache sirva la tesela desde caché en vez de renderizarla de nuevo.
-    params: { LAYERS: nombreCapa, TILED: true, ...(sld ? { SLD_BODY: sld } : {}) },
+    // PNG de 256 colores: la mitad de peso que el PNG completo y se ve igual en lotes, redes y puntos.
+    params: { LAYERS: nombreCapa, TILED: true, FORMAT: "image/png8", ...(sld ? { SLD_BODY: sld } : {}) },
     serverType: "geoserver",
     // Permite leer el píxel (`getData`) para saber si el cursor está sobre algo; GeoServer responde con CORS abierto.
     crossOrigin: "anonymous",
@@ -75,6 +76,8 @@ export function crearCapaWms(
  */
 export function crearCapaOrtofoto(urlWms: string, nombreCapa: string, extension: Extent): TileLayer<TileWMS> {
   const capa = crearCapaWms(urlWms, nombreCapa, true);
+  // Una foto necesita todos sus colores: con 256 se vería con manchas.
+  capa.getSource()!.updateParams({ FORMAT: "image/png" });
   capa.setExtent(extension);
   capa.getSource()!.setTileLoadFunction(cargarSinBordeBlanco);
   return capa;

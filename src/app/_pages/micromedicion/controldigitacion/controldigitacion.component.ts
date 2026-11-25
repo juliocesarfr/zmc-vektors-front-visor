@@ -20,7 +20,7 @@ import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
 import OlMap from "ol/Map";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import LayerGroup from "ol/layer/Group";
 import BaseLayer from "ol/layer/Base";
 import OSM from "ol/source/OSM";
@@ -123,6 +123,7 @@ import {
 } from "../../../shared/utils/fechas.utils";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 /** Qué ficha muestra el popup según la capa en que se hizo clic. */
 type TipoPopup = "lectura" | "agua" | "alcantarillado";
 
@@ -207,11 +208,11 @@ export class ControldigitacionComponent
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   map!: OlMap;
-  lecturasLayer!: VectorLayer<VectorSource>;
-  cajaAguaLayer!: VectorLayer<VectorSource>;
-  fichaAlcLayer!: VectorLayer<VectorSource>;
-  acomAguaLayer!: VectorLayer<VectorSource>;
-  acomDesagueLayer!: VectorLayer<VectorSource>;
+  lecturasLayer!: VectorImageLayer<VectorSource>;
+  cajaAguaLayer!: VectorImageLayer<VectorSource>;
+  fichaAlcLayer!: VectorImageLayer<VectorSource>;
+  acomAguaLayer!: VectorImageLayer<VectorSource>;
+  acomDesagueLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -226,7 +227,7 @@ export class ControldigitacionComponent
   private registroCapas: Record<string, BaseLayer> = {};
   // Capa de GeoServer que se enciende junto con el interruptor: la vectorial solo trae los puntos de la búsqueda.
   private capasWmsDelInterruptor: Record<string, BaseLayer | undefined> = {};
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: VectorImageLayer<VectorSource>[] = [];
 
   tipoPopup: TipoPopup = "lectura";
 
@@ -876,8 +877,9 @@ export class ControldigitacionComponent
       visible: boolean;
     },
     colorDe: (punto: FeatureLike) => string,
-  ): VectorLayer<VectorSource> {
-    return new VectorLayer({
+  ): VectorImageLayer<VectorSource> {
+    return new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: opciones.visible,
       style: (punto) =>
@@ -893,8 +895,9 @@ export class ControldigitacionComponent
   }
 
   /** Capa de líneas ficha → acometida. */
-  private crearCapaAcometida(color: string): VectorLayer<VectorSource> {
-    return new VectorLayer({
+  private crearCapaAcometida(color: string): VectorImageLayer<VectorSource> {
+    return new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: false,
       style: (linea, resolucion) =>
@@ -927,22 +930,14 @@ export class ControldigitacionComponent
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
       if (estaUsandoHerramientas(this.map)) return;
-      let clickedLayer: BaseLayer | null = null;
-      const feature = this.map.forEachFeatureAtPixel(
+      const encontrado = elementoEnPixel(
+        this.map,
         evt.pixel,
-        (f, layer) => {
-          clickedLayer = layer;
-          return f;
-        },
-        {
-          hitTolerance: 5,
-          layerFilter: (layer: any) =>
-            !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
-        },
-      ) as Feature | undefined;
+        (capa) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
+      );
 
-      if (feature) {
-        this.seleccionarFeature(feature, this.tipoPopupDeCapa(clickedLayer));
+      if (encontrado) {
+        this.seleccionarFeature(encontrado.elemento, this.tipoPopupDeCapa(encontrado.capa));
       } else {
         this.cerrarPopup();
         this.controladorGis?.consultarPunto(evt.coordinate);
@@ -1207,7 +1202,7 @@ export class ControldigitacionComponent
 
   /** Selecciona el código si ya está pintado en alguna capa. Devuelve `true` si lo encontró. */
   private buscarEnMapa(codigo: string): boolean {
-    const capas: { capa: VectorLayer<VectorSource>; tipo: TipoPopup }[] = [
+    const capas: { capa: VectorImageLayer<VectorSource>; tipo: TipoPopup }[] = [
       { capa: this.lecturasLayer, tipo: "lectura" },
       { capa: this.cajaAguaLayer, tipo: "agua" },
       { capa: this.fichaAlcLayer, tipo: "alcantarillado" },
@@ -1362,7 +1357,7 @@ export class ControldigitacionComponent
   }
 
   private buscarPuntoPorCodigo(
-    capa: VectorLayer<VectorSource> | undefined,
+    capa: VectorImageLayer<VectorSource> | undefined,
     codigo: string,
   ): Feature | undefined {
     const buscado = codigo.trim().toLowerCase();

@@ -2,6 +2,7 @@ import OlMap from "ol/Map";
 import Overlay from "ol/Overlay";
 import Feature from "ol/Feature";
 import VectorLayer from "ol/layer/Vector";
+import BaseVectorLayer from "ol/layer/BaseVector";
 import VectorSource from "ol/source/Vector";
 import { Circle as CircleStyle, Fill, Stroke, Style } from "ol/style";
 import { unByKey } from "ol/Observable";
@@ -12,6 +13,7 @@ import type MapBrowserEvent from "ol/MapBrowserEvent";
 import type { Subscription } from "rxjs";
 
 import { estaUsandoHerramientas } from "./herramientas-medicion";
+import { elementoPropioEn } from "./elemento-bajo-cursor";
 import { PROPIEDAD_MENU_DIBUJO_ABIERTO } from "./menu-dibujos";
 import type {
   CapaConsultable,
@@ -20,6 +22,7 @@ import type {
 } from "../../core/gis";
 
 const MS_AVISO_SIN_INFORMACION = 1600;
+const TOLERANCIA_CURSOR_PX = 5;
 
 // Alrededor del cursor, porque una válvula mide pocos píxeles.
 const DESPLAZAMIENTOS_SONDEO: Pixel[] = [[0, 0], [4, 0], [-4, 0], [0, 4], [0, -4]];
@@ -193,13 +196,12 @@ export class InteraccionGis {
       return;
     }
 
-    const hayPuntoPropio = this.map.hasFeatureAtPixel(pixel, {
-      hitTolerance: 5,
-      layerFilter: (capa) =>
-        capa instanceof VectorLayer &&
-        !capa.get(MARCA_CAPA_RESALTADO) &&
-        !capa.get("isDrawLayer"),
-    });
+    const hayPuntoPropio = !!elementoPropioEn(
+      this.map,
+      pixel,
+      TOLERANCIA_CURSOR_PX,
+      (capa) => capa instanceof BaseVectorLayer && !capa.get(MARCA_CAPA_RESALTADO) && !capa.get("isDrawLayer"),
+    );
     if (hayPuntoPropio) {
       this.ocultarRotulo();
       this.ponerCursor("pointer");

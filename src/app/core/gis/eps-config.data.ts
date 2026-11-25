@@ -365,6 +365,7 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
       sectoresComerciales: "fcom_sector",
       calles: "sm_sig_calles",
       usuarios: "v_com_fichas_catastrales",
+      centroideFicha: "v_com_fichas_catastrales",
       acometidaAgua: "sm_sig_acometidas_ap",
       acometidaAlcantarillado: "sm_sig_acometidas_al",
       fichaAgua: "v_com_fichas_catastrales",
@@ -424,6 +425,8 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
     ],
     // Su estilo en GeoServer es el genérico: el polígono gris tapaba el mapa y los buzones salían como cuadros rojos.
     estilosCapas: {
+      // El estilo de GeoServer son cuadros rojos que tapan el mapa; desde 1:20000 se ven los puntos.
+      centroideFicha: { forma: "punto", color: "#16a34a", escalaMaxima: 20000 },
       sectoresOperacionales: {
         forma: "area",
         color: "#0d9488",
@@ -439,6 +442,22 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
     // Columnas reales de GeoServer. Los lotes traen datos personales (DNI, teléfono, correo):
     // nunca dejarlos sin lista de atributos.
     consultaCapas: {
+      // La ficha catastral trae titular, DNI, teléfono y correo: al clic solo se lee el código de cliente
+      // y el cuadro del cliente se llena desde el sistema comercial.
+      centroideFicha: {
+        campoTitulo: "codcliente",
+        campoCliente: "codcliente",
+        atributos: {
+          codcliente: "Cód. cliente",
+          codigo_catastral: "Código catastral",
+          urbanmae: "Urbanización",
+          nrocalle: "Nro. de calle",
+          destiposervicio: "Tipo de servicio",
+          desestadoconexion_agua: "Estado de la conexión",
+          nromed: "Medidor",
+          desactividad: "Actividad",
+        },
+      },
       valvulas: {
         campoTitulo: "dc_id",
         atributos: {
@@ -596,6 +615,7 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
         },
       },
     },
+    usuariosDesdeFichasGeoserver: true,
     // Plaza Mayor de Tarapoto.
     vista: {
       centro: [-76.3601, -6.4874],

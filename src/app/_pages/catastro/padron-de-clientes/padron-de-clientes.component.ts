@@ -37,6 +37,7 @@ import XYZ from "ol/source/XYZ";
 import TileWMS from "ol/source/TileWMS";
 import View from "ol/View";
 import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { containsCoordinate, createEmpty, extend, Extent, getCenter, isEmpty } from "ol/extent";
@@ -59,6 +60,7 @@ import {
 } from "../../../shared/mapa/mapa-estilos";
 import { estaUsandoHerramientas } from "../../../shared/mapa/herramientas-medicion";
 import { MARCA_CAPA_RESALTADO } from "../../../shared/mapa/interaccion-gis";
+import { elementoPropioEn } from "../../../shared/mapa/elemento-bajo-cursor";
 import { ControladorMapaGis } from "../../../shared/mapa/controlador-mapa-gis";
 import { PanelesMapaGisComponent } from "../../../shared/components/paneles-mapa-gis/paneles-mapa-gis.component";
 import { ColumnaListado, FilaListado, direccionDe } from "../../../shared/utils/listado-excel";
@@ -81,6 +83,8 @@ import {
 import { CapaShape, ColumnaShape } from "../../../shared/utils/shapefile";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+const TOLERANCIA_CLIC_PX = 5;
+
 const COLUMNAS_TABLA_PADRON: ColumnaListado[] = [
   { campo: "codcliente", titulo: "Cód. cliente", anchoExcel: 12 },
   { campo: "propietario", titulo: "Titular", anchoExcel: 35 },
@@ -156,7 +160,7 @@ export class PadronDeClientesComponent
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   map!: OlMap;
-  usuariosLayer!: VectorLayer<VectorSource>;
+  usuariosLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -165,7 +169,7 @@ export class PadronDeClientesComponent
   satelitalLayer!: TileLayer<XYZ>;
 
   private registroCapas: Record<string, BaseLayer> = {};
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: (VectorLayer<VectorSource> | VectorImageLayer<VectorSource>)[] = [];
 
   filtrosVisible = false;
   baseActive: string | null = "osm";
@@ -810,9 +814,12 @@ export class PadronDeClientesComponent
 
     const zoomActual = () => this.map?.getView().getZoom() ?? 14;
 
-    this.usuariosLayer = new VectorLayer({
+    // Como imagen: al mover o acercar el mapa se desplaza una sola imagen en vez de redibujar en cada cuadro
+    // los miles de clientes del padrón, que es lo que congelaba la pantalla.
+    this.usuariosLayer = new VectorImageLayer({
       source: new VectorSource(),
       visible: true,
+      imageRatio: 1.5,
       style: (f) => {
         const grupo = f.get("_grupo") as GrupoLeyenda | undefined;
         if (this.grupoFiltrado && grupo?.clave !== this.grupoFiltrado) return undefined;
@@ -912,11 +919,12 @@ export class PadronDeClientesComponent
   private initClick(): void {
     this.map.on("singleclick", (evt) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evt.pixel, (f) => f, {
-        hitTolerance: 5,
-        layerFilter: (layer: any) =>
-          !layer.get("isDrawLayer") && !layer.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoPropioEn(
+        this.map,
+        evt.pixel,
+        TOLERANCIA_CLIC_PX,
+        (capa) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
+      );
 
       if (feature) {
         this.seleccionarFeature(feature);

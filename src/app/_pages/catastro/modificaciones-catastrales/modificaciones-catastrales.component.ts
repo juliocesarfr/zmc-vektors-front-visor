@@ -34,7 +34,7 @@ import OSM from "ol/source/OSM";
 import XYZ from "ol/source/XYZ";
 import TileWMS from "ol/source/TileWMS";
 import View from "ol/View";
-import VectorLayer from "ol/layer/Vector";
+import VectorImageLayer from "ol/layer/VectorImage";
 import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import { containsCoordinate, createEmpty, extend, Extent, isEmpty } from "ol/extent";
@@ -82,6 +82,7 @@ import {
 } from "../../../shared/components/leyenda-grupos/leyenda-grupos.component";
 
 import { FotosFichaClienteComponent } from "../../../shared/components/fotos-ficha-cliente/fotos-ficha-cliente.component";
+import { elementoEnPixel } from "../../../shared/mapa/elemento-bajo-cursor";
 interface TipoModificacionUI {
   codigo: TipoModificacionCatastral;
   descripcion: string;
@@ -181,8 +182,8 @@ export class ModificacionesCatastralesComponent
   private mapContainer!: ElementRef<HTMLDivElement>;
 
   map!: OlMap;
-  modificacionesLayer!: VectorLayer<VectorSource>;
-  lotesModificadosLayer!: VectorLayer<VectorSource>;
+  modificacionesLayer!: VectorImageLayer<VectorSource>;
+  lotesModificadosLayer!: VectorImageLayer<VectorSource>;
   lotesLayer!: TileLayer<TileWMS>;
   sectoresComercialesLayer!: TileLayer<TileWMS>;
   callesLayer!: TileLayer<TileWMS>;
@@ -191,7 +192,7 @@ export class ModificacionesCatastralesComponent
   satelitalLayer!: TileLayer<XYZ>;
 
   private registroCapas: Record<string, BaseLayer> = {};
-  private capasVector: VectorLayer<VectorSource>[] = [];
+  private capasVector: VectorImageLayer<VectorSource>[] = [];
 
   filtrosVisible = false;
   baseActive: string | null = "osm";
@@ -649,7 +650,8 @@ export class ModificacionesCatastralesComponent
       return clase && (!this.claseFiltrada || clase.clave === this.claseFiltrada) ? clase : null;
     };
 
-    this.modificacionesLayer = new VectorLayer({
+    this.modificacionesLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       zIndex: 20,
@@ -667,7 +669,8 @@ export class ModificacionesCatastralesComponent
       },
     });
 
-    this.lotesModificadosLayer = new VectorLayer({
+    this.lotesModificadosLayer = new VectorImageLayer({
+      imageRatio: 1.5,
       source: new VectorSource(),
       visible: true,
       zIndex: 10,
@@ -782,10 +785,11 @@ export class ModificacionesCatastralesComponent
   private initClick(): void {
     this.map.on("singleclick", (evento) => {
       if (estaUsandoHerramientas(this.map)) return;
-      const feature = this.map.forEachFeatureAtPixel(evento.pixel, (f) => f, {
-        hitTolerance: 5,
-        layerFilter: (capa: any) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
-      }) as Feature | undefined;
+      const feature = elementoEnPixel(
+        this.map,
+        evento.pixel,
+        (capa) => !capa.get("isDrawLayer") && !capa.get(MARCA_CAPA_RESALTADO),
+      )?.elemento;
 
       if (feature) {
         this.seleccionarFeature(feature);
