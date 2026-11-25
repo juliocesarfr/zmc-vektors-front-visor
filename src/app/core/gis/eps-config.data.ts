@@ -601,6 +601,15 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
           fec_reg: "Fecha de registro",
         },
       },
+      calles: {
+        campoTitulo: "rotulo",
+        atributos: {
+          rotulo: "Nombre",
+          cuadra: "Cuadra",
+          codcalle: "Cód. calle",
+          longitud: "Longitud (m)",
+        },
+      },
       lotes: {
         campoTitulo: "codcatastral",
         campoCliente: "codcliente",

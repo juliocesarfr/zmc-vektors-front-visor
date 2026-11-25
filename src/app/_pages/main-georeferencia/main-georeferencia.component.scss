@@ -554,6 +554,10 @@ $alto-barra: 46px;
       flex: 0 0 150px !important;
     }
 
+    .search-fieldset--nro {
+      flex: 0 0 135px !important;
+    }
+
     // Desplegables de PrimeNG con el mismo fondo oscuro que los campos.
     ::ng-deep .selector-oscuro {
       width: 100%;

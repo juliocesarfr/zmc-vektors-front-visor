@@ -217,6 +217,26 @@ export class CapasSidebarComponent implements OnChanges {
     }
   }
 
+  /** Apaga todas las capas comerciales y técnicas activas y restablece sus filtros. */
+  limpiarCapas(): void {
+    for (const capa of this.commercialLayers) {
+      if (capa.active) this.layerToggle.emit(capa);
+    }
+    this.apagarTecnicas();
+    for (const [idCapa, filtros] of this.filtrosPorCapa) {
+      let habiaFiltro = false;
+      for (const filtro of filtros) {
+        if (filtro.elegido !== null) {
+          filtro.elegido = null;
+          habiaFiltro = true;
+        }
+      }
+      if (habiaFiltro) {
+        this.capasTecnicas.get(idCapa)?.getSource()?.updateParams({ CQL_FILTER: undefined });
+      }
+    }
+  }
+
   alternarCapa(capa: CapaSwitchUi, clase: ClaseCapas): void {
     if (clase === "tecnicas") this.toggleTecnica(capa);
     else this.layerToggle.emit(capa);
