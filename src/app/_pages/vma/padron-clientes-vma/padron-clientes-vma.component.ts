@@ -209,6 +209,11 @@ export class PadronClientesVmaComponent implements OnInit {
       .subscribe((res) => {
         if (!res) return;
         this.dataCiclos = res.ciclos || [];
+        // Como en las demás ventanas: el primer ciclo queda elegido y con él se cargan sus sucursales.
+        if (!this.selectedCiclo && this.dataCiclos.length > 0) {
+          this.selectedCiclo = this.dataCiclos[0];
+          this.onCicloChange();
+        }
         this.listaEstadoServicio = [
           { codigo: "ALL", descripcion: "TODOS" },
           ...(res.estados || [])
@@ -248,7 +253,11 @@ export class PadronClientesVmaComponent implements OnInit {
       .drop_sucursales_x_ciclo(this.selectedCiclo.codigo)
       .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (data) => (this.listaSucursales = data || []),
+        next: (data) => {
+          this.listaSucursales = data || [];
+          this.selectedSucursal = this.listaSucursales[0] ?? null;
+          if (this.selectedSucursal) this.onSucursalChange();
+        },
         error: (err) => console.error("Error al cargar sucursales:", err)
       });
   }

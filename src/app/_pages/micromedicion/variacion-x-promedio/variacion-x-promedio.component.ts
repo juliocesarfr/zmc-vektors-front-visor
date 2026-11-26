@@ -179,7 +179,8 @@ export class VariacionXPromedioComponent implements OnInit, AfterViewInit, OnDes
   readonly listaAnios: { anio: string }[] = Array.from({ length: 6 }, (_, indice) => ({
     anio: String(new Date().getFullYear() - indice),
   }));
-  filtrosVisible = false;
+  // Al entrar desde el menú los filtros ya están a la vista; se cierran solos al procesar.
+  filtrosVisible = true;
   cargando = false;
   /** Se marcan en rojo los campos obligatorios recién al intentar buscar. */
   intentoBuscar = false;

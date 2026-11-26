@@ -196,6 +196,11 @@ export class FacturacionClientesVmaComponent implements OnInit {
       .subscribe((res: any) => {
         if (!res) return;
         this.dataCiclos = res || [];
+        // Como en las demás ventanas: el primer ciclo queda elegido y con él se cargan sus sucursales.
+        if (!this.selectedCiclo && this.dataCiclos.length > 0) {
+          this.selectedCiclo = this.dataCiclos[0];
+          this.onCicloChange();
+        }
       });
   }
 
@@ -210,7 +215,10 @@ export class FacturacionClientesVmaComponent implements OnInit {
       .drop_sucursales_x_ciclo(codCiclo)
       .pipe(takeUntil(this.cicloCambiado), takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (data) => (this.listaSucursales = data || []),
+        next: (data) => {
+          this.listaSucursales = data || [];
+          this.selectedSucursal = this.listaSucursales[0] ?? null;
+        },
         error: (err) => console.error("Error al cargar sucursales:", err)
       });
   }

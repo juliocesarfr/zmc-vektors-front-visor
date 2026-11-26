@@ -261,7 +261,8 @@ export class ControldigitacionComponent
     }),
   );
 
-  filtrosVisible = false;
+  // Al entrar desde el menú los filtros ya están a la vista; se cierran solos al procesar.
+  filtrosVisible = true;
   baseActive: string | null = "osm";
   cargando = false;
   totalLecturas = 0;

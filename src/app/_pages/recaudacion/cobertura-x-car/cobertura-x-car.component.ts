@@ -179,7 +179,8 @@ export class CoberturaXCarComponent implements OnInit, AfterViewInit, OnDestroy 
     { id: "calles", label: "Calles", active: false, simbolo: { forma: "linea", color: "#cbd5e1" } },
   ];
 
-  filtrosVisible = false;
+  // Al entrar desde el menú los filtros ya están a la vista; se cierran solos al procesar.
+  filtrosVisible = true;
   cargando = false;
 
   listaSedes: { codsede: string; nombre: string }[] = [];

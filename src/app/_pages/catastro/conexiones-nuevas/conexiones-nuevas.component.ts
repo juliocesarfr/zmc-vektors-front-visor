@@ -181,7 +181,8 @@ export class ConexionesNuevasComponent
   private registroCapas: Record<string, BaseLayer> = {};
   private capasVector: VectorImageLayer<VectorSource>[] = [];
 
-  filtrosVisible = false;
+  // Al entrar desde el menú los filtros ya están a la vista; se cierran solos al procesar.
+  filtrosVisible = true;
   baseActive: string | null = "osm";
   cargando = false;
   descargandoShape = false;
