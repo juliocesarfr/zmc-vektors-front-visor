@@ -729,6 +729,26 @@
     }
   }
 
+  // Los mismos colores que usa el mapa de calor de OpenLayers por defecto.
+  .pp-calor {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    .pp-calor-barra {
+      height: 10px;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #0000ff, #00ffff, #00ff00, #ffff00, #ff0000);
+    }
+
+    .pp-calor-extremos {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
   .pp-zona {
     display: flex;
     flex-direction: column;
@@ -1259,4 +1279,128 @@
     flex: none;
     border-color: rgba(0, 0, 0, 0.35);
   }
+}
+
+// ---------- Reclamos del cliente (arriba de la ficha) ----------
+
+.ficha-reclamos-cliente {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 14px 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(14, 116, 144, 0.18);
+
+  .frc-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: #f8fafc;
+  }
+
+  .frc-ayuda {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .frc-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
+  .frc-item {
+    display: grid;
+    grid-template-columns: 10px 86px 72px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.06);
+    color: #e2e8f0;
+    font-size: 11.5px;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    &.elegido {
+      border-color: #22d3ee;
+      background: rgba(34, 211, 238, 0.18);
+    }
+
+    &.fuera-de-filtro {
+      opacity: 0.5;
+    }
+
+    .ficha-punto {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .frc-numero {
+      font-weight: 800;
+    }
+
+    .frc-resultado {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(255, 255, 255, 0.7);
+
+      b {
+        filter: brightness(1.35);
+      }
+    }
+  }
+
+  .ficha-chip {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+
+    &.alerta {
+      background: #7f1d1d;
+      color: #fecaca;
+    }
+
+    &.fundado {
+      background: #14532d;
+      color: #bbf7d0;
+    }
+  }
+}
+
+// La observación del inspector puede ser larga: se respeta el salto de línea y no se sale de la ficha.
+.texto-largo {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.ficha-aviso-nulidad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 14px 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(120, 53, 15, 0.55);
+  border: 1px solid #b45309;
+  color: #fde68a;
+  font-size: 12px;
+  font-weight: 700;
 }

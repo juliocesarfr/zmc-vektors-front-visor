@@ -11,16 +11,16 @@
       @if (!filtrosVisible) {
         <div class="cd-filtros-summary">
           <span class="filtro-chip sucursal">
-            <i class="pi pi-building"></i> Sede: {{ getDescSede() }}
+            <i class="pi pi-building"></i> Sede: {{ sedeProcesada }}
           </span>
-          @if (fechaInicial && fechaFinal) {
+          @if (desdeProcesado && hastaProcesado) {
             <span class="filtro-chip estado">
-              <i class="pi pi-calendar"></i> {{ fechaInicial | date: 'dd/MM/yyyy' }} -
-              {{ fechaFinal | date: 'dd/MM/yyyy' }}
+              <i class="pi pi-calendar"></i> {{ desdeProcesado | date: 'dd/MM/yyyy' }} -
+              {{ hastaProcesado | date: 'dd/MM/yyyy' }}
             </span>
           }
           <span class="filtro-chip tipo">
-            <i class="pi pi-tag"></i> Instancia: {{ getDescEstado() }}
+            <i class="pi pi-tag"></i> Instancia: {{ instanciaProcesada }}
           </span>
           @if (cantidadFiltrosSobreLoCargado > 0) {
             <span class="filtro-chip tipo" title="Filtros sobre lo cargado y «Mostrar solo»">
@@ -299,7 +299,7 @@
           class="card-resumen filtrable fuera-de-plazo"
           [class.activa]="estaActivoFiltroRapido('fuera')"
           (click)="alternarFiltroRapido('fuera')"
-          title="Resueltos fuera de plazo o con silencio positivo (se entiende fundado)"
+          title="Resueltos fuera de plazo, con silencio positivo o sin notificación registrada con el plazo vencido"
         >
           <span class="numero">{{ tarjetas.fueraDePlazo | number }}</span>
           <span class="titulo">Fuera de plazo</span>
@@ -308,7 +308,7 @@
           class="card-resumen filtrable al-limite"
           [class.activa]="estaActivoFiltroRapido('allimite')"
           (click)="alternarFiltroRapido('allimite')"
-          title="Resueltos dentro de los 3 últimos días hábiles del plazo"
+          title="Resueltos con 3 días hábiles o menos de margen antes de la fecha máxima"
         >
           <span class="numero">{{ tarjetas.alLimite | number }}</span>
           <span class="titulo">Al límite</span>
@@ -395,7 +395,18 @@
           <button type="button" [class.activo]="vistaMapa === 'puntos'" (click)="elegirVista('puntos')">Puntos</button>
           <button type="button" [class.activo]="vistaMapa === 'calor'" (click)="elegirVista('calor')">Calor por zona</button>
         </div>
-        <span class="pp-nota">Un punto por cliente: el número dice cuántos reclamos tiene en el periodo.</span>
+        @if (vistaMapa === 'calor') {
+          <div class="pp-calor">
+            <div class="pp-calor-barra"></div>
+            <div class="pp-calor-extremos"><span>Pocos reclamos</span><span>Muchos reclamos juntos</span></div>
+          </div>
+          <span class="pp-nota">
+            Cada cliente suma según sus reclamos (5 o más es el máximo) en unos 60 m a la redonda. Lo rojo es donde se
+            juntan más reclamos. Respeta los filtros y el grupo elegido en la leyenda.
+          </span>
+        } @else {
+          <span class="pp-nota">Un punto por cliente: el número dice cuántos de sus reclamos se ven con los filtros aplicados.</span>
+        }
         @if (zonas.length > 0) {
           <span class="pp-titulo">ZONAS CON MÁS RECLAMOS (200 m)</span>
           @for (zona of zonas; track zona.nombre) {
@@ -470,26 +481,54 @@
               <img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario" />
             </div>
             <div class="up-header-info">
-              <span class="up-label">CLIENTE {{ reclamo.codcliente }} · SECTOR {{ reclamo.codsector }}</span>
+              <span class="up-label">CLIENTE {{ reclamo.codcliente }}{{ reclamo.codsector ? ' · SECTOR ' + reclamo.codsector : '' }}</span>
               <strong class="up-name">{{ reclamo.propietario }}</strong>
             </div>
           </div>
           <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
         </div>
-        <div class="ficha-chips">
-          @if (reclamosDelClienteSeleccionado.length > 1) {
-            <span class="ficha-chip" [class.alerta]="reclamosDelClienteSeleccionado.length >= minimoReincidente">
-              {{ reclamosDelClienteSeleccionado.length >= minimoReincidente ? 'Reincidente · ' : '' }}{{ reclamosDelClienteSeleccionado.length }} reclamos en el periodo
-            </span>
-          }
-          @if (fundadosDelClienteSeleccionado > 0) {
-            <span class="ficha-chip fundado">{{ fundadosDelClienteSeleccionado }} fundado{{ fundadosDelClienteSeleccionado > 1 ? 's' : '' }}</span>
-          }
-        </div>
+        @if (reclamosDelClienteSeleccionado.length > 1) {
+          <div class="ficha-reclamos-cliente">
+            <div class="frc-cabecera">
+              <strong>{{ reclamosDelClienteSeleccionado.length }} reclamos de este cliente en el periodo</strong>
+              @if (reclamosDelClienteSeleccionado.length >= minimoReincidente) {
+                <span class="ficha-chip alerta">Reincidente</span>
+              }
+              @if (fundadosDelClienteSeleccionado > 0) {
+                <span class="ficha-chip fundado"
+                  >{{ fundadosDelClienteSeleccionado }} fundado{{ fundadosDelClienteSeleccionado > 1 ? 's' : '' }}</span
+                >
+              }
+            </div>
+            <span class="frc-ayuda">Elija uno: el detalle de abajo es del reclamo marcado.</span>
+            <div class="frc-lista">
+              @for (otro of reclamosDelClienteSeleccionado; track otro.codsede + '-' + otro.nroreclamo) {
+                <button
+                  type="button"
+                  class="frc-item"
+                  [class.elegido]="otro === reclamo"
+                  [class.fuera-de-filtro]="!estaVisible(otro)"
+                  [title]="estaVisible(otro) ? 'Ver este reclamo' : 'Ver este reclamo (no cumple los filtros aplicados)'"
+                  (click)="elegirReclamoDelHistorial(otro)"
+                >
+                  <span class="ficha-punto" [style.background]="colorDelResultado(otro)"></span>
+                  <span class="frc-numero">N° {{ otro.nroreclamo }}</span>
+                  <span class="frc-fecha">{{ otro.fecharec }}</span>
+                  <span class="frc-resultado"
+                    ><b [style.color]="colorDelResultado(otro)">{{ resultadoDelReclamo(otro) }}</b> ·
+                    {{ instanciaCorta(otro) }}</span
+                  >
+                </button>
+              }
+            </div>
+          </div>
+        }
         <div class="up-suministro">
           <div class="up-sum-item primary">
             <i class="pi pi-file-edit"></i>
-            <span class="up-sum-label">RECLAMO N°</span>
+            <span class="up-sum-label"
+              >RECLAMO N°{{ reclamosDelClienteSeleccionado.length > 1 ? ' · ' + posicionDelReclamoSeleccionado + ' de ' + reclamosDelClienteSeleccionado.length : '' }}</span
+            >
             <span class="up-sum-value">{{ reclamo.nroreclamo }}</span>
           </div>
           <div class="up-sum-sep"></div>
@@ -501,6 +540,11 @@
             >
           </div>
         </div>
+        @if (reclamo.nulidad === 1) {
+          <div class="ficha-aviso-nulidad" title="El reclamo tiene marcada una nulidad">
+            <i class="pi pi-exclamation-triangle"></i> Este reclamo tiene marcada una nulidad
+          </div>
+        }
         <div class="up-body">
           <div class="up-section">
             <div class="up-section-title medidor"><i class="pi pi-file-edit"></i> RECLAMO</div>
@@ -541,11 +585,13 @@
 
           <div class="up-section">
             <div class="up-section-title loc"><i class="pi pi-clock"></i> PLAZOS (DÍAS HÁBILES)</div>
-            @if (reclamo.estadoplazo !== 'NA') {
+            @if (plazoDelReclamo(reclamo).clave !== 'NA') {
               <div class="plazo-barra" [style.border-color]="plazoDelReclamo(reclamo).color">
                 <div class="plazo-cabecera">
                   <strong class="plazo-etiqueta" [style.background]="plazoDelReclamo(reclamo).color">{{ plazoDelReclamo(reclamo).etiqueta }}</strong>
-                  <span>Resuelto en {{ reclamo.diasresolucion }} de {{ reclamo.diasplazo }} días</span>
+                  @if (reclamo.diasresolucion !== null && reclamo.diasresolucion !== undefined && reclamo.diasplazo) {
+                    <span>Resuelto en {{ reclamo.diasresolucion }} de {{ reclamo.diasplazo }} días</span>
+                  }
                 </div>
                 <div class="plazo-fondo">
                   <div
@@ -624,20 +670,37 @@
             </span>
           </div>
 
-          <div class="up-section">
-            <div class="up-section-title loc"><i class="pi pi-search"></i> INSPECCIÓN</div>
-            <div class="up-grid grid-2">
-              <div class="up-cell full">
-                <span class="uc-label">Resultado</span><span class="uc-val">{{ reclamo.resultadoinspeccion }}</span>
-              </div>
-              <div class="up-cell">
-                <span class="uc-label">Fecha</span><span class="uc-val">{{ reclamo.fechainspeccion }}</span>
-              </div>
-              <div class="up-cell">
-                <span class="uc-label">Inspector</span><span class="uc-val">{{ reclamo.inspector }}</span>
+          @if (reclamo.fechainspeccion || reclamo.resultadoinspeccion || reclamo.observacioninspeccion || reclamo.observacionmedidor) {
+            <div class="up-section">
+              <div class="up-section-title loc"><i class="pi pi-search"></i> INSPECCIÓN</div>
+              <div class="up-grid grid-2">
+                <div class="up-cell">
+                  <span class="uc-label">Fecha</span><span class="uc-val">{{ reclamo.fechainspeccion }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">Inspector</span><span class="uc-val">{{ reclamo.inspector }}</span>
+                </div>
+                @if (reclamo.resultadoinspeccion) {
+                  <div class="up-cell full">
+                    <span class="uc-label">Resultado (inspección interna)</span
+                    ><span class="uc-val">{{ reclamo.resultadoinspeccion }}</span>
+                  </div>
+                }
+                @if (reclamo.observacioninspeccion) {
+                  <div class="up-cell full">
+                    <span class="uc-label">Lo que encontró el inspector (inspección interna)</span
+                    ><span class="uc-val texto-largo">{{ reclamo.observacioninspeccion }}</span>
+                  </div>
+                }
+                @if (reclamo.observacionmedidor) {
+                  <div class="up-cell full">
+                    <span class="uc-label">Medidor (inspección externa)</span
+                    ><span class="uc-val">{{ reclamo.observacionmedidor }}</span>
+                  </div>
+                }
               </div>
             </div>
-          </div>
+          }
 
           <div class="up-section">
             <div class="up-section-title medidor"><i class="pi pi-wallet"></i> MONTOS</div>
@@ -652,7 +715,7 @@
               @if ((reclamo.cantidadrebajas ?? 0) > 0) {
                 <div class="up-cell">
                   <span class="uc-label">Rebajado</span
-                  ><span class="uc-val">S/ {{ reclamo.totalreba | number: '1.2-2' }}</span>
+                  ><span class="uc-val">{{ reclamo.totalreba !== null && reclamo.totalreba !== undefined ? 'S/ ' + (reclamo.totalreba | number: '1.2-2') : '' }}</span>
                 </div>
                 <div class="up-cell">
                   <span class="uc-label">N° rebaja · fecha</span
@@ -680,26 +743,6 @@
               </div>
             </div>
           </div>
-
-          @if (otrosReclamosDelCliente.length > 0) {
-            <div class="up-section">
-              <div class="up-section-title medidor"><i class="pi pi-history"></i> OTROS RECLAMOS DEL CLIENTE</div>
-              <div class="ficha-lista">
-                @for (otro of otrosReclamosDelCliente; track otro.codsede + '-' + otro.nroreclamo) {
-                  <button type="button" class="ficha-item elegible" (click)="elegirReclamoDelHistorial(otro)" title="Ver este reclamo">
-                    <span class="ficha-punto" [style.background]="colorDelResultado(otro)"></span>
-                    <div>
-                      <strong>N° {{ otro.nroreclamo }} · {{ otro.fecharec }} · {{ resultadoDelReclamo(otro) }}</strong>
-                      <span
-                        >{{ otro.destiporeclam }}{{ razonDelFundado(otro) ? ' · ' + razonDelFundado(otro) : '' }} ·
-                        {{ (otro.cantidadrebajas ?? 0) > 0 ? 'rebaja S/ ' + (otro.totalreba | number: '1.2-2') : 'sin rebaja' }}</span
-                      >
-                    </div>
-                  </button>
-                }
-              </div>
-            </div>
-          }
 
           <div class="up-section">
             <div
@@ -796,7 +839,7 @@
   @if (resumen; as datos) {
     <div class="resumen-reclamos">
       <span class="resumen-nota">
-        {{ datos.total | number }} reclamos del {{ fechaInicial | date: 'dd/MM/yyyy' }} al {{ fechaFinal | date: 'dd/MM/yyyy' }},
+        {{ datos.total | number }} reclamos del {{ desdeProcesado | date: 'dd/MM/yyyy' }} al {{ hastaProcesado | date: 'dd/MM/yyyy' }},
         con los filtros aplicados. Clic en una sede, instancia o razón: el mapa muestra solo esos reclamos.
       </span>
 

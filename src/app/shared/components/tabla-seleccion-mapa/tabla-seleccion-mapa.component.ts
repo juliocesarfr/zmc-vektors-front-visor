@@ -79,6 +79,10 @@ export class TablaSeleccionMapaComponent implements OnChanges {
     return this.columnas.map((columna) => columna.campo);
   }
 
+  // Con miles de filas la tabla dibujaba todas las celdas juntas y congelaba el navegador: se pagina de 100 en 100.
+  // El Excel y el PDF siguen tomando todas las filas (o las del filtro), no solo la página que se ve.
+  readonly filasPorPagina = 100;
+
   get filasVisibles(): FilaListado[] {
     return this.filasFiltradas ?? this.filas;
   }

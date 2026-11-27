@@ -118,6 +118,9 @@
         [scrollable]="true"
         scrollHeight="flex"
         [rowHover]="true"
+        [paginator]="filas.length > filasPorPagina"
+        [rows]="filasPorPagina"
+        [alwaysShowPaginator]="false"
         styleClass="p-datatable-sm p-datatable-gridlines"
         (onFilter)="alFiltrar($event)"
       >
@@ -135,7 +138,7 @@
         <ng-template pTemplate="body" let-fila let-columnas="columns">
           <tr class="ts-fila" (click)="filaElegida.emit(fila)" title="Ubicar en el mapa">
             @for (columna of columnas; track columna) {
-              <td>{{ fila[columna.campo] ?? '-' }}</td>
+              <td>{{ fila[columna.campo] ?? '' }}</td>
             }
           </tr>
         </ng-template>

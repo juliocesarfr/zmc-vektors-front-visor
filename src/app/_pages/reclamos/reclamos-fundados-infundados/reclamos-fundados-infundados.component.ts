@@ -39,7 +39,7 @@ import VectorSource from "ol/source/Vector";
 import Feature from "ol/Feature";
 import Point from "ol/geom/Point";
 import { containsCoordinate, createEmpty, extend, Extent, isEmpty } from "ol/extent";
-import { transform, transformExtent } from "ol/proj";
+import { getPointResolution, transform, transformExtent } from "ol/proj";
 import Zoom from "ol/control/Zoom";
 import { Fill, Stroke, Style, Text } from "ol/style";
 import { DialogService, DynamicDialogRef } from "primeng/dynamicdialog";
@@ -82,11 +82,13 @@ import {
   colorResultado,
   compararMasReciente,
   esFundado,
+  esInfundado,
   esReincidente,
   estaFueraDePlazo,
   estaSinNotificar,
   etiquetaEnlaceRebaja,
   etiquetaInstancia,
+  etiquetaInstanciaCorta,
   etiquetaPlazo,
   etiquetaResultado,
   etiquetaResultadoInstancia,
@@ -132,8 +134,12 @@ const PROYECCION_METROS = "EPSG:3857";
 const CANTIDAD_ZONAS = 3;
 // Debajo de este zoom los números de reclamos por cliente se tapan unos a otros.
 const ZOOM_MINIMO_CANTIDAD = 15;
-// Con 3 reclamos el cliente ya pesa lo máximo en el mapa de calor.
-const RECLAMOS_PESO_MAXIMO = 3;
+// Mapa de calor: con 5 reclamos el cliente pesa lo máximo, y cada punto cubre unos 60 m del terreno a cualquier zoom
+// (con un radio fijo en píxeles, al alejarse todo el centro se juntaba en una sola mancha roja).
+const RECLAMOS_PESO_MAXIMO = 5;
+const RADIO_CALOR_METROS = 60;
+const RADIO_CALOR_MINIMO_PX = 3;
+const RADIO_CALOR_MAXIMO_PX = 45;
 
 function colorConOpacidad(colorHexadecimal: string, opacidad: number): string {
   const valor = parseInt(colorHexadecimal.replace("#", ""), 16);
@@ -218,11 +224,14 @@ const COLUMNAS_TABLA_RECLAMOS: ColumnaListado[] = [
   { campo: "fecharebaja", titulo: "Fecha de rebaja", anchoExcel: 14 },
   { campo: "enlaceDeLaRebaja", titulo: "Enlace de la rebaja", anchoExcel: 30 },
   { campo: "fechainspeccion", titulo: "Fecha de inspección", anchoExcel: 14 },
-  { campo: "resultadoinspeccion", titulo: "Resultado de la inspección", anchoExcel: 26 },
+  { campo: "resultadoinspeccion", titulo: "Resultado de la inspección interna", anchoExcel: 26 },
+  { campo: "observacioninspeccion", titulo: "Observación de la inspección interna", anchoExcel: 60 },
+  { campo: "observacionmedidor", titulo: "Observación del medidor (externa)", anchoExcel: 30 },
   { campo: "inspector", titulo: "Inspector", anchoExcel: 26 },
   { campo: "usuarioresolvio", titulo: "Resolvió", anchoExcel: 26 },
   { campo: "notificador", titulo: "Notificador", anchoExcel: 26 },
   { campo: "finalizado", titulo: "Fin del reclamo", anchoExcel: 10 },
+  { campo: "conNulidad", titulo: "Con nulidad", anchoExcel: 10 },
 ];
 
 // Los nombres de columna de un .dbf no pasan de 10 caracteres.
@@ -243,6 +252,15 @@ const COLUMNAS_SHAPE_RECLAMOS: ColumnaShape[] = [
   { nombre: "reclamos", campo: "reclamoscliente" },
   { nombre: "tot_rebaja", campo: "totalreba" },
 ];
+
+/** Lo que se consultó al pulsar BUSCAR: la cabecera, el Excel y la búsqueda de un cliente dicen esto, no lo que hay en el panel. */
+interface ConsultaProcesada {
+  filtro: FiltroReclamosFundadosInfundadosRequest;
+  sede: string;
+  instancia: string;
+  desde: Date;
+  hasta: Date;
+}
 
 interface Opcion {
   codigo: string;
@@ -391,6 +409,9 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
   resultadoBusquedaJson: ReclamoFundadoInfundado[] = [];
   /** Los reclamos que quedan con los filtros del panel, «Mostrar solo», el resumen y la leyenda. */
   reclamosVisibles: ReclamoFundadoInfundado[] = [];
+  private conjuntoReclamosVisibles = new Set<ReclamoFundadoInfundado>();
+  /** Reclamos visibles agrupados por cliente: se arma una vez por recálculo y lo usan el número del punto, las zonas, el calor y la ficha. */
+  private reclamosVisiblesPorCliente = new Map<string, ReclamoFundadoInfundado[]>();
   totalClientesVisibles = 0;
   totalSinCoordenadas = 0;
   tarjetas: Tarjetas = { ...VACIO };
@@ -488,6 +509,24 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     return this.codsedeSesion && estaEnLaLista ? this.codsedeSesion : TODOS;
   }
 
+  consultaProcesada: ConsultaProcesada | null = null;
+
+  get sedeProcesada(): string {
+    return this.consultaProcesada?.sede ?? this.getDescSede();
+  }
+
+  get instanciaProcesada(): string {
+    return this.consultaProcesada?.instancia ?? this.getDescEstado();
+  }
+
+  get desdeProcesado(): Date {
+    return this.consultaProcesada?.desde ?? this.fechaInicial;
+  }
+
+  get hastaProcesado(): Date {
+    return this.consultaProcesada?.hasta ?? this.fechaFinal;
+  }
+
   getDescSede(): string {
     return this.listaSedes.find((sede) => sede.codigo === this.selectedSede)?.descripcion ?? "TODAS";
   }
@@ -569,6 +608,13 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
             this.avisar("error", "Error", this.mensajeDeError(response.mensaje));
             return;
           }
+          this.consultaProcesada = {
+            filtro,
+            sede: this.getDescSede(),
+            instancia: this.getDescEstado(),
+            desde: new Date(this.fechaInicial),
+            hasta: new Date(this.fechaFinal),
+          };
           this.resultadoBusquedaJson = response.data ?? [];
           this.armarOpcionesSobreLoCargado();
           if (this.resultadoBusquedaJson.length > 0) {
@@ -601,6 +647,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     this.fechaFinal = new Date();
     this.limpiarCapas();
     this.resultadoBusquedaJson = [];
+    this.consultaProcesada = null;
     this.armarOpcionesSobreLoCargado();
     this.cerrarPopup();
   }
@@ -626,7 +673,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     );
     this.opcionesConcepto = distintos((registro) =>
       codigo(registro.codreclamo)
-        ? { codigo: codigo(registro.codreclamo), descripcion: `${codigo(registro.codreclamo)} - ${codigo(registro.destiporeclam)}` }
+        ? { codigo: codigo(registro.codreclamo), descripcion: [codigo(registro.codreclamo), codigo(registro.destiporeclam)].filter(Boolean).join(" - ") }
         : null,
     );
     this.opcionesRazon = distintos((registro) => {
@@ -723,7 +770,8 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
       const punto = crearFeaturePunto(conCoordenada, ORIGENES_COORDENADA.usuario);
       if (!punto) return;
       punto.set("_cliente", clave);
-      punto.set("_cantidad", reclamos.length);
+      // El mapa puede estar en grados: las zonas de 200 m se arman en metros (se convierte una sola vez).
+      punto.set("_metros", transform((punto.getGeometry() as Point).getCoordinates(), this.gis.proyeccionMapa, PROYECCION_METROS));
       this.puntoPorCliente.set(clave, punto);
       puntos.push(punto);
     });
@@ -777,6 +825,18 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
       if (!this.grupoFiltrado || grupo.clave === this.grupoFiltrado) this.grupoPorCliente.set(clave, grupo);
     });
     this.reclamosVisibles = filtrados.filter((registro) => this.grupoPorCliente.has(claveCliente(registro)));
+    this.conjuntoReclamosVisibles = new Set(this.reclamosVisibles);
+    this.reclamosVisiblesPorCliente = new Map();
+    this.reclamosVisibles.forEach((registro) => {
+      const clave = claveCliente(registro);
+      const reclamos = this.reclamosVisiblesPorCliente.get(clave);
+      if (reclamos) reclamos.push(registro);
+      else this.reclamosVisiblesPorCliente.set(clave, [registro]);
+    });
+    // El número sobre el punto cuenta lo mismo que el listado: los reclamos visibles del cliente.
+    this.puntoPorCliente.forEach((punto, clave) =>
+      punto.set("_cantidad", this.reclamosVisiblesPorCliente.get(clave)?.length ?? 0, true),
+    );
     this.totalClientesVisibles = this.grupoPorCliente.size;
     this.totalSinCoordenadas = this.reclamosVisibles.filter((registro) => !this.puntoPorCliente.has(claveCliente(registro))).length;
 
@@ -797,7 +857,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     this.reclamosVisibles.forEach((reclamo) => {
       tarjetas.reclamos++;
       if (esFundado(reclamo)) tarjetas.fundados++;
-      else tarjetas.infundados++;
+      if (esInfundado(reclamo)) tarjetas.infundados++;
       if (estaFueraDePlazo(reclamo)) tarjetas.fueraDePlazo++;
       if (String(reclamo.estadoplazo ?? "").trim() === "AL") tarjetas.alLimite++;
       if (esReincidente(reclamo)) tarjetas.deReincidentes++;
@@ -815,8 +875,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     this.grupoPorCliente.forEach((_grupo, clave) => {
       const punto = this.puntoPorCliente.get(clave);
       if (!punto) return;
-      // El mapa puede estar en grados: la cuadrícula se arma en metros y su extensión vuelve a la proyección del mapa.
-      const [x, y] = transform((punto.getGeometry() as Point).getCoordinates(), this.gis.proyeccionMapa, PROYECCION_METROS);
+      const [x, y] = punto.get("_metros") as number[];
       const columna = Math.floor(x / LADO_ZONA_METROS);
       const fila = Math.floor(y / LADO_ZONA_METROS);
       const llave = `${columna}_${fila}`;
@@ -830,7 +889,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
           this.gis.proyeccionMapa,
         ),
       };
-      const reclamos = this.reclamosVisibles.filter((reclamo) => claveCliente(reclamo) === clave);
+      const reclamos = this.reclamosVisiblesPorCliente.get(clave) ?? [];
       celda.reclamos += reclamos.length;
       celda.clientes++;
       const sector = String(reclamos[0]?.codsector ?? "").trim();
@@ -861,13 +920,9 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     const origen = this.calorLayer?.getSource();
     if (!origen) return;
     origen.clear();
-    const cantidadPorCliente = new Map<string, number>();
-    this.reclamosVisibles.forEach((reclamo) => {
-      const clave = claveCliente(reclamo);
-      cantidadPorCliente.set(clave, (cantidadPorCliente.get(clave) ?? 0) + 1);
-    });
     const elementos: Feature[] = [];
-    cantidadPorCliente.forEach((cantidad, clave) => {
+    this.reclamosVisiblesPorCliente.forEach((reclamos, clave) => {
+      const cantidad = reclamos.length;
       const punto = this.puntoPorCliente.get(clave);
       if (!punto) return;
       elementos.push(
@@ -902,8 +957,11 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
 
   private aplicarVisibilidadReclamos(): void {
     const encendida = this.capaReclamosEncendida;
+    const lotesEncendidos = this.commercialLayers.find((capa) => capa.id === "lotesReclamos")?.active ?? true;
     this.reclamosLayer.setVisible(encendida && this.vistaMapa === "puntos");
     this.calorLayer.setVisible(encendida && this.vistaMapa === "calor");
+    // Los lotes pintados por grupo le meten ruido al calor: en esa vista se apagan.
+    this.lotesReclamosLayer.setVisible(lotesEncendidos && this.vistaMapa === "puntos");
   }
 
   private ajustarVista(fitBounds: boolean): void {
@@ -932,6 +990,8 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     this.puntoPorCliente = new Map();
     this.grupoPorCliente = new Map();
     this.reclamosVisibles = [];
+    this.conjuntoReclamosVisibles = new Set();
+    this.reclamosVisiblesPorCliente = new Map();
     this.totalClientesVisibles = 0;
     this.totalSinCoordenadas = 0;
     this.tarjetas = { ...VACIO };
@@ -999,6 +1059,11 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     return etiquetaInstancia(registro);
   }
 
+  /** La instancia en pocas letras, para la lista de reclamos del cliente. */
+  instanciaCorta(registro: ReclamoFundadoInfundado): string {
+    return etiquetaInstanciaCorta(registro);
+  }
+
   razonDelFundado(registro: ReclamoFundadoInfundado): string {
     return esFundado(registro) ? descripcionRazonFundado(registro.razonfundado) : "";
   }
@@ -1041,8 +1106,14 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     return this.reclamosPorCliente.get(claveCliente(this.reclamoSeleccionado)) ?? [this.reclamoSeleccionado];
   }
 
-  get otrosReclamosDelCliente(): ReclamoFundadoInfundado[] {
-    return this.reclamosDelClienteSeleccionado.filter((reclamo) => reclamo !== this.reclamoSeleccionado);
+  /** Lugar del reclamo elegido en la lista del cliente (el más reciente es el 1). */
+  get posicionDelReclamoSeleccionado(): number {
+    return this.reclamosDelClienteSeleccionado.indexOf(this.reclamoSeleccionado as ReclamoFundadoInfundado) + 1;
+  }
+
+  /** La lista del cliente muestra todos sus reclamos cargados; los que no cumplen los filtros se ven apagados. */
+  estaVisible(reclamo: ReclamoFundadoInfundado): boolean {
+    return this.conjuntoReclamosVisibles.has(reclamo);
   }
 
   get fundadosDelClienteSeleccionado(): number {
@@ -1121,20 +1192,21 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
       return;
     }
 
-    if (!this.hayRangoDeFechasValido) {
+    // El cliente se busca con lo mismo que se consultó, para no mezclar en el mapa reclamos de otro rango o sede.
+    if (!this.consultaProcesada && !this.hayRangoDeFechasValido) {
       this.avisar("warn", "Aviso", "Corrija el rango de fechas para buscar un cliente que no está en el mapa.");
       return;
     }
+    const filtro: FiltroReclamosFundadosInfundadosRequest = this.consultaProcesada?.filtro ?? {
+      codsede: this.sinTodos(this.selectedSede),
+      fechaini: this.fechaDesde(),
+      fechafin: this.fechaHasta(),
+      estadoreclamo: this.sinTodos(this.selectedEstado),
+    };
 
     this.cargando = true;
     this.reclamosService
-      .buscarReclamosFundadosInfundados({
-        codsede: this.sinTodos(this.selectedSede),
-        fechaini: this.fechaDesde(),
-        fechafin: this.fechaHasta(),
-        estadoreclamo: this.sinTodos(this.selectedEstado),
-        codcliente: Number(codigo),
-      })
+      .buscarReclamosFundadosInfundados({ ...filtro, codcliente: Number(codigo) })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -1243,8 +1315,8 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
       source: new VectorSource(),
       visible: false,
       zIndex: 19,
-      blur: 22,
-      radius: 14,
+      blur: 6,
+      radius: 4,
       weight: (feature) => Number(feature.get("peso")) || 0,
     });
 
@@ -1299,6 +1371,19 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     });
 
     this.initClick();
+    this.map.getView().on("change:resolution", () => this.ajustarRadioCalor());
+    this.ajustarRadioCalor();
+  }
+
+  /** Radio del calor en píxeles según los metros que representa cada píxel al zoom actual. */
+  private ajustarRadioCalor(): void {
+    const vista = this.map.getView();
+    const resolucion = vista.getResolution();
+    if (!resolucion) return;
+    const metrosPorPixel = getPointResolution(vista.getProjection(), resolucion, vista.getCenter() ?? [0, 0], "m");
+    const radio = Math.min(RADIO_CALOR_MAXIMO_PX, Math.max(RADIO_CALOR_MINIMO_PX, RADIO_CALOR_METROS / metrosPorPixel));
+    this.calorLayer.setRadius(radio);
+    this.calorLayer.setBlur(radio * 1.5);
   }
 
   /** Número de reclamos del cliente sobre su punto. */
@@ -1334,9 +1419,9 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
 
   private subcabeceraReporte(): string[] {
     const subcabecera = [
-      `Sede: ${this.getDescSede()}`,
-      `Instancia: ${this.getDescEstado()}`,
-      `Del ${this.datePipe.transform(this.fechaInicial, "dd/MM/yyyy")} al ${this.datePipe.transform(this.fechaFinal, "dd/MM/yyyy")}`,
+      `Sede: ${this.sedeProcesada}`,
+      `Instancia: ${this.instanciaProcesada}`,
+      `Del ${this.datePipe.transform(this.desdeProcesado, "dd/MM/yyyy")} al ${this.datePipe.transform(this.hastaProcesado, "dd/MM/yyyy")}`,
     ];
     const filtros = this.descripcionFiltrosSobreLoCargado();
     if (filtros) subcabecera.push(`Mostrar solo: ${filtros}`);
@@ -1368,7 +1453,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
 
   toggleCommercialLayer(opcionCapa: any): void {
     opcionCapa.active = !opcionCapa.active;
-    if (opcionCapa.id === "reclamos") {
+    if (opcionCapa.id === "reclamos" || opcionCapa.id === "lotesReclamos") {
       this.aplicarVisibilidadReclamos();
       return;
     }
@@ -1430,6 +1515,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
       cantidadDeRebajas: tieneRebaja ? registro.cantidadrebajas : null,
       enlaceDeLaRebaja: etiquetaEnlaceRebaja(registro),
       finalizado: registro.procesado ? "SI" : "NO",
+      conNulidad: Number(registro.nulidad) === 1 ? "SI" : "",
     };
   }
 
@@ -1474,7 +1560,7 @@ export class ReclamosFundadosInfundadosComponent implements OnInit, AfterViewIni
     this.controladorGis?.cerrarPopupGis();
     const clave = String(feature.get("_cliente") ?? claveCliente(feature.getProperties())).trim();
     const punto = this.puntoPorCliente.get(clave);
-    const visibles = this.reclamosVisibles.filter((reclamo) => claveCliente(reclamo) === clave).sort(compararMasReciente);
+    const visibles = [...(this.reclamosVisiblesPorCliente.get(clave) ?? [])].sort(compararMasReciente);
     const reclamo = reclamoElegido ?? visibles[0];
     if (!punto || !reclamo) return;
     this.featureSeleccionado = punto;

@@ -21,18 +21,28 @@ const grupo = (clave: string, etiqueta: string, detalle: string, color: string):
 export const GRUPO_FUNDADO = grupo("fundado", "Fundado", "Se le dio la razón al usuario", "#16a34a");
 export const GRUPO_INFUNDADO = grupo("infundado", "Infundado", "El reclamo no procedió", "#dc2626");
 const GRUPO_CLIENTE_CON_AMBOS = grupo("ambos", "Cliente con ambos", "El cliente tiene reclamos fundados e infundados", "#7c3aed");
+// Una apelación antigua guardó un valor que no es 1 ni 0: el procedimiento la deja sin resultado en vez de adivinar.
+const GRUPO_SIN_RESULTADO = grupo("sinresultado", "Sin resultado registrado", "La instancia vigente guardó un resultado que no es fundado ni infundado", "#94a3b8");
 
 export function esFundado(reclamo: ReclamoFundadoInfundado): boolean {
   return Number(reclamo.resultado) === 1;
 }
 
+/** Number(null) es 0: por eso se pregunta primero si hay resultado. */
+export function esInfundado(reclamo: ReclamoFundadoInfundado): boolean {
+  return reclamo.resultado !== null && reclamo.resultado !== undefined && Number(reclamo.resultado) === 0;
+}
+
 export function etiquetaResultado(reclamo: ReclamoFundadoInfundado): string {
-  if (Number(reclamo.improcedente) === 1) return "Improcedente";
-  return esFundado(reclamo) ? "Fundado" : "Infundado";
+  if (!esFundado(reclamo) && !esInfundado(reclamo)) return GRUPO_SIN_RESULTADO.etiqueta;
+  const resultado = esFundado(reclamo) ? "Fundado" : "Infundado";
+  // Se dice en qué grupo se cuenta, para que la etiqueta cuadre con las tarjetas y la leyenda.
+  return Number(reclamo.improcedente) === 1 ? `${resultado} (improcedente)` : resultado;
 }
 
 export function colorResultado(reclamo: ReclamoFundadoInfundado): string {
-  return esFundado(reclamo) ? GRUPO_FUNDADO.color : GRUPO_INFUNDADO.color;
+  if (esFundado(reclamo)) return GRUPO_FUNDADO.color;
+  return esInfundado(reclamo) ? GRUPO_INFUNDADO.color : GRUPO_SIN_RESULTADO.color;
 }
 
 /** Etiqueta de un resultado guardado de una instancia (1 fundado, 0 infundado); sin dato queda en blanco. */
@@ -55,6 +65,17 @@ export function etiquetaInstancia(reclamo: ReclamoFundadoInfundado): string {
   return INSTANCIAS[codigo] ?? String(reclamo.estadoreclamo ?? "").trim();
 }
 
+const INSTANCIAS_CORTAS: Record<string, string> = {
+  "004": "Conciliación",
+  "005": "1ª instancia",
+  "007": "Reconsideración",
+  "009": "Apelación",
+};
+
+export function etiquetaInstanciaCorta(reclamo: ReclamoFundadoInfundado): string {
+  return INSTANCIAS_CORTAS[String(reclamo.estadorec ?? "").trim()] ?? etiquetaInstancia(reclamo);
+}
+
 /** Solo la resolución y la apelación guardan la razón del fundado; la conciliación y la reconsideración no. */
 export function guardaRazonFundado(reclamo: ReclamoFundadoInfundado): boolean {
   const codigo = String(reclamo.estadorec ?? "").trim();
@@ -74,10 +95,11 @@ export function etiquetaRevocado(reclamo: ReclamoFundadoInfundado): string {
 
 /** De más grave a menos grave: el orden decide el color de un cliente con varios reclamos. */
 const PLAZOS: { codigo: string; grupo: GrupoLeyenda }[] = [
-  { codigo: "SP", grupo: grupo("SP", "Silencio positivo", "Notificado después del límite o sin notificar con el límite vencido: se entiende fundado", "#7f1d1d") },
+  { codigo: "SP", grupo: grupo("SP", "Silencio positivo", "Se notificó después del límite: se entiende fundado", "#7f1d1d") },
+  { codigo: "SN", grupo: grupo("SN", "Sin notificación registrada (plazo vencido)", "Resuelto sin fecha de notificación y con el límite vencido: puede ser silencio positivo o una fecha que falta registrar", "#be185d") },
   { codigo: "FP", grupo: grupo("FP", "Resuelto fuera de plazo", "Se resolvió después de la fecha máxima", "#ef4444") },
   { codigo: "SF", grupo: grupo("SF", "Notificado sin fecha", "Pasó a reconsideración o apelación (hubo notificación), pero la 1ª instancia no tiene la fecha de notificación registrada", "#a855f7") },
-  { codigo: "AL", grupo: grupo("AL", "Al límite (≤ 3 días)", "Se resolvió dentro de los 3 últimos días hábiles del plazo", "#f59e0b") },
+  { codigo: "AL", grupo: grupo("AL", "Al límite (≤ 3 días)", "Se resolvió con 3 días hábiles o menos de margen antes de la fecha máxima", "#f59e0b") },
   { codigo: "PN", grupo: grupo("PN", "Pendiente de notificar", "Resuelto a tiempo y aún sin notificar, con el límite vigente", "#0ea5e9") },
   { codigo: "EP", grupo: grupo("EP", "En plazo", "Resuelto y notificado a tiempo", "#16a34a") },
   { codigo: "NA", grupo: grupo("NA", "No aplica", "Conciliado o sin fecha de resolución", "#94a3b8") },
@@ -94,7 +116,7 @@ export function etiquetaPlazo(reclamo: ReclamoFundadoInfundado): string {
 
 export function estaFueraDePlazo(reclamo: ReclamoFundadoInfundado): boolean {
   const codigo = String(reclamo.estadoplazo ?? "").trim();
-  return codigo === "FP" || codigo === "SP";
+  return codigo === "FP" || codigo === "SP" || codigo === "SN";
 }
 
 function gravedadPlazo(reclamo: ReclamoFundadoInfundado): number {
@@ -150,9 +172,10 @@ export function etiquetaEnlaceRebaja(reclamo: ReclamoFundadoInfundado): string {
 export function grupoDelCliente(modo: ModoPintado, reclamos: ReclamoFundadoInfundado[]): GrupoLeyenda {
   if (modo === "resultado") {
     const hayFundado = reclamos.some(esFundado);
-    const hayInfundado = reclamos.some((reclamo) => !esFundado(reclamo));
+    const hayInfundado = reclamos.some(esInfundado);
     if (hayFundado && hayInfundado) return GRUPO_CLIENTE_CON_AMBOS;
-    return hayFundado ? GRUPO_FUNDADO : GRUPO_INFUNDADO;
+    if (hayFundado) return GRUPO_FUNDADO;
+    return hayInfundado ? GRUPO_INFUNDADO : GRUPO_SIN_RESULTADO;
   }
   if (modo === "plazo") {
     const masGrave = reclamos.reduce((elegido, reclamo) => (gravedadPlazo(reclamo) > gravedadPlazo(elegido) ? reclamo : elegido));
@@ -169,7 +192,7 @@ export function grupoDelCliente(modo: ModoPintado, reclamos: ReclamoFundadoInfun
 
 /** Grupos de un modo en el orden en que se muestran en la leyenda. */
 export function gruposDelModo(modo: ModoPintado): GrupoLeyenda[] {
-  if (modo === "resultado") return [GRUPO_FUNDADO, GRUPO_INFUNDADO, GRUPO_CLIENTE_CON_AMBOS];
+  if (modo === "resultado") return [GRUPO_FUNDADO, GRUPO_INFUNDADO, GRUPO_CLIENTE_CON_AMBOS, GRUPO_SIN_RESULTADO];
   if (modo === "plazo") return PLAZOS.map((plazo) => plazo.grupo);
   if (modo === "reincidencia") return REINCIDENCIAS;
   return [NOTIFICACIONES["SI"], NOTIFICACIONES["NO"], NOTIFICACIONES["NA"]];
@@ -187,8 +210,10 @@ export interface FiltroRapido {
 
 export const FILTROS_RAPIDOS: FiltroRapido[] = [
   { clave: "fundados", nombre: "Fundados", cumple: esFundado, excluye: ["infundados"] },
-  { clave: "infundados", nombre: "Infundados", cumple: (reclamo) => !esFundado(reclamo), excluye: ["fundados", "sinrazon", "fundadosinrebaja"] },
+  { clave: "infundados", nombre: "Infundados", cumple: esInfundado, excluye: ["fundados", "sinrazon", "fundadosinrebaja"] },
   { clave: "fuera", nombre: "Fuera de plazo", cumple: estaFueraDePlazo },
+  { clave: "sinnotificacionvencida", nombre: "Sin notificación registrada (vencido)", cumple: (reclamo) => String(reclamo.estadoplazo ?? "").trim() === "SN" },
+  { clave: "connulidad", nombre: "Con nulidad", cumple: (reclamo) => Number(reclamo.nulidad) === 1 },
   { clave: "allimite", nombre: "Al límite (≤ 3 días)", cumple: (reclamo) => String(reclamo.estadoplazo ?? "").trim() === "AL" },
   { clave: "reincidentes", nombre: `Reincidentes (${MINIMO_REINCIDENTE} o más)`, cumple: esReincidente },
   { clave: "sinnotificar", nombre: "Sin notificar", cumple: estaSinNotificar },
