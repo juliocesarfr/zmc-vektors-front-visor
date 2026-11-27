@@ -19,6 +19,7 @@ import {
   condicionCql,
 } from "../../../core/gis";
 import { crearCapaOrtofoto, crearCapaSatelital, crearCapaWms } from "../../mapa/capas";
+import { COLORES_LECTURA, COLOR_FICHA_AGUA, COLOR_FICHA_ALCANTARILLADO } from "../../constantes/colores-mapa";
 
 export interface CapaBaseUi {
   id: string;
@@ -63,6 +64,23 @@ const SIMBOLOS_TECNICOS: Record<string, SimboloCapaUi> = {
   presiones: { forma: "punto", color: "#9333ea" },
 };
 
+// Las ventanas que no mandan el símbolo de una capa comercial toman este, el mismo de la pantalla principal.
+const SIMBOLOS_COMERCIALES: Record<string, SimboloCapaUi> = {
+  usuarios: { forma: "punto", color: COLORES_LECTURA.normal },
+  lotes: { forma: "area", color: "#cbd5e1" },
+  lotes_usuario: { forma: "area", color: "#f59e0b" },
+  caja_agua: { forma: "rombo", color: COLOR_FICHA_AGUA },
+  acometida: { forma: "linea", color: COLOR_FICHA_AGUA },
+  acometida_agua: { forma: "linea", color: COLOR_FICHA_AGUA },
+  ficha_alc: { forma: "rombo", color: COLOR_FICHA_ALCANTARILLADO },
+  acc_alc: { forma: "linea", color: COLOR_FICHA_ALCANTARILLADO },
+  centroideFicha: { forma: "punto", color: "#16a34a" },
+  sectores: { forma: "area", color: "#a78bfa" },
+  manzanas: { forma: "area", color: "#aaaaaa" },
+  calles: { forma: "linea", color: "#cbd5e1" },
+  rutaLectura: { forma: "linea", color: "#cba029" },
+};
+
 type ClaseCapas = "comerciales" | "tecnicas";
 
 const TECLA_PANEL = "c";
@@ -97,7 +115,7 @@ export class CapasSidebarComponent implements OnChanges {
     id: capa.id,
     label: capa.label,
     active: false,
-    simbolo: SIMBOLOS_TECNICOS[capa.id],
+    simbolo: this.gis.simboloCapa(capa.id) ?? SIMBOLOS_TECNICOS[capa.id],
   }));
 
   // Las fotos de dron de la EPS se suman a los fondos que manda la pantalla; el panel las dibuja y las prende.
@@ -116,6 +134,10 @@ export class CapasSidebarComponent implements OnChanges {
 
   /** Filtros de cada capa técnica; se crean al prenderla por primera vez. */
   private readonly filtrosPorCapa = new Map<string, FiltroCapaUi[]>();
+
+  simboloDe(capa: CapaSwitchUi): SimboloCapaUi | undefined {
+    return capa.simbolo ?? SIMBOLOS_COMERCIALES[capa.id];
+  }
 
   get cantidadActivas(): number {
     return this.contarActivas(this.commercialLayers) + this.contarActivas(this.technicalLayers);

@@ -125,6 +125,8 @@ const EPS_004_IQUITOS: GisEpsConfig = {
     fichaAgua: {
       campoTitulo: "ficha_numero",
       campoFicha: "ficha_numero",
+      campoFecha: "fecha",
+      fichaEmpiezaConCliente: true,
       fotos: {
         "fotografía_2_tapa_de_agua": "Tapa de la caja de agua",
         fotografia_3_medidor: "Medidor",
@@ -143,6 +145,8 @@ const EPS_004_IQUITOS: GisEpsConfig = {
     fichaAlcantarillado: {
       campoTitulo: "ficha_numero",
       campoFicha: "ficha_numero",
+      campoFecha: "fecha",
+      fichaEmpiezaConCliente: true,
       fotos: {
         "fotografía_4_tapa_de_desagüe": "Tapa de la caja de desagüe",
       },
@@ -283,6 +287,148 @@ export const CONFIG_EPS: Record<string, GisEpsConfig> = {
     vista: {
       centro: [-77.1686, -6.0688],
       zoom: 17,
+    },
+    proyecciones: {
+      mapa: "EPSG:4326",
+      utm: "EPSG:32718", // UTM 18S
+    },
+  },
+  "034": {
+    ccodeps: "034",
+    descripcion: "EPS EMAQ - Quillabamba",
+    geoserver: {
+      baseUrl: "https://sysco.epsemaq.com.pe/geoserver",
+      workspace: "QUILLABAMBA",
+    },
+    // Catastro comercial y red de agua desde shapefiles (base gis_quillabamba_db). No hay polígonos de lotes ni de
+    // manzanas: el catastro es un dibujo de líneas sin atributos. Los usuarios traen solo su código de cliente.
+    capas: {
+      lotes: "lineas_catastro",
+      usuarios: "usuarios_agua",
+      centroideFicha: "usuarios_agua",
+      fichaAlcantarillado: "conexiones_alcantarillado",
+    },
+    capasTecnicas: {
+      valvulas: "valvulas_tramo",
+      valvulasHidrante: "valvulas_hidrante",
+      valvulasPurga: "valvulas_purga",
+      valvulasAire: "valvulas_aire",
+      valvulasConduccion: "valvulas_linea_conduccion",
+      hidrantes: "hidrantes",
+      esquineros: "esquineros",
+      fuentes: "erp",
+      presiones: "presion_continuidad",
+    },
+    etiquetas: {
+      lotes: "Catastro comercial",
+      usuarios: "Usuarios de agua",
+      fichaAlcantarillado: "Conexiones de alcantarillado",
+      valvulas: "Válvulas de tramo",
+      valvulasHidrante: "Válvulas de hidrante",
+      valvulasPurga: "Válvulas de purga",
+      valvulasAire: "Válvulas de aire",
+      valvulasConduccion: "Válvulas de la línea de conducción",
+      hidrantes: "Hidrantes",
+      esquineros: "Esquineros",
+      fuentes: "Estaciones reguladoras de presión",
+      presiones: "Presión y continuidad",
+    },
+    // Los mismos colores y formas del estilo publicado en GeoServer (publicar_quillabamba.sh).
+    simbolosCapas: {
+      valvulas: { forma: "punto", color: "#2563eb" },
+      valvulasHidrante: { forma: "punto", color: "#f97316" },
+      valvulasPurga: { forma: "punto", color: "#dc2626" },
+      valvulasAire: { forma: "punto", color: "#16a34a" },
+      valvulasConduccion: { forma: "punto", color: "#7c3aed" },
+      hidrantes: { forma: "area", color: "#dc2626" },
+      esquineros: { forma: "punto", color: "#475569" },
+      fuentes: { forma: "punto", color: "#0e7490" },
+      presiones: { forma: "rombo", color: "#ca8a04" },
+    },
+    usuariosDesdeFichasGeoserver: true,
+    consultaCapas: {
+      lotes: { campoTitulo: "gid", atributos: {} },
+      centroideFicha: {
+        campoTitulo: "usuario",
+        campoCliente: "usuario",
+        atributos: { usuario: "Código de cliente" },
+      },
+      fichaAlcantarillado: {
+        campoTitulo: "usuario",
+        atributos: { usuario: "Código de cliente" },
+      },
+      valvulas: {
+        campoTitulo: "cod",
+        atributos: {
+          tipo: "Tipo",
+          diametro: "Diámetro",
+          material: "Material",
+          zona: "Zona",
+          profundida: "Profundidad",
+          operativid: "Operatividad",
+          conservaci: "Conservación",
+          direccion: "Dirección",
+        },
+      },
+      valvulasHidrante: {
+        campoTitulo: "cod",
+        atributos: { tipo: "Tipo", diametro: "Diámetro", material: "Material", operativid: "Operatividad", direccion: "Dirección" },
+      },
+      valvulasPurga: {
+        campoTitulo: "cod",
+        atributos: { tipo: "Tipo", diametro: "Diámetro", material: "Material", operativid: "Operatividad", direccion: "Dirección" },
+      },
+      valvulasAire: {
+        campoTitulo: "cod",
+        atributos: { tipo: "Tipo", diametro: "Diámetro", material: "Material", operativid: "Operatividad", direccion: "Dirección" },
+      },
+      valvulasConduccion: {
+        campoTitulo: "cod_val",
+        atributos: {
+          tipo: "Tipo",
+          diametro: "Diámetro",
+          material: "Material",
+          zona: "Zona",
+          estado_con: "Conservación",
+          estado_ope: "Operatividad",
+          direccion: "Dirección",
+        },
+      },
+      hidrantes: {
+        campoTitulo: "cod",
+        atributos: {
+          tipo: "Tipo",
+          diametro: "Diámetro",
+          material: "Material",
+          operativid: "Operatividad",
+          conservaci: "Conservación",
+          direccion: "Dirección",
+        },
+      },
+      esquineros: {
+        campoTitulo: "cod_e",
+        atributos: { reserv: "Reservorio", direcc: "Dirección", z_topo: "Zona topográfica", fcha_r: "Fecha" },
+      },
+      fuentes: {
+        campoTitulo: "cod",
+        atributos: { descripcio: "Descripción", tipo: "Tipo", diametro: "Diámetro", operativid: "Operatividad", direccion: "Dirección" },
+      },
+      presiones: {
+        campoTitulo: "codigo",
+        atributos: {
+          sector: "Sector",
+          sub_sector: "Subsector",
+          zona_de_ab: "Abastecido por",
+          direccion: "Dirección",
+          presion: "Presión",
+          s_inicial: "Servicio desde",
+          s_final_en: "Servicio hasta",
+        },
+      },
+    },
+    vista: {
+      centro: [-72.6995, -12.8666],
+      zoom: 16,
     },
     proyecciones: {
       mapa: "EPSG:4326",

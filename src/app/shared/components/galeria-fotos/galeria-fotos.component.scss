@@ -171,7 +171,7 @@ $margen-foto: 16px;
     overflow: hidden;
     border-radius: 14px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.1);
-    cursor: zoom-in;
+    cursor: default;
     animation: gf-aparecer 0.28s ease;
 
     &:hover .gf-pista {
@@ -186,21 +186,83 @@ $margen-foto: 16px;
     max-width: calc(100vw - #{2 * $espacio-flecha + $ancho-tira});
     min-height: min(70vh, 100%);
     object-fit: contain;
-    transition: transform 0.25s ease;
+    user-select: none;
+    transition: transform 0.1s ease-out;
   }
 
   .gf-marco-ampliado {
-    cursor: zoom-out;
-
     .gf-grande {
-      transform: scale(2.6);
-      // Al seguir al cursor no debe ir con retardo.
-      transition: transform 0.25s ease, transform-origin 0s;
+      cursor: grab;
     }
 
     .gf-rotulo,
     .gf-pista {
       opacity: 0 !important;
+    }
+  }
+
+  // Mientras se arrastra, la foto va pegada al mouse, sin transición.
+  .gf-arrastrando .gf-grande {
+    cursor: grabbing;
+    transition: none;
+  }
+
+  .gf-barra-zoom {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(2, 6, 23, 0.65);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    cursor: default;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+
+      &:hover:not(:disabled) {
+        background: rgba(0, 229, 255, 0.28);
+      }
+
+      &:active:not(:disabled) {
+        transform: scale(0.88);
+      }
+
+      &:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+    }
+
+    span {
+      min-width: 52px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+
+    .gf-espejo {
+      transform: scaleX(-1);
     }
   }
 

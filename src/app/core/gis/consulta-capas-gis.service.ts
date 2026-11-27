@@ -465,7 +465,9 @@ export class ConsultaCapasGisService {
         const numeroFicha = campoFicha ? String(propiedades[campoFicha] ?? "").trim() : "";
         if (!numeroFicha) return of(fotosPredio);
         const conexiones = (["fichaAgua", "fichaAlcantarillado"] as CapaGisId[]).map((rol) =>
-          this.fotosDeConexion(rol, numeroFicha),
+          this.fotosDeConexion(rol, numeroFicha).pipe(
+            switchMap((fotos) => (fotos.length ? of(fotos) : this.fotosDeConexionPorCliente(rol, codcliente))),
+          ),
         );
         return forkJoin(conexiones).pipe(map((listas) => [...fotosPredio, ...listas.flat()]));
       }),
@@ -487,6 +489,33 @@ export class ConsultaCapasGisService {
     if (!url) return of([]);
     return this.http.get<RespuestaGeoServer>(url).pipe(
       map((respuesta) => this.fotosDe(rol, respuesta.features?.[0]?.properties ?? {})),
+      catchError(() => of([])),
+    );
+  }
+
+  /** Fotos de la ficha de agua o alcantarillado más reciente del cliente, cuando no comparte número con la del predio. */
+  private fotosDeConexionPorCliente(rol: CapaGisId, codcliente: string): Observable<FotoGis[]> {
+    const consulta = this.gis.consultaCapa(rol);
+    const campo = consulta.campoFicha ?? consulta.campoTitulo;
+    if (!consulta.fichaEmpiezaConCliente || !consulta.fotos || !campo || !this.gis.tieneCapa(rol)) return of([]);
+    const prefijo = `${codcliente.replace(/^0+/, "")}_`;
+    if (prefijo === "_") return of([]);
+    const columnas = [...Object.keys(consulta.fotos), campo, ...(consulta.campoFecha ? [consulta.campoFecha] : [])];
+    // En LIKE el guion bajo vale por cualquier carácter: el prefijo exacto se comprueba después.
+    const url = this.gis.urlGetFeature(rol, `${campo} LIKE '${prefijo}%'`, {
+      propertyName: columnas.join(","),
+      maxFeatures: String(FICHAS_POR_CLIENTE),
+    });
+    if (!url) return of([]);
+    return this.http.get<RespuestaGeoServer>(url).pipe(
+      map((respuesta) => {
+        const campoFecha = consulta.campoFecha;
+        const fichas = (respuesta.features ?? [])
+          .map((elemento) => elemento?.properties ?? {})
+          .filter((propiedades) => String(propiedades[campo] ?? "").startsWith(prefijo));
+        if (campoFecha) fichas.sort((a, b) => String(b[campoFecha] ?? "").localeCompare(String(a[campoFecha] ?? "")));
+        return this.fotosDe(rol, fichas[0] ?? {});
+      }),
       catchError(() => of([])),
     );
   }

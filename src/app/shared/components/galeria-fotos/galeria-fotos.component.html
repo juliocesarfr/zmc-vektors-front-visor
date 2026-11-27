@@ -15,19 +15,37 @@
   (activeIndexChange)="irA($event)" [fullScreen]="true" [circular]="true" [showItemNavigators]="fotos.length > 1"
   [showThumbnails]="false" [baseZIndex]="100000" maskClass="gf-fondo">
   <ng-template #item let-foto>
-    <div class="gf-escena" [class.gf-escena-sola]="fotos.length < 2" (click)="cerrar()">
+    <div class="gf-escena" [class.gf-escena-sola]="fotos.length < 2" (click)="cerrar()"
+      (wheel)="alGirarRueda($event, zonaFoto)">
       <div class="gf-ambiente" [style.background-image]="'url(' + foto.url + ')'"></div>
 
-      <div class="gf-zona-foto">
-        <div class="gf-marco" [class.gf-marco-ampliado]="estaAmpliada" (click)="alternarZoom($event)"
-          (mousemove)="moverZoom($event)" (mouseleave)="estaAmpliada = false"
-          [title]="estaAmpliada ? 'Clic para volver al tamaño normal' : 'Clic para ampliar'">
-          <img class="gf-grande" [src]="foto.url" [alt]="foto.etiqueta" [style.transform-origin]="origenZoom" />
+      <div class="gf-zona-foto" #zonaFoto>
+        <div class="gf-marco" [class.gf-marco-ampliado]="estaAmpliada" [class.gf-arrastrando]="estaArrastrando"
+          (click)="$event.stopPropagation()">
+          <img class="gf-grande" [src]="foto.url" [alt]="foto.etiqueta" draggable="false"
+            [style.transform]="transformacion" (mousedown)="iniciarArrastre($event)"
+            (mousemove)="moverArrastre($event)" (mouseup)="terminarArrastre()" (mouseleave)="terminarArrastre()" />
           <div class="gf-rotulo">
             <strong>{{ foto.etiqueta }}</strong>
             <span>{{ indiceActivo + 1 }} / {{ fotos.length }}</span>
           </div>
-          <div class="gf-pista"><i class="pi pi-search-plus"></i> Clic para ampliar</div>
+          <div class="gf-pista"><i class="pi pi-search-plus"></i> Rueda del mouse para ampliar</div>
+        </div>
+
+        <div class="gf-barra-zoom" (click)="$event.stopPropagation()">
+          <button type="button" (click)="rotarIzquierda()" title="Rotar 90° a la izquierda">
+            <i class="pi pi-refresh gf-espejo"></i>
+          </button>
+          <button type="button" (click)="rotarDerecha()" title="Rotar 90° a la derecha">
+            <i class="pi pi-refresh"></i>
+          </button>
+          <button type="button" (click)="alejar()" [disabled]="!estaAmpliada" title="Alejar">
+            <i class="pi pi-minus"></i>
+          </button>
+          <span>{{ zoom * 100 | number: "1.0-0" }} %</span>
+          <button type="button" (click)="acercar()" title="Acercar">
+            <i class="pi pi-plus"></i>
+          </button>
         </div>
       </div>
 

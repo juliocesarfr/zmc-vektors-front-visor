@@ -68,6 +68,12 @@ export interface CapasTecnicasGis {
   presiones?: string;
 }
 
+/** Símbolo junto al nombre de la capa en el panel; debe parecerse a cómo la dibuja GeoServer. */
+export interface SimboloCapaGis {
+  forma: "punto" | "rombo" | "linea" | "area";
+  color: string;
+}
+
 /**
  * Estilo propio para una capa cuyo estilo de GeoServer no sirve (polígono gris opaco, cuadros rojos).
  * Se manda en cada petición como SLD_BODY: no hace falta tocar GeoServer.
@@ -114,6 +120,8 @@ export interface GisEpsConfig {
   vista?: GisVistaConfig;
   proyecciones: GisProyeccionesConfig;
   etiquetas?: Record<string, string>;
+  /** Rol -> símbolo en el panel de capas, cuando el rol no tiene uno o la EPS lo dibuja de otro color. */
+  simbolosCapas?: Record<string, SimboloCapaGis>;
   /** Rol -> estilo propio; sin entrada se usa el estilo publicado en GeoServer. */
   estilosCapas?: Record<string, EstiloCapaGis>;
   ortofotos?: OrtofotoGis[];
@@ -159,4 +167,10 @@ export interface ConsultaCapaGis {
   campoFicha?: string;
   /** Fecha de la ficha: si un cliente tiene varias, sus fotos salen de la más reciente. */
   campoFecha?: string;
+  /**
+   * El número de ficha empieza con el código del cliente sin ceros a la izquierda y un guion bajo
+   * ("98840_084430080726"). Si la ficha de agua o alcantarillado se levantó en otro momento que la del
+   * predio, su número no coincide: entonces se busca por el cliente.
+   */
+  fichaEmpiezaConCliente?: boolean;
 }

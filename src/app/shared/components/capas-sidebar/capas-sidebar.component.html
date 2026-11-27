@@ -129,7 +129,7 @@
             (click)="alternarCapa(capa, clase)"
           >
             <span class="simbolo">
-              @if (capa.simbolo; as simbolo) {
+              @if (simboloDe(capa); as simbolo) {
                 <i [ngClass]="'forma-' + simbolo.forma" [style.--color-simbolo]="simbolo.color"></i>
               }
             </span>

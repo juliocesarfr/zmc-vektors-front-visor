@@ -1,15 +1,20 @@
 import { AfterViewInit, Component, ElementRef, HostListener, Input, OnDestroy, ViewChild } from "@angular/core";
+import { DecimalPipe } from "@angular/common";
 import { GalleriaModule } from "primeng/galleria";
 
 import { FotoGis } from "../../../core/gis";
 
-const ORIGEN_ZOOM_AL_CENTRO = "50% 50%";
+// Igual que el visor de fotos de las demás ventanas (VisorImagenesComponent).
+const ZOOM_NORMAL = 1;
+const ZOOM_MAXIMO = 5;
+const PASO_ZOOM_RUEDA = 0.15;
+const PASO_ZOOM_BOTON = 0.25;
 
 /** Miniaturas de las fotos de una ficha; al elegir una se abre la galería a pantalla completa, sin salir del mapa. */
 @Component({
   selector: "app-galeria-fotos",
   standalone: true,
-  imports: [GalleriaModule],
+  imports: [GalleriaModule, DecimalPipe],
   templateUrl: "./galeria-fotos.component.html",
   styleUrls: ["./galeria-fotos.component.scss"],
 })
@@ -20,9 +25,22 @@ export class GaleriaFotosComponent implements AfterViewInit, OnDestroy {
 
   estaAbierta = false;
   indiceActivo = 0;
-  /** La foto se ve ampliada y sigue al cursor, para leer el medidor o el número de la puerta. */
-  estaAmpliada = false;
-  origenZoom = ORIGEN_ZOOM_AL_CENTRO;
+  zoom = ZOOM_NORMAL;
+  rotacion = 0;
+  desplazamientoX = 0;
+  desplazamientoY = 0;
+  estaArrastrando = false;
+
+  private inicioArrastreX = 0;
+  private inicioArrastreY = 0;
+
+  get estaAmpliada(): boolean {
+    return this.zoom > ZOOM_NORMAL;
+  }
+
+  get transformacion(): string {
+    return `translate(${this.desplazamientoX}px, ${this.desplazamientoY}px) scale(${this.zoom}) rotate(${this.rotacion}deg)`;
+  }
 
   ngAfterViewInit(): void {
     // Los cuadros del mapa llevan desenfoque de fondo, que encierra dentro de ellos a lo que es de pantalla completa.
@@ -44,22 +62,57 @@ export class GaleriaFotosComponent implements AfterViewInit, OnDestroy {
 
   irA(indice: number): void {
     this.indiceActivo = indice;
-    this.estaAmpliada = false;
-    this.origenZoom = ORIGEN_ZOOM_AL_CENTRO;
+    this.zoom = ZOOM_NORMAL;
+    this.rotacion = 0;
+    this.centrar();
   }
 
-  alternarZoom(evento: MouseEvent): void {
-    evento.stopPropagation();
-    this.estaAmpliada = !this.estaAmpliada;
-    this.moverZoom(evento);
+  acercar(): void {
+    this.aplicarZoom(this.zoom + PASO_ZOOM_BOTON);
   }
 
-  moverZoom(evento: MouseEvent): void {
+  alejar(): void {
+    this.aplicarZoom(this.zoom - PASO_ZOOM_BOTON);
+  }
+
+  rotarIzquierda(): void {
+    this.rotacion -= 90;
+  }
+
+  rotarDerecha(): void {
+    this.rotacion += 90;
+  }
+
+  /** Con la rueda se acerca hacia donde apunta el cursor: ese punto de la foto queda quieto bajo el mouse. */
+  alGirarRueda(evento: WheelEvent, zonaFoto: HTMLElement): void {
+    evento.preventDefault();
+    const borde = zonaFoto.getBoundingClientRect();
+    const cursorX = evento.clientX - (borde.left + borde.width / 2);
+    const cursorY = evento.clientY - (borde.top + borde.height / 2);
+    const zoomAnterior = this.zoom;
+    this.aplicarZoom(this.zoom + (evento.deltaY < 0 ? PASO_ZOOM_RUEDA : -PASO_ZOOM_RUEDA));
     if (!this.estaAmpliada) return;
-    const marco = (evento.currentTarget as HTMLElement).getBoundingClientRect();
-    const horizontal = ((evento.clientX - marco.left) / marco.width) * 100;
-    const vertical = ((evento.clientY - marco.top) / marco.height) * 100;
-    this.origenZoom = `${horizontal}% ${vertical}%`;
+    const proporcion = this.zoom / zoomAnterior;
+    this.desplazamientoX = cursorX - (cursorX - this.desplazamientoX) * proporcion;
+    this.desplazamientoY = cursorY - (cursorY - this.desplazamientoY) * proporcion;
+  }
+
+  iniciarArrastre(evento: MouseEvent): void {
+    if (!this.estaAmpliada) return;
+    this.estaArrastrando = true;
+    this.inicioArrastreX = evento.clientX - this.desplazamientoX;
+    this.inicioArrastreY = evento.clientY - this.desplazamientoY;
+    evento.preventDefault();
+  }
+
+  moverArrastre(evento: MouseEvent): void {
+    if (!this.estaArrastrando) return;
+    this.desplazamientoX = evento.clientX - this.inicioArrastreX;
+    this.desplazamientoY = evento.clientY - this.inicioArrastreY;
+  }
+
+  terminarArrastre(): void {
+    this.estaArrastrando = false;
   }
 
   @HostListener("document:keydown", ["$event"])
@@ -70,6 +123,17 @@ export class GaleriaFotosComponent implements AfterViewInit, OnDestroy {
     else if (evento.key === "ArrowLeft" || evento.key === "ArrowUp") this.avanzar(-1);
     else return;
     evento.preventDefault();
+  }
+
+  private aplicarZoom(valor: number): void {
+    this.zoom = Math.min(Math.max(valor, ZOOM_NORMAL), ZOOM_MAXIMO);
+    // Sin zoom no tiene sentido que la foto quede corrida.
+    if (!this.estaAmpliada) this.centrar();
+  }
+
+  private centrar(): void {
+    this.desplazamientoX = 0;
+    this.desplazamientoY = 0;
   }
 
   private avanzar(pasos: number): void {

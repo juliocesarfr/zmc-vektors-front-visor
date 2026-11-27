@@ -11,6 +11,7 @@ import {
   OrtofotoGis,
   GisEpsConfig,
   GisVistaConfig,
+  SimboloCapaGis,
 } from "./gis-config.model";
 import {
   CONFIG_EPS,
@@ -117,6 +118,11 @@ export class GisConfigService {
 
   get ortofotos(): OrtofotoGis[] {
     return this.actual.ortofotos ?? [];
+  }
+
+  /** Símbolo que declara la EPS para una capa en el panel; sin él, el panel usa el de siempre para ese rol. */
+  simboloCapa(rol: CapaGisId): SimboloCapaGis | undefined {
+    return this.actual.simbolosCapas?.[rol];
   }
 
   urlWms(): string {
