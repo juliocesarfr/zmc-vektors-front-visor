@@ -128,6 +128,13 @@ const routes: Routes = conConfigGis([
         (m) => m.ReclamosPrimeraInstanciaComponent,
       ),
   },
+  {
+    path: "reclamos/fundados_infundados",
+    loadComponent: () =>
+      import("../_pages/reclamos/reclamos-fundados-infundados/reclamos-fundados-infundados.component").then(
+        (m) => m.ReclamosFundadosInfundadosComponent,
+      ),
+  },
   { path: "", redirectTo: "main", pathMatch: "full" },
 ]);
 

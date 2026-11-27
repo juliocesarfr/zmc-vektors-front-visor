@@ -44,6 +44,8 @@ export class TablaSeleccionMapaComponent implements OnChanges {
   /** Hay un popup abierto a la derecha: la tabla se corre para no tapar ni quedar tapada. */
   @Input() hayPanelDerecho = false;
   @Input() estaGenerandoPdf = false;
+  /** El PDF lleva el plano de un área dibujada: un listado que no sale de un área no lo tiene. */
+  @Input() puedeDescargarPdf = true;
   /** Solo las EPS que publican curvas de nivel tienen vista 3D. */
   @Input() puedeVer3d = false;
   @Input() estaPreparando3d = false;

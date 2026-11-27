@@ -63,16 +63,18 @@
           (click)="exportarExcel()"
           title="Descargar en Excel lo que se ve en la tabla"
         ></button>
-        <button
-          pButton
-          type="button"
-          class="p-button-sm p-button-danger ts-pdf"
-          icon="pi pi-file-pdf"
-          [label]="estaGenerandoPdf ? 'Generando…' : 'PDF'"
-          [disabled]="estaGenerandoPdf"
-          (click)="descargarPdf.emit(filasVisibles)"
-          title="Descargar en PDF el plano del área y lo que se ve en la tabla"
-        ></button>
+        @if (puedeDescargarPdf) {
+          <button
+            pButton
+            type="button"
+            class="p-button-sm p-button-danger ts-pdf"
+            icon="pi pi-file-pdf"
+            [label]="estaGenerandoPdf ? 'Generando…' : 'PDF'"
+            [disabled]="estaGenerandoPdf"
+            (click)="descargarPdf.emit(filasVisibles)"
+            title="Descargar en PDF el plano del área y lo que se ve en la tabla"
+          ></button>
+        }
         @if (puedeVer3d) {
           <button
             pButton

@@ -1,0 +1,892 @@
+<p-toast [appendTo]="'body'"></p-toast>
+
+<div class="cd-wrapper">
+  <div class="cd-toolbar">
+    <div class="cd-title">
+      <img src="assets/images/img-medicion/writing.png" alt="reclamos" />
+      <h3>RECLAMOS FUNDADOS E INFUNDADOS <span>| Mapa</span></h3>
+    </div>
+
+    <div class="cd-toolbar-actions">
+      @if (!filtrosVisible) {
+        <div class="cd-filtros-summary">
+          <span class="filtro-chip sucursal">
+            <i class="pi pi-building"></i> Sede: {{ getDescSede() }}
+          </span>
+          @if (fechaInicial && fechaFinal) {
+            <span class="filtro-chip estado">
+              <i class="pi pi-calendar"></i> {{ fechaInicial | date: 'dd/MM/yyyy' }} -
+              {{ fechaFinal | date: 'dd/MM/yyyy' }}
+            </span>
+          }
+          <span class="filtro-chip tipo">
+            <i class="pi pi-tag"></i> Instancia: {{ getDescEstado() }}
+          </span>
+          @if (cantidadFiltrosSobreLoCargado > 0) {
+            <span class="filtro-chip tipo" title="Filtros sobre lo cargado y «Mostrar solo»">
+              <i class="pi pi-filter"></i> Mostrar solo: {{ cantidadFiltrosSobreLoCargado }}
+            </span>
+          }
+          @if (isBusquedaClienteActiva && clienteBuscado) {
+            <span class="filtro-chip tipo quitable" (click)="reiniciarBusqueda()" title="Volver a todos los reclamos">
+              <i class="pi pi-user"></i> Cliente {{ clienteBuscado }} <i class="pi pi-times"></i>
+            </span>
+          }
+          @if (filtroDelResumen) {
+            <span class="filtro-chip tipo quitable" (click)="quitarFiltroDelResumen()" title="Quitar este filtro">
+              <i class="pi pi-chart-bar"></i> {{ filtroDelResumen.etiqueta }} <i class="pi pi-times"></i>
+            </span>
+          }
+        </div>
+      }
+      <button class="cd-toggle-filtros" (click)="toggleFiltros()" [class.active]="filtrosVisible">
+        <span class="toggle-icon-wrap">
+          <i
+            class="pi"
+            [class.pi-sliders-h]="!filtrosVisible"
+            [class.pi-times]="filtrosVisible"
+          ></i>
+        </span>
+        <span class="toggle-label">{{ filtrosVisible ? 'Cerrar' : 'Filtrar datos' }}</span>
+        <i class="pi pi-chevron-down cd-chevron" [class.rotated]="filtrosVisible"></i>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="abrirResumen()"
+        [disabled]="!hayReclamosCargados"
+        title="Indicadores SUNASS, resumen por sede, por instancia y razones del fundado"
+      >
+        <i class="pi pi-chart-bar"></i>
+        <span>Resumen</span>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="abrirListado()"
+        [disabled]="!hayReclamosCargados"
+        title="Listado de los reclamos que se ven en el mapa, con su Excel"
+      >
+        <i class="pi pi-list"></i>
+        <span>Listado</span>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main btn-descargar-shape"
+        (click)="descargarShape()"
+        [disabled]="descargandoShape"
+        title="Muestra lo que tendrá el shape de las capas encendidas, en la zona que se ve del mapa, y lo descarga en un .zip"
+      >
+        <i
+          class="pi"
+          [class.pi-download]="!descargandoShape"
+          [class.pi-spin]="descargandoShape"
+          [class.pi-spinner]="descargandoShape"
+        ></i>
+        <span>{{ descargandoShape ? 'Descargando…' : 'Descargar shape' }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="btn-volver-main"
+        (click)="volverAlMain()"
+        title="Volver al Visor Principal de Georreferencia"
+      >
+        <i class="pi pi-arrow-left"></i>
+        <span>Volver al Principal</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="cd-filtros-panel" [class.visible]="filtrosVisible">
+    <div class="cd-filtros-inner">
+      <div class="cd-filtros">
+        <span class="p-float-label">
+          <p-datepicker
+            [(ngModel)]="fechaInicial"
+            dateFormat="dd/mm/yy"
+            [showIcon]="true"
+            [readonlyInput]="true"
+            [maxDate]="fechaFinal"
+            appendTo="body"
+            [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido"
+            [class.ng-dirty]="!hayRangoDeFechasValido"
+          ></p-datepicker>
+          <label>Fecha desde <i class="pi pi-exclamation-circle" style="color: red"></i></label>
+        </span>
+
+        <span class="p-float-label">
+          <p-datepicker
+            [(ngModel)]="fechaFinal"
+            dateFormat="dd/mm/yy"
+            [showIcon]="true"
+            [readonlyInput]="true"
+            [minDate]="fechaInicial"
+            appendTo="body"
+            [style]="{ width: '170px' }"
+            [class.ng-invalid]="!hayRangoDeFechasValido"
+            [class.ng-dirty]="!hayRangoDeFechasValido"
+          ></p-datepicker>
+          <label>Fecha hasta <i class="pi pi-exclamation-circle" style="color: red"></i></label>
+        </span>
+
+        <span class="p-float-label">
+          <p-select
+            [options]="listaSedes"
+            [(ngModel)]="selectedSede"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            [style]="{ width: '200px' }"
+            placeholder="Sede"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Sede</label>
+        </span>
+
+        <span class="p-float-label">
+          <p-select
+            [options]="listaEstados"
+            [(ngModel)]="selectedEstado"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            [style]="{ width: '260px' }"
+            placeholder="Instancia"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Instancia</label>
+        </span>
+
+        <div class="filtros-btns">
+          <p-button
+            (click)="procesar()"
+            icon="pi pi-search"
+            label="BUSCAR"
+            severity="warn"
+            [loading]="cargando"
+            [disabled]="!hayRangoDeFechasValido"
+          ></p-button>
+          <p-button
+            (click)="limpiar()"
+            icon="pi pi-filter-slash"
+            label="Limpiar"
+            [outlined]="true"
+          ></p-button>
+        </div>
+      </div>
+      @if (!hayRangoDeFechasValido) {
+        <small class="p-error"> La fecha desde no puede ser mayor que la fecha hasta. </small>
+      }
+
+      <div class="cd-filtros sobre-lo-cargado">
+        <span class="subtitulo-filtros" title="Filtran los reclamos ya cargados, sin volver a consultar">Sobre lo cargado</span>
+        <span class="p-float-label">
+          <p-select
+            [options]="opcionesTipo"
+            [(ngModel)]="selectedTipo"
+            (ngModelChange)="alCambiarFiltroSobreLoCargado()"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            [disabled]="!hayReclamosCargados"
+            [style]="{ width: '190px' }"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Tipo de reclamo</label>
+        </span>
+        <span class="p-float-label">
+          <p-select
+            [options]="opcionesConcepto"
+            [(ngModel)]="selectedConcepto"
+            (ngModelChange)="alCambiarFiltroSobreLoCargado()"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            [filter]="true"
+            filterBy="descripcion"
+            [disabled]="!hayReclamosCargados"
+            [style]="{ width: '240px' }"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Concepto</label>
+        </span>
+        <span class="p-float-label">
+          <p-select
+            [options]="opcionesRazon"
+            [(ngModel)]="selectedRazon"
+            (ngModelChange)="alCambiarFiltroSobreLoCargado()"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            [disabled]="!hayReclamosCargados"
+            [style]="{ width: '220px' }"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Razón del fundado</label>
+        </span>
+        <span class="p-float-label">
+          <p-select
+            [options]="opcionesSector"
+            [(ngModel)]="selectedSector"
+            (ngModelChange)="alCambiarFiltroSobreLoCargado()"
+            optionLabel="descripcion"
+            optionValue="codigo"
+            [disabled]="!hayReclamosCargados"
+            [style]="{ width: '150px' }"
+            [appendTo]="'body'"
+          ></p-select>
+          <label>Sector</label>
+        </span>
+      </div>
+
+      <div class="mostrar-solo">
+        <span class="subtitulo-filtros">Mostrar solo</span>
+        @for (filtro of filtrosRapidos; track filtro.clave) {
+          <button
+            type="button"
+            class="chip-filtro"
+            [class.activo]="estaActivoFiltroRapido(filtro.clave)"
+            [disabled]="!hayReclamosCargados"
+            (click)="alternarFiltroRapido(filtro.clave)"
+          >
+            {{ filtro.nombre }}
+          </button>
+        }
+        @if (filtrosRapidosActivos.size > 0) {
+          <span class="limpiar-link" (click)="quitarFiltrosRapidos()"><i class="pi pi-filter-slash"></i> Quitar</span>
+        }
+      </div>
+      <small class="nota-filtros">
+        Se combinan entre sí. La rebaja no guarda el número de reclamo: se enlaza por los meses reclamados (mismo
+        cliente, rebaja vigente posterior al reclamo) y queda marcada como enlace estimado.
+      </small>
+    </div>
+  </div>
+
+  <div class="cd-map-container">
+    @if (cargando) {
+      <div class="map-loading-overlay">
+        <i class="pi pi-spin pi-spinner"></i>
+        <span>Cargando mapa...</span>
+      </div>
+    }
+
+    @if (hayReclamosCargados) {
+      <div class="cd-resumen tarjetas-reclamos" [class.con-ficha]="!!reclamoSeleccionado || mostrarSearchPanel">
+        <div class="card-resumen filtrable" (click)="quitarFiltrosRapidos()" title="Reclamos que se ven · clic: quitar «Mostrar solo»">
+          <span class="numero">{{ tarjetas.reclamos | number }}</span>
+          <span class="titulo">Reclamos · {{ totalClientesVisibles | number }} clientes</span>
+        </div>
+        <div
+          class="card-resumen filtrable fundado"
+          [class.activa]="estaActivoFiltroRapido('fundados')"
+          (click)="alternarFiltroRapido('fundados')"
+          title="Clic: ver solo fundados"
+        >
+          <span class="numero">{{ tarjetas.fundados | number }}</span>
+          <span class="titulo">Fundados {{ tarjetas.porcentajeFundados }} %</span>
+        </div>
+        <div
+          class="card-resumen filtrable infundado"
+          [class.activa]="estaActivoFiltroRapido('infundados')"
+          (click)="alternarFiltroRapido('infundados')"
+          title="Clic: ver solo infundados"
+        >
+          <span class="numero">{{ tarjetas.infundados | number }}</span>
+          <span class="titulo">Infundados</span>
+        </div>
+        <div
+          class="card-resumen filtrable fuera-de-plazo"
+          [class.activa]="estaActivoFiltroRapido('fuera')"
+          (click)="alternarFiltroRapido('fuera')"
+          title="Resueltos fuera de plazo o con silencio positivo (se entiende fundado)"
+        >
+          <span class="numero">{{ tarjetas.fueraDePlazo | number }}</span>
+          <span class="titulo">Fuera de plazo</span>
+        </div>
+        <div
+          class="card-resumen filtrable al-limite"
+          [class.activa]="estaActivoFiltroRapido('allimite')"
+          (click)="alternarFiltroRapido('allimite')"
+          title="Resueltos dentro de los 3 últimos días hábiles del plazo"
+        >
+          <span class="numero">{{ tarjetas.alLimite | number }}</span>
+          <span class="titulo">Al límite</span>
+        </div>
+        <div
+          class="card-resumen filtrable reincidente"
+          [class.activa]="estaActivoFiltroRapido('reincidentes')"
+          (click)="alternarFiltroRapido('reincidentes')"
+          [title]="'Reclamos de clientes con ' + minimoReincidente + ' o más reclamos en el periodo'"
+        >
+          <span class="numero">{{ tarjetas.deReincidentes | number }}</span>
+          <span class="titulo">De reincidentes ({{ minimoReincidente }}+)</span>
+        </div>
+        <div
+          class="card-resumen filtrable sin-notificar"
+          [class.activa]="estaActivoFiltroRapido('sinnotificar')"
+          (click)="alternarFiltroRapido('sinnotificar')"
+          title="La resolución vigente no tiene fecha de notificación"
+        >
+          <span class="numero">{{ tarjetas.sinNotificar | number }}</span>
+          <span class="titulo">Sin notificar</span>
+        </div>
+        <div
+          class="card-resumen filtrable rebajado"
+          [class.activa]="estaActivoFiltroRapido('conrebaja')"
+          (click)="alternarFiltroRapido('conrebaja')"
+          title="Solo rebajas vigentes (atendidas u observadas); cada rebaja se cuenta en un solo reclamo"
+        >
+          <span class="numero">S/ {{ tarjetas.totalRebajado | number: '1.0-0' }}</span>
+          <span class="titulo">Rebajado</span>
+        </div>
+        @if (totalSinCoordenadas > 0) {
+          <div
+            class="card-resumen warn descargable"
+            (click)="descargarSinCoordenadas()"
+            title="Descargar en Excel los reclamos sin coordenadas"
+          >
+            <span class="numero">{{ totalSinCoordenadas | number }}</span>
+            <span class="titulo">Sin Coord.</span>
+          </div>
+        }
+      </div>
+    }
+
+    <div id="map" #mapContainer class="map"></div>
+
+    @if (mostrarLeyenda && hayReclamosCargados) {
+      <section class="panel-pintado" aria-label="Cómo se pinta el mapa">
+        <div class="pp-cabecera">
+          <span>PINTAR EL MAPA POR</span>
+          <i class="pi pi-times cerrar" (click)="mostrarLeyenda = false" title="Ocultar"></i>
+        </div>
+        <div class="pp-botones">
+          @for (opcion of modosPintado; track opcion.modo) {
+            <button type="button" [class.activo]="modoPintado === opcion.modo" (click)="elegirModoPintado(opcion.modo)">
+              {{ opcion.nombre }}
+            </button>
+          }
+        </div>
+        <span class="pp-explicacion">{{ explicacionModo }}</span>
+        <div class="pp-leyenda">
+          @for (entrada of entradasLeyenda; track entrada.grupo.clave) {
+            <button
+              type="button"
+              class="pp-entrada"
+              [class.activa]="grupoFiltrado === entrada.grupo.clave"
+              [class.apagada]="!!grupoFiltrado && grupoFiltrado !== entrada.grupo.clave"
+              [title]="entrada.grupo.detalle"
+              (click)="filtrarPorGrupo(entrada.grupo.clave)"
+            >
+              <span class="pp-muestra" [style.background]="muestraDeGrupo(entrada.grupo)"></span>
+              <span class="pp-nombre">{{ entrada.grupo.etiqueta }}</span>
+              <span class="pp-cantidad">{{ entrada.cantidad | number }}</span>
+              <span class="pp-porcentaje">{{ entrada.porcentaje }} %</span>
+            </button>
+          }
+        </div>
+        <span class="pp-nota">
+          La leyenda cuenta clientes{{ cargandoLotes ? ' · pintando lotes…' : '' }}. Clic en una fila: el mapa muestra
+          solo ese grupo.
+        </span>
+        <span class="pp-titulo">VER COMO</span>
+        <div class="pp-botones">
+          <button type="button" [class.activo]="vistaMapa === 'puntos'" (click)="elegirVista('puntos')">Puntos</button>
+          <button type="button" [class.activo]="vistaMapa === 'calor'" (click)="elegirVista('calor')">Calor por zona</button>
+        </div>
+        <span class="pp-nota">Un punto por cliente: el número dice cuántos reclamos tiene en el periodo.</span>
+        @if (zonas.length > 0) {
+          <span class="pp-titulo">ZONAS CON MÁS RECLAMOS (200 m)</span>
+          @for (zona of zonas; track zona.nombre) {
+            <button type="button" class="pp-zona" (click)="irAZona(zona)">
+              <span>{{ zona.nombre }}</span>
+              <strong>{{ zona.reclamos }} reclamos · {{ zona.clientes }} clientes</strong>
+            </button>
+          }
+        }
+      </section>
+    }
+    @if (!mostrarLeyenda && hayReclamosCargados) {
+      <button class="cd-leyenda-toggle" (click)="mostrarLeyenda = true" title="Mostrar cómo se pinta el mapa">
+        <i class="pi pi-palette"></i>
+      </button>
+    }
+
+    @if (mostrarSearchPanel) {
+      <div class="cd-search-panel">
+        <div class="search-header">
+          <span><i class="pi pi-search"></i> Buscar Cliente</span>
+          <i class="pi pi-times cerrar" (click)="cerrarBusqueda()"></i>
+        </div>
+        @if (isBusquedaClienteActiva) {
+          <div class="search-actions">
+            <span class="limpiar-link" (click)="reiniciarBusqueda()">
+              <i class="pi pi-filter-slash"></i> Limpiar búsqueda
+            </span>
+          </div>
+        }
+        <div class="search-body p-inputgroup mt-2">
+          <input
+            type="text"
+            pInputText
+            placeholder="Cód. Cliente..."
+            [(ngModel)]="searchCodCliente"
+            (keyup.enter)="buscarPorCodCliente()"
+          />
+          <button
+            pButton
+            type="button"
+            icon="pi pi-search"
+            (click)="buscarPorCodCliente()"
+            class="p-button-primary"
+            title="Buscar"
+          ></button>
+        </div>
+      </div>
+    }
+    @if (!mostrarSearchPanel) {
+      <button class="cd-search-toggle" (click)="abrirBusqueda()">
+        <i class="pi pi-search"></i>
+      </button>
+    }
+
+    <app-capas-sidebar
+      [baseLayers]="baseLayers"
+      [baseActive]="baseActive"
+      [commercialLayers]="commercialLayers"
+      (baseLayerChange)="setBaseLayer($event)"
+      (layerToggle)="toggleCommercialLayer($event)"
+      (abiertoChange)="onSidebarToggle()"
+    >
+    </app-capas-sidebar>
+
+    <!-- FICHA DEL CLIENTE -->
+    @if (reclamoSeleccionado; as reclamo) {
+      <div class="user-popup" (click)="$event.stopPropagation()">
+        <div class="up-header">
+          <div class="up-header-left">
+            <div class="up-avatar">
+              <img src="assets/images/img-georeferencia/usuario-icon.gif" alt="Usuario" />
+            </div>
+            <div class="up-header-info">
+              <span class="up-label">CLIENTE {{ reclamo.codcliente }} · SECTOR {{ reclamo.codsector }}</span>
+              <strong class="up-name">{{ reclamo.propietario }}</strong>
+            </div>
+          </div>
+          <button class="up-close" (click)="cerrarPopup()"><i class="pi pi-times"></i></button>
+        </div>
+        <div class="ficha-chips">
+          @if (reclamosDelClienteSeleccionado.length > 1) {
+            <span class="ficha-chip" [class.alerta]="reclamosDelClienteSeleccionado.length >= minimoReincidente">
+              {{ reclamosDelClienteSeleccionado.length >= minimoReincidente ? 'Reincidente · ' : '' }}{{ reclamosDelClienteSeleccionado.length }} reclamos en el periodo
+            </span>
+          }
+          @if (fundadosDelClienteSeleccionado > 0) {
+            <span class="ficha-chip fundado">{{ fundadosDelClienteSeleccionado }} fundado{{ fundadosDelClienteSeleccionado > 1 ? 's' : '' }}</span>
+          }
+        </div>
+        <div class="up-suministro">
+          <div class="up-sum-item primary">
+            <i class="pi pi-file-edit"></i>
+            <span class="up-sum-label">RECLAMO N°</span>
+            <span class="up-sum-value">{{ reclamo.nroreclamo }}</span>
+          </div>
+          <div class="up-sum-sep"></div>
+          <div class="up-sum-item">
+            <span class="up-sum-label">RESULTADO</span>
+            <span class="up-sum-value"
+              ><span class="estado-muestra" [style.background]="colorDelResultado(reclamo)"></span
+              >{{ resultadoDelReclamo(reclamo) }}</span
+            >
+          </div>
+        </div>
+        <div class="up-body">
+          <div class="up-section">
+            <div class="up-section-title medidor"><i class="pi pi-file-edit"></i> RECLAMO</div>
+            <div class="up-grid grid-2">
+              <div class="up-cell">
+                <span class="uc-label">Instancia vigente</span
+                ><span class="uc-val">{{ instanciaDelReclamo(reclamo) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Fecha del reclamo</span><span class="uc-val">{{ reclamo.fecharec }}</span>
+              </div>
+              <div class="up-cell full">
+                <span class="uc-label">Concepto</span
+                ><span class="uc-val">{{ reclamo.codreclamo }} {{ reclamo.destiporeclam }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Tipo</span><span class="uc-val">{{ tipoDeReclamo(reclamo) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Razón del fundado</span
+                ><span class="uc-val">{{ razonDelFundado(reclamo) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Medio · Oficina</span
+                ><span class="uc-val"
+                  >{{ medioDelReclamo(reclamo) }}{{ reclamo.desoficina ? ' · ' + reclamo.desoficina : '' }}</span
+                >
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Fin del reclamo</span
+                ><span class="uc-val">{{ reclamo.procesado ? 'Sí' : 'No' }}</span>
+              </div>
+              <div class="up-cell full">
+                <span class="uc-label">Reclamante</span><span class="uc-val">{{ reclamo.reclamante }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="up-section">
+            <div class="up-section-title loc"><i class="pi pi-clock"></i> PLAZOS (DÍAS HÁBILES)</div>
+            @if (reclamo.estadoplazo !== 'NA') {
+              <div class="plazo-barra" [style.border-color]="plazoDelReclamo(reclamo).color">
+                <div class="plazo-cabecera">
+                  <strong class="plazo-etiqueta" [style.background]="plazoDelReclamo(reclamo).color">{{ plazoDelReclamo(reclamo).etiqueta }}</strong>
+                  <span>Resuelto en {{ reclamo.diasresolucion }} de {{ reclamo.diasplazo }} días</span>
+                </div>
+                <div class="plazo-fondo">
+                  <div
+                    class="plazo-avance"
+                    [style.width.%]="avanceDelPlazo(reclamo)"
+                    [style.background]="plazoDelReclamo(reclamo).color"
+                  ></div>
+                </div>
+                <span class="plazo-detalle">{{ plazoDelReclamo(reclamo).detalle }}</span>
+              </div>
+            }
+            <div class="up-grid grid-2">
+              <div class="up-cell">
+                <span class="uc-label">Resolución</span><span class="uc-val">{{ reclamo.fechares }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Fecha máxima</span><span class="uc-val">{{ reclamo.fechamaxresol }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Notificación</span><span class="uc-val">{{ reclamo.fechanotificares }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Límite de notificación</span
+                ><span class="uc-val">{{ reclamo.fechalimitenotificacion }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Atención</span><span class="uc-val">{{ reclamo.fechaate }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Conciliación</span
+                ><span class="uc-val"
+                  >{{ reclamo.fecharesolconcil
+                  }}{{ reclamo.fecharesolconcil ? (reclamo.asistioconciliacion === 1 ? ' · asistió' : ' · no asistió') : '' }}</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="up-section">
+            <div class="up-section-title medidor"><i class="pi pi-sitemap"></i> INSTANCIAS</div>
+            <div class="ficha-lista">
+              <div class="ficha-item">
+                <span class="ficha-punto" [class.fundado]="reclamo.resultadoprimera === 1" [class.infundado]="reclamo.resultadoprimera === 0"></span>
+                <div>
+                  <strong>1ª instancia{{ resultadoDeInstancia(reclamo.resultadoprimera) ? ' · ' + resultadoDeInstancia(reclamo.resultadoprimera) : '' }}</strong>
+                  <span>{{ reclamo.fechares ? 'Resolución del ' + reclamo.fechares : '' }}</span>
+                </div>
+              </div>
+              @if (reclamo.resultadoreconsideracion !== null && reclamo.resultadoreconsideracion !== undefined) {
+                <div class="ficha-item">
+                  <span class="ficha-punto" [class.fundado]="reclamo.resultadoreconsideracion === 1" [class.infundado]="reclamo.resultadoreconsideracion === 0"></span>
+                  <div>
+                    <strong>Reconsideración · {{ resultadoDeInstancia(reclamo.resultadoreconsideracion) }}</strong>
+                    <span>{{ reclamo.fecharesolrecon ? 'Resolución del ' + reclamo.fecharesolrecon : '' }}{{ reclamo.fechanotificarecon ? ' · notificada el ' + reclamo.fechanotificarecon : '' }}</span>
+                  </div>
+                </div>
+              }
+              @if (reclamo.estadorec === '009') {
+                <div class="ficha-item">
+                  <span class="ficha-punto" [class.fundado]="reclamo.resultadoapelacion === 1" [class.infundado]="reclamo.resultadoapelacion === 0"></span>
+                  <div>
+                    <strong
+                      >Apelación (TRASS) ·
+                      {{ reclamo.improcedente === 1 ? 'Improcedente' : resultadoDeInstancia(reclamo.resultadoapelacion) }}</strong
+                    >
+                    <span
+                      >{{ reclamo.fecharesolapela ? 'Resolución del ' + reclamo.fecharesolapela : '' }}{{ reclamo.revocado === 1 ? ' · revocó lo resuelto por la EPS' : '' }}</span
+                    >
+                  </div>
+                </div>
+              }
+            </div>
+            <span class="ficha-nota">
+              Notificación de la instancia vigente:
+              {{ notificacionDelReclamo(reclamo).etiqueta }}{{ fechaNotificacionVigente(reclamo) ? ' el ' + fechaNotificacionVigente(reclamo) : '' }}
+            </span>
+          </div>
+
+          <div class="up-section">
+            <div class="up-section-title loc"><i class="pi pi-search"></i> INSPECCIÓN</div>
+            <div class="up-grid grid-2">
+              <div class="up-cell full">
+                <span class="uc-label">Resultado</span><span class="uc-val">{{ reclamo.resultadoinspeccion }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Fecha</span><span class="uc-val">{{ reclamo.fechainspeccion }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Inspector</span><span class="uc-val">{{ reclamo.inspector }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="up-section">
+            <div class="up-section-title medidor"><i class="pi pi-wallet"></i> MONTOS</div>
+            <div class="up-grid grid-2">
+              <div class="up-cell">
+                <span class="uc-label">Monto reclamado</span
+                ><span class="uc-val">{{ reclamo.montoreclamo !== null && reclamo.montoreclamo !== undefined ? 'S/ ' + (reclamo.montoreclamo | number: '1.2-2') : '' }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Meses reclamados</span><span class="uc-val">{{ reclamo.mesanio }}</span>
+              </div>
+              @if ((reclamo.cantidadrebajas ?? 0) > 0) {
+                <div class="up-cell">
+                  <span class="uc-label">Rebajado</span
+                  ><span class="uc-val">S/ {{ reclamo.totalreba | number: '1.2-2' }}</span>
+                </div>
+                <div class="up-cell">
+                  <span class="uc-label">N° rebaja · fecha</span
+                  ><span class="uc-val"
+                    >{{ reclamo.nrorebaja }} · {{ reclamo.fecharebaja
+                    }}{{ (reclamo.cantidadrebajas ?? 0) > 1 ? ' (' + reclamo.cantidadrebajas + ' rebajas)' : '' }}</span
+                  >
+                </div>
+                <div class="up-cell full">
+                  <span class="uc-label">Enlace de la rebaja</span
+                  ><span class="uc-val">{{ enlaceDeLaRebaja(reclamo) }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="up-section">
+            <div class="up-section-title loc"><i class="pi pi-users"></i> RESPONSABLES</div>
+            <div class="up-grid grid-2">
+              <div class="up-cell">
+                <span class="uc-label">Resolvió</span><span class="uc-val">{{ reclamo.usuarioresolvio }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Notificador</span><span class="uc-val">{{ reclamo.notificador }}</span>
+              </div>
+            </div>
+          </div>
+
+          @if (otrosReclamosDelCliente.length > 0) {
+            <div class="up-section">
+              <div class="up-section-title medidor"><i class="pi pi-history"></i> OTROS RECLAMOS DEL CLIENTE</div>
+              <div class="ficha-lista">
+                @for (otro of otrosReclamosDelCliente; track otro.codsede + '-' + otro.nroreclamo) {
+                  <button type="button" class="ficha-item elegible" (click)="elegirReclamoDelHistorial(otro)" title="Ver este reclamo">
+                    <span class="ficha-punto" [style.background]="colorDelResultado(otro)"></span>
+                    <div>
+                      <strong>N° {{ otro.nroreclamo }} · {{ otro.fecharec }} · {{ resultadoDelReclamo(otro) }}</strong>
+                      <span
+                        >{{ otro.destiporeclam }}{{ razonDelFundado(otro) ? ' · ' + razonDelFundado(otro) : '' }} ·
+                        {{ (otro.cantidadrebajas ?? 0) > 0 ? 'rebaja S/ ' + (otro.totalreba | number: '1.2-2') : 'sin rebaja' }}</span
+                      >
+                    </div>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <div class="up-section">
+            <div
+              class="up-section-title loc"
+              style="display: flex; justify-content: space-between; align-items: center"
+            >
+              <div>
+                <img
+                  src="assets/images/img-georeferencia/ubication-icon.gif"
+                  class="gif-icon"
+                  alt="Ubicación"
+                />
+                UBICACIÓN Y PREDIO
+              </div>
+              <button
+                pButton
+                type="button"
+                class="p-button-outlined p-button-sm p-button-warning"
+                title="Ver en Google Street View"
+                (click)="abrirStreetView(reclamo.lon ?? reclamo.lonpredio, reclamo.lat ?? reclamo.latpredio)"
+                style="padding: 0.2rem 0.5rem; display: flex; align-items: center; gap: 0.5rem"
+              >
+                <img
+                  src="assets/images/img-georeferencia/google-street-view-icon.gif"
+                  style="height: 2.5rem"
+                  alt="Street View"
+                />
+                <span style="font-weight: 900">Ver en Maps</span>
+              </button>
+            </div>
+            <div class="up-grid grid-2">
+              <div class="up-cell full">
+                <span class="uc-label">Dirección</span><span class="uc-val">{{ direccionDe(reclamo) }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Sucursal</span><span class="uc-val">{{ reclamo.sucursal }}</span>
+              </div>
+              <div class="up-cell">
+                <span class="uc-label">Sector</span><span class="uc-val">{{ reclamo.codsector }}</span>
+              </div>
+            </div>
+          </div>
+          <app-fotos-ficha-cliente [codcliente]="reclamo.codcliente"></app-fotos-ficha-cliente>
+          <div
+            class="up-section"
+            style="padding-top: 5px; padding-bottom: 5px; border: none; background: transparent"
+          >
+            <button
+              pButton
+              type="button"
+              icon="pi pi-search-plus"
+              label="Ver más información"
+              class="p-button-sm w-full btn-ver-mas"
+              (click)="verMasInformacion(reclamo.codcliente)"
+            ></button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (mostrarListado && !controladorGis?.filasListado) {
+      <app-tabla-seleccion-mapa
+        titulo="Reclamos que se ven en el mapa"
+        [columnas]="columnasListado"
+        [filas]="filasListado"
+        [subcabeceraExcel]="subcabeceraListado"
+        tituloExcel="RECLAMOS FUNDADOS E INFUNDADOS"
+        nombreArchivoExcel="reclamos_fundados_infundados_"
+        [puedeDescargarPdf]="false"
+        [hayPanelDerecho]="!!reclamoSeleccionado || mostrarSearchPanel || (controladorGis?.elementosGis?.length ?? 0) > 0"
+        (filaElegida)="ubicarFilaEnMapa($event)"
+        (descartar)="cerrarListado()"
+      ></app-tabla-seleccion-mapa>
+    }
+
+    <app-paneles-mapa-gis
+      [controlador]="controladorGis"
+      [hayPanelDerecho]="!!reclamoSeleccionado || mostrarSearchPanel"
+      (filaElegida)="ubicarFilaEnMapa($event)"
+    ></app-paneles-mapa-gis>
+  </div>
+</div>
+
+<p-dialog
+  [visible]="mostrarResumen"
+  (visibleChange)="$event ? null : alCerrarResumen()"
+  [modal]="true"
+  [dismissableMask]="true"
+  [focusOnShow]="false"
+  [style]="{ width: 'min(1180px, 96vw)' }"
+  header="Resumen de los reclamos que se ven en el mapa"
+  appendTo="body"
+>
+  @if (resumen; as datos) {
+    <div class="resumen-reclamos">
+      <span class="resumen-nota">
+        {{ datos.total | number }} reclamos del {{ fechaInicial | date: 'dd/MM/yyyy' }} al {{ fechaFinal | date: 'dd/MM/yyyy' }},
+        con los filtros aplicados. Clic en una sede, instancia o razón: el mapa muestra solo esos reclamos.
+      </span>
+
+      <section class="resumen-indicadores">
+        @for (indicador of datos.indicadores; track indicador.nombre) {
+          <div class="resumen-indicador">
+            <span class="ri-codigo">{{ indicador.codigo }}</span>
+            <span class="ri-nombre">{{ indicador.nombre }}</span>
+            <span class="ri-valor">{{ indicador.valor }}</span>
+            <span class="ri-referencia">{{ indicador.referencia }}</span>
+          </div>
+        }
+      </section>
+
+      <div class="resumen-columnas">
+        <section class="resumen-bloque ancho">
+          <h4>Por sede</h4>
+          <table class="resumen-tabla">
+            <thead>
+              <tr>
+                <th>Sede</th>
+                <th class="numero">Reclamos</th>
+                <th>% fundados</th>
+                <th class="numero">Fuera de plazo</th>
+                <th class="numero">Apelados</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (fila of datos.sedes; track fila.clave) {
+                <tr class="elegible" (click)="filtrarPorSede(fila)">
+                  <td><strong>{{ fila.nombre }}</strong></td>
+                  <td class="numero">{{ fila.total | number }}</td>
+                  <td>
+                    <div class="barra-porcentaje">
+                      <div class="bp-fondo"><div class="bp-avance" [style.width.%]="fila.porcentajeFundados"></div></div>
+                      <span [class.atipica]="fila.esAtipica">{{ fila.porcentajeFundados | number: '1.0-1' }} %</span>
+                    </div>
+                  </td>
+                  <td class="numero">{{ fila.fueraDePlazo | number }}</td>
+                  <td class="numero">{{ fila.apelados | number }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          @if (datos.sedesAtipicas) {
+            <span class="resumen-aviso">
+              Se alejan mucho del porcentaje general de fundados: {{ datos.sedesAtipicas }}. Revisar el criterio o la carga de datos.
+            </span>
+          }
+        </section>
+
+        <section class="resumen-bloque">
+          <h4>Por instancia vigente</h4>
+          @for (fila of datos.instancias; track fila.clave) {
+            <button type="button" class="resumen-instancia" (click)="filtrarPorInstancia(fila)">
+              <div class="ri-fila">
+                <strong>{{ fila.nombre }}</strong>
+                <span>{{ fila.total | number }} · {{ fila.porcentajeFundados | number: '1.0-1' }} % fundados</span>
+              </div>
+              <div class="bp-fondo"><div class="bp-avance" [style.width.%]="fila.porcentajeFundados"></div></div>
+            </button>
+          }
+          <span class="resumen-nota">Verde: se le dio la razón al usuario. Si la apelación revoca mucho, se pudo resolver antes.</span>
+        </section>
+      </div>
+
+      <section class="resumen-bloque">
+        <div class="ri-fila">
+          <h4>¿Por qué se declararon fundados? ({{ datos.fundados | number }})</h4>
+          @if (datos.fundados > 0) {
+            <span class="resumen-aviso">{{ datos.porcentajeConCausa | number: '1.0-1' }} % de los fundados en resolución o apelación tiene una causa específica (sin contar «Otro» ni sin registrar)</span>
+          }
+        </div>
+        <div class="resumen-razones">
+          @for (fila of datos.razones; track fila.codigo) {
+            <button type="button" class="resumen-razon" (click)="filtrarPorRazon(fila)">
+              <span class="rr-nombre">{{ fila.nombre }}</span>
+              <div class="bp-fondo">
+                <div
+                  class="bp-avance"
+                  [class.sin-causa]="fila.codigo === 'SIN' || fila.codigo === '006'"
+                  [class.no-aplica]="fila.codigo === 'NOG'"
+                  [style.width.%]="(fila.cantidad * 100) / maximoRazon()"
+                ></div>
+              </div>
+              <span class="rr-cantidad">{{ fila.cantidad | number }}</span>
+            </button>
+          }
+        </div>
+      </section>
+    </div>
+  }
+</p-dialog>
